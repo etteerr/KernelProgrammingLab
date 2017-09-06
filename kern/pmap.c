@@ -214,7 +214,7 @@ void page_init(void)
 
     for (i = 0; i < npages; i++) {
         page_addr = page2pa(&pages[i]);
-        is_free = page_addr != 0 && (page_addr <= IOPHYSMEM || page_addr >= (uint32_t)nextfree);
+        is_free = page_addr != 0 && (page_addr + PGSIZE <= IOPHYSMEM || page_addr >= (uint32_t)nextfree);
 
         pages[i].pp_ref = is_free ? 0 : 1;
         pages[i].pp_link = is_free ? page_free_list : NULL;
