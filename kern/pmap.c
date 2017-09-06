@@ -218,7 +218,7 @@ void page_init(void)
 
         pages[i].pp_ref = is_free ? 0 : 1;
         pages[i].pp_link = is_free ? page_free_list : NULL;
-        page_free_list = is_free ? &pages[i] : NULL;
+        page_free_list = is_free ? &pages[i] : page_free_list;
     }
 }
 
