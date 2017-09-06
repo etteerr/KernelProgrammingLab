@@ -165,11 +165,10 @@ extern volatile pde_t uvpd[];     /* VA of current page directory */
 typedef union _rpage_control {
     uint32_t RPC;
     struct {
-        unsigned free:1;
         unsigned unclaimable:1;
         unsigned kernelPage:1;
         unsigned userPage:1;
-        unsigned rest:28;
+        unsigned rest:29;
     } reg;
 }rpage_control;
 
