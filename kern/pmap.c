@@ -162,8 +162,6 @@ void mem_init(void)
     //struct page_info *pages;                 /* Physical page state array */
     pages = boot_alloc(sizeof(struct page_info)*npages); //This panics if Out of Memory
 
-
-    panic("Successfull alloc of pages");
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
      * up the list of free physical pages. Once we've done so, all further
@@ -210,10 +208,17 @@ void page_init(void)
      * NB: DO NOT actually touch the physical memory corresponding to free
      *     pages! */
     size_t i;
+    bool is_free;
+    physaddr_t page_addr;
+    char *nextfree = boot_alloc((uint32_t)0);
+
     for (i = 0; i < npages; i++) {
-        pages[i].pp_ref = 0;
-        pages[i].pp_link = page_free_list;
-        page_free_list = &pages[i];
+        page_addr = page2pa(i);
+        is_free = page_addr != 0 && (page_addr <= IOPHYSMEM || page_addr >= nextfree);
+
+        pages[i].pp_ref = is_free ? 0 : 1;
+        pages[i].pp_link = is_free ? page_free_list : NULL;
+        page_free_list = is_free ? &pages[i] : NULL;
     }
 }
 
