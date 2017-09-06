@@ -226,6 +226,52 @@ void page_init(void)
     }
 }
 
+void prepare_page(struct page_info *page, int alloc_flags) {
+    page = page_free_list;
+    page_free_list = page_free_list->pp_link;
+
+    page->pp_ref = 1;
+    page->pp_link = NULL;
+
+    if(alloc_flags & ALLOC_ZERO) {
+        memset(page2kva(page), 0, PGSIZE);
+    }
+}
+
+/*
+ * Traverses naively over all pages to find a consecutive block of the given
+ * amount of pages.
+ */
+struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
+    size_t i;
+    uint16_t hits = 0;
+    struct page_info *last_hit, *previous;
+    for(i = 0; i < npages; i++) {
+        if(hits >= amount) {
+            break;
+        }
+
+        if(!pages[i].pp_ref) {
+            hits++;
+            last_hit = &pages[i];
+        } else {
+            hits = 0;
+        }
+    }
+
+    if(!hits) {
+        return NULL;
+    }
+    
+    for(i = 0; i < amount; i++) {
+        previous = last_hit->pp_link;
+        prepare_page(last_hit, alloc_flags);
+        last_hit = previous ? previous : last_hit;
+    }
+
+    return last_hit;
+}
+
 /*
  * Allocates a physical page.
  * If (alloc_flags & ALLOC_ZERO), fills the entire
@@ -254,16 +300,13 @@ struct page_info *page_alloc(int alloc_flags)
 
     /* TODO: find out what to do for ALLOC_PREMAPPED */
 
-    /* Pop the top page from the free list */
-    struct page_info *page = page_free_list;
-    page_free_list = page_free_list->pp_link;
-
-    page->pp_ref = 1;
-    page->pp_link = NULL;
-
-    if(alloc_flags & ALLOC_ZERO) {
-        memset(page2kva(page), 0, PGSIZE);
+    if(alloc_flags & ALLOC_HUGE) {
+        return alloc_consecutive_pages((uint16_t) 1024);
     }
+
+    /* Pop the top page from the free list */
+    struct page_info *page;
+    prepare_page(page, alloc_flags);
 
     return page;
 }
