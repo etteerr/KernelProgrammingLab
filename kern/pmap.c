@@ -321,6 +321,8 @@ void page_free(struct page_info *pp)
      * Hint: You may want to panic if pp->pp_ref is nonzero or
      * pp->pp_link is not NULL. */
 
+    /* TODO: Add support for huge pages */
+
     if(pp->pp_ref || pp->pp_link) {
         panic("Page contained free list reference, or had nonzero refcount during free()");
     }
