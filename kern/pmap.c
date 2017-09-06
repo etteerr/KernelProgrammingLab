@@ -92,10 +92,18 @@ static void *boot_alloc(uint32_t n)
     if (n==0)
         return (void*)nextfree;
     
+    //Check if enough free memory exists
+    // If we reached true OOM state, PANIC!
+    uint32_t usage_cp, max;
+    usage_cp = ((uint32_t)nextfree-KERNBASE) + n;
+    max = npages * PGSIZE;
+    cprintf("Kernel boot alloc:\n\tnew alloc: %uK\n\tcurrent Usage %uK\n\tmax Usage: %uK\n",n / 1024, usage_cp / 1024, max / 1024);
+    if (usage_cp >= max)
+        panic("Out of Memory PANIC: boot allocation failed.");
+    
     //nextfree points to free memory, keep this value for return
-    void* newAlloc, *endAlloc;
-    newAlloc = (void*) nextfree;
-    endAlloc = nextfree += n; //increment next free by n
+    void* newAlloc = (void*) nextfree;
+    nextfree += n; //increment next free by n
     nextfree = ROUNDUP((char*) nextfree, PGSIZE);
        
     /*
@@ -119,9 +127,6 @@ static void *boot_alloc(uint32_t n)
      * Thanks Japan!
      * http://pekopeko11.sakura.ne.jp/unix_v6/xv6-book/en/_images/F2-2.png
      */
-    // If we warped (end of virtual) or reached true OOM state, PANIC!
-    if ((uint32_t)endAlloc-KERNBASE <= (npages * PGSIZE))
-        panic("Out of Memory PANIC: boot allocation failed.");
     
     return newAlloc;
 }
