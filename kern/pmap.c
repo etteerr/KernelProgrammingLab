@@ -71,7 +71,7 @@ static void check_page_alloc(void);
  * page_free_list list has been set up. */
 static void *boot_alloc(uint32_t n)
 {
-    static char *nextfree;  /* virtual address of next byte of free memory */
+    static char *nextfree = 0;  /* virtual address of next byte of free memory */
     char *result;
 
     /* Initialize nextfree if this is the first time. 'end' is a magic symbol
@@ -88,14 +88,33 @@ static void *boot_alloc(uint32_t n)
      *
      * LAB 1: Your code here.
      */
+    //return pointer to freemem if n=0
+    if (n==0)
+        return (void*)nextfree;
+    
     //nextfree points to free memory, keep this value for return
-    void* newAlloc = (void*) nextfree;
+    void* newAlloc;
+    newAlloc = (void*) nextfree;
     nextfree += n; //increment next free by n
     nextfree = ROUNDUP((char*) nextfree, PGSIZE);
        
-    //??the nvram_read has already been called, so better use the npages variables??
-    //npages * PGSIZE = totalfree memory = final address
-    if (newAlloc+n >= (void*)(npages*PGSIZE)) //Pointer calculations!
+    /*
+     * Before we check our max size, let us first discuss what this should be:
+     * Currently we are in virtual memory and the variable end[] is places just after the kernel.
+     * This means that our *end is somewhere here:
+     * ---------------------------------------------------------------
+     * | [vkernel_legacy]  [free]            [vkernel] [end]         | end of virtual memory (uint32 max)
+     * ---------------------------------------------------------------
+     * 
+     * reference:
+     * #Bootstrap GDT
+        .p2align 2                                # force 4 byte alignment
+        gdt:
+          SEG_NULL              # null seg
+          SEG(STA_X|STA_R, 0x0, 0xffffffff) # code seg
+          SEG(STA_W, 0x0, 0xffffffff)           # data seg
+     */
+    if (newAlloc+n <= (void *) 0xF0000000) //overflow expected
         panic("Out of Memory PANIC: boot allocation failed.");
     
     return newAlloc;
@@ -131,8 +150,9 @@ void mem_init(void)
     //npages of boot_alloc required for paging
     //struct page_info *pages;                 /* Physical page state array */
     pages = boot_alloc(sizeof(struct page_info)*npages); //This panics if Out of Memory
-    boot_alloc(1*1024*1000); //alloc gig, cause panic (hopefully);
+//    boot_alloc(1*1024*1000*1000); //alloc gig, cause panic
     
+    panic("Successfull alloc of pages");
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
      * up the list of free physical pages. Once we've done so, all further
