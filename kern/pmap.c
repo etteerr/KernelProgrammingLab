@@ -227,8 +227,7 @@ void page_init(void)
 }
 
 void prepare_page(struct page_info *page, int alloc_flags) {
-    page = page_free_list;
-    page_free_list = page_free_list->pp_link;
+    page_free_list = page->pp_link;
 
     page->pp_ref = 1;
     page->pp_link = NULL;
@@ -306,6 +305,7 @@ struct page_info *page_alloc(int alloc_flags)
 
     /* Pop the top page from the free list */
     struct page_info *page;
+    page = page_free_list;
     prepare_page(page, alloc_flags);
 
     return page;
