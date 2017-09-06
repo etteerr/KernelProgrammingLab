@@ -88,12 +88,22 @@ static void *boot_alloc(uint32_t n)
      *
      * LAB 1: Your code here.
      */
-    return NULL;
+    //nextfree points to free memory, keep this value for return
+    void* newAlloc = (void*) nextfree;
+    nextfree += n; //increment next free by n
+    nextfree = ROUNDUP((char*) nextfree, PGSIZE);
+       
+    //??the nvram_read has already been called, so better use the npages variables??
+    //npages * PGSIZE = totalfree memory = final address
+    if (newAlloc+n >= npages*PGSIZE) //Pointer calculations!
+        panic("Out of Memory PANIC: boot allocation failed.");
+    
+    return newAlloc;
 }
 
 /*
  * Set up a two-level page table:
- *    kern_pgdir is its linear (virtual) address of the root
+ *    kern_pgdir is its linear (virtual) address of the rnpages_basememoot
  *
  * This function only sets up the kernel part of the address space (ie.
  * addresses >= UTOP).  The user part of the address space will be setup later.
@@ -118,8 +128,9 @@ void mem_init(void)
      * physical page, there is a corresponding struct page_info in this array.
      * 'npages' is the number of physical pages in memory.  Your code goes here.
      */
-
-
+    //npages of boot_alloc required for paging
+    
+    
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
      * up the list of free physical pages. Once we've done so, all further
