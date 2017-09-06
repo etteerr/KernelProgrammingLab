@@ -213,8 +213,8 @@ void page_init(void)
     char *nextfree = boot_alloc((uint32_t)0);
 
     for (i = 0; i < npages; i++) {
-        page_addr = page2pa(pages[i]);
-        is_free = page_addr != 0 && (page_addr <= IOPHYSMEM || page_addr >= nextfree);
+        page_addr = page2pa(&pages[i]);
+        is_free = page_addr != 0 && (page_addr <= IOPHYSMEM || page_addr >= (uint32_t)nextfree);
 
         pages[i].pp_ref = is_free ? 0 : 1;
         pages[i].pp_link = is_free ? page_free_list : NULL;
