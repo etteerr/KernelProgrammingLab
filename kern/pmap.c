@@ -103,8 +103,10 @@ static void *boot_alloc(uint32_t n)
      * Currently we are in virtual memory and the variable end[] is places just after the kernel.
      * This means that our *end is somewhere here:
      * ---------------------------------------------------------------
-     * | [vkernel_legacy]  [free]            [vkernel] [end]         | end of virtual memory (uint32 max)
+     * | [vkernel_legacy]  [free]            [vkernel] [end]   |     | end of virtual memory (uint32 max)
      * ---------------------------------------------------------------
+     *                                               true end  ^
+     * NOTE: This is the end of virtual memory!!!, 261MB is not what we have! we have less! (66,5mb)
      * 
      * reference:
      * #Bootstrap GDT
@@ -113,8 +115,12 @@ static void *boot_alloc(uint32_t n)
           SEG_NULL              # null seg
           SEG(STA_X|STA_R, 0x0, 0xffffffff) # code seg
           SEG(STA_W, 0x0, 0xffffffff)           # data seg
+     * 
+     * Thanks Japan!
+     * http://pekopeko11.sakura.ne.jp/unix_v6/xv6-book/en/_images/F2-2.png
      */
-    if (newAlloc+n <= (void *) 0xF0000000) //overflow expected
+    // If we warped (end of virtual) or reached true OOM state, PANIC!
+    if (newAlloc+n <= (void *) 0xF0000000 || 0) //Replace me with true limit!
         panic("Out of Memory PANIC: boot allocation failed.");
     
     return newAlloc;
@@ -150,8 +156,8 @@ void mem_init(void)
     //npages of boot_alloc required for paging
     //struct page_info *pages;                 /* Physical page state array */
     pages = boot_alloc(sizeof(struct page_info)*npages); //This panics if Out of Memory
-//    boot_alloc(1*1024*1000*1000); //alloc gig, cause panic
-    
+
+
     panic("Successfull alloc of pages");
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
