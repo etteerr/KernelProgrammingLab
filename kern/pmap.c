@@ -262,7 +262,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     if(!hits) {
         return NULL;
     }
-    
+
     for(i = 0; i < amount; i++) {
         previous = last_hit->pp_link;
         prepare_page(last_hit, alloc_flags);
@@ -301,7 +301,7 @@ struct page_info *page_alloc(int alloc_flags)
     /* TODO: find out what to do for ALLOC_PREMAPPED */
 
     if(alloc_flags & ALLOC_HUGE) {
-        return alloc_consecutive_pages((uint16_t) 1024);
+        return alloc_consecutive_pages((uint16_t) 1024, alloc_flags);
     }
 
     /* Pop the top page from the free list */
