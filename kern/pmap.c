@@ -8,6 +8,8 @@
 
 #include <kern/pmap.h>
 #include <kern/kclock.h>
+#include "../inc/memlayout.h"
+#include "pmap.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages;                  /* Amount of physical memory (in pages) */
@@ -211,6 +213,8 @@ void page_init(void)
     bool is_free;
     physaddr_t page_addr;
     char *nextfree = boot_alloc((uint32_t)0);
+    
+    /* TODO: figure out why no pages > EXTPHYSMEM get generated */
 
     for (i = 0; i < npages; i++) {
         page_addr = page2pa(&pages[i]);
@@ -223,29 +227,45 @@ void page_init(void)
 }
 
 /*
- * Allocates a physical page.  
+ * Allocates a physical page.
  * If (alloc_flags & ALLOC_ZERO), fills the entire
  * returned physical page with '\0' bytes.  Does NOT increment the reference
  * count of the page - the caller must do these if necessary (either explicitly
  * or via page_insert).
- * If (alloc_flags & ALLOC_PREMAPPED), returns a physical page from the 
+ * If (alloc_flags & ALLOC_PREMAPPED), returns a physical page from the
  * initial pool of mapped pages.
- * 
+ *
  * Be sure to set the pp_link field of the allocated page to NULL so
  * page_free can check for double-free bugs.
  *
  * Returns NULL if out of free memory.
  *
  * Hint: use page2kva and memset
- * 
+ *
  * 4MB huge pages:
  * Come back later to extend this function to support 4MB huge page allocation.
  * If (alloc_flags & ALLOC_HUGE), returns a huge physical page of 4MB size.
  */
 struct page_info *page_alloc(int alloc_flags)
 {
-    /* Fill this function in */
-    return 0;
+    if(!page_free_list) {
+        return NULL;
+    }
+
+    /* TODO: find out what to do for ALLOC_PREMAPPED */
+
+    /* Pop the top page from the free list */
+    struct page_info *page = page_free_list;
+    page_free_list = page_free_list->pp_link;
+
+    page->pp_ref = 1;
+    page->pp_link = NULL;
+
+    if(alloc_flags & ALLOC_ZERO) {
+        memset(page2kva(pp, 0, PGSIZE));
+    }
+
+    return page;
 }
 
 /*
@@ -257,6 +277,13 @@ void page_free(struct page_info *pp)
     /* Fill this function in
      * Hint: You may want to panic if pp->pp_ref is nonzero or
      * pp->pp_link is not NULL. */
+
+    if(pp->pp_ref || pp->pp_link) {
+        panic("Page contained free list reference, or had nonzero refcount during free()");
+    }
+
+    pp->pp_link = page_free_list;
+    page_free_list = pp;
 }
 
 /*
