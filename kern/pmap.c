@@ -95,7 +95,7 @@ static void *boot_alloc(uint32_t n)
        
     //??the nvram_read has already been called, so better use the npages variables??
     //npages * PGSIZE = totalfree memory = final address
-    if (newAlloc+n >= npages*PGSIZE) //Pointer calculations!
+    if (newAlloc+n >= (void*)(npages*PGSIZE)) //Pointer calculations!
         panic("Out of Memory PANIC: boot allocation failed.");
     
     return newAlloc;
@@ -120,7 +120,7 @@ void mem_init(void)
     i386_detect_memory();
 
     /* Remove this line when you're ready to test this function. */
-    panic("mem_init: This function is not finished\n");
+//    panic("mem_init: This function is not finished\n");
 
     /*********************************************************************
      * Allocate an array of npages 'struct page_info's and store it in 'pages'.
@@ -129,7 +129,9 @@ void mem_init(void)
      * 'npages' is the number of physical pages in memory.  Your code goes here.
      */
     //npages of boot_alloc required for paging
-    
+    //struct page_info *pages;                 /* Physical page state array */
+    pages = boot_alloc(sizeof(struct page_info)*npages); //This panics if Out of Memory
+    boot_alloc(1*1024*1000); //alloc gig, cause panic (hopefully);
     
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
