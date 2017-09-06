@@ -162,6 +162,17 @@ extern volatile pte_t uvpt[];     /* VA of "virtual page table" */
 extern volatile pde_t uvpd[];     /* VA of current page directory */
 #endif
 
+typedef union _rpage_control {
+    uint32_t RPC;
+    struct {
+        unsigned free:1;
+        unsigned unclaimable:1;
+        unsigned kernelPage:1;
+        unsigned userPage:1;
+        unsigned rest:28;
+    } reg;
+}rpage_control;
+
 /*
  * Page descriptor structures, mapped at UPAGES.
  * Read/write to the kernel, read-only to user programs.
@@ -176,6 +187,10 @@ struct page_info {
     /* Next page on the free list. */
     struct page_info *pp_link;
 
+    
+    //Lab1 prework
+    rpage_control c0;
+    
     /* pp_ref is the count of pointers (usually in page table entries)
      * to this page, for pages allocated using page_alloc.
      * Pages allocated at boot time using pmap.c's
