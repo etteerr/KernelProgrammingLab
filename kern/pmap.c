@@ -213,7 +213,7 @@ void page_init(void)
     bool is_free;
     physaddr_t page_addr;
     char *nextfree = boot_alloc((uint32_t)0);
-    
+
     /* TODO: figure out why no pages > EXTPHYSMEM get generated */
 
     for (i = 0; i < npages; i++) {
@@ -262,7 +262,7 @@ struct page_info *page_alloc(int alloc_flags)
     page->pp_link = NULL;
 
     if(alloc_flags & ALLOC_ZERO) {
-        memset(page2kva(pp, 0, PGSIZE));
+        memset(page2kva(page), 0, PGSIZE);
     }
 
     return page;
