@@ -93,9 +93,9 @@ static void *boot_alloc(uint32_t n)
         return (void*)nextfree;
     
     //nextfree points to free memory, keep this value for return
-    void* newAlloc;
+    void* newAlloc, *endAlloc;
     newAlloc = (void*) nextfree;
-    nextfree += n; //increment next free by n
+    endAlloc = nextfree += n; //increment next free by n
     nextfree = ROUNDUP((char*) nextfree, PGSIZE);
        
     /*
@@ -120,7 +120,7 @@ static void *boot_alloc(uint32_t n)
      * http://pekopeko11.sakura.ne.jp/unix_v6/xv6-book/en/_images/F2-2.png
      */
     // If we warped (end of virtual) or reached true OOM state, PANIC!
-    if (newAlloc+n <= (void *) 0xF0000000 || 0) //Replace me with true limit!
+    if ((uint32_t)endAlloc-KERNBASE <= (npages * PGSIZE))
         panic("Out of Memory PANIC: boot allocation failed.");
     
     return newAlloc;
