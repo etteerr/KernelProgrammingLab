@@ -217,8 +217,6 @@ void page_init(void)
     uint32_t cf = 0; //fre epages counter
 
     /* TODO: figure out why no pages > EXTPHYSMEM get generated */
-    /* Erwin: They do, or rather they are, but due to  line 38-39 in detect memory
-              They are not included beyond a word of memory adresses.*/
 
     register rpage_control pc0;
     pc0.RPC = 0;
