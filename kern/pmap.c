@@ -224,7 +224,7 @@ void page_init(void)
         page_addr = page2pa(&pages[i]);   
         
         //List states of page
-        pc0.reg.kernelPage = page_addr >= 0x10000 && page_addr < (uint32_t) nextfree - KERNBASE;  //Kernel allocated space
+        pc0.reg.kernelPage = page_addr >= EXTPHYSMEM && page_addr < (uint32_t) nextfree - KERNBASE;  //Kernel allocated space
         pc0.reg.IOhole = (page_addr >= IOPHYSMEM && page_addr < EXTPHYSMEM); //IO hole
         pc0.reg.bios = !i;
         
@@ -433,6 +433,8 @@ void page_free(struct page_info *pp)
      * Hint: You may want to panic if pp->pp_ref is nonzero or
      * pp->pp_link is not NULL. */
     uint32_t amount = 1, i;
+    
+    assert(pp!=0);
 
     if(pp->pp_ref || pp->pp_link) {
         panic("Page contained free list reference, or had nonzero refcount during free()");
@@ -447,7 +449,7 @@ void page_free(struct page_info *pp)
         page_free_list = pp;
 
         /* Move to next page. Used if i > 1 */
-        pp = (struct page_info*)(page2pa(pp) + PGSIZE);
+        pp++;
     }
 }
 
@@ -631,6 +633,7 @@ static void check_page_alloc(void)
     if (page2pa(php1) > page2pa(php0)) {
         assert(page2pa(php1) - page2pa(php0) >= 1024*PGSIZE);
     } else {
+        cprintf("%u\n", page2pa(php0) - page2pa(php1));
         assert(page2pa(php0) - page2pa(php1) >= 1024*PGSIZE);
     }
 
