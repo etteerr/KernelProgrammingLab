@@ -162,6 +162,7 @@ void mem_init(void)
      */
     //npages of boot_alloc required for paging
     //struct page_info *pages;                 /* Physical page state array */
+    cprintf("Allocating %u pages.\n", npages);
     pages = boot_alloc(sizeof(struct page_info)*npages); //This panics if Out of Memory
 
     /*********************************************************************
@@ -213,17 +214,39 @@ void page_init(void)
     bool is_free;
     physaddr_t page_addr;
     char *nextfree = boot_alloc((uint32_t)0);
+    uint32_t cf = 0; //fre epages counter
 
     /* TODO: figure out why no pages > EXTPHYSMEM get generated */
+    /* Erwin: They do, or rather they are, but due to  line 38-39 in detect memory
+              They are not included beyond a word of memory adresses.*/
+
+    register rpage_control pc0;
+    pc0.RPC = 0;
 
     for (i = 0; i < npages; i++) {
-        page_addr = page2pa(&pages[i]);
-        is_free = page_addr != 0 && (page_addr + PGSIZE <= IOPHYSMEM || page_addr >= (uint32_t)nextfree);
-
-        pages[i].pp_ref = is_free ? 0 : 1;
+        page_addr = page2pa(&pages[i]);   
+        
+        //List states of page
+        pc0.reg.kernelPage = page_addr < (uint32_t) nextfree - KERNBASE;  //Kernel allocated space
+        pc0.reg.IOhole = (page_addr >= IOPHYSMEM && page_addr < EXTPHYSMEM); //IO hole
+        pc0.reg.bios = !i;
+        
+        //debug print states
+//        cprintf("Page %u: K %u, IO %u, bios %u\n", i, pc0.reg.kernelPage, pc0.reg.IOhole, pc0.reg.bios);
+        
+        //is free if
+        //          not kernel              not iohole
+        is_free = !pc0.reg.kernelPage && !pc0.reg.IOhole && !pc0.reg.bios;
+        
+        cf += is_free; //just a statistic counter
+        
+        pages[i].c0.RPC = pc0.RPC;
+        pages[i].pp_ref = !is_free; // ? 0 : 1; //Why use if statement for boolean operations?
         pages[i].pp_link = is_free ? page_free_list : NULL;
         page_free_list = is_free ? &pages[i] : page_free_list;
     }
+    
+    cprintf("%u free pages. (%uK)\n", cf, (cf*PGSIZE) / 1024);
 }
 
 void prepare_page(struct page_info *page, int alloc_flags) {

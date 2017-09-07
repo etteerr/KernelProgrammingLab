@@ -167,8 +167,10 @@ typedef union _rpage_control {
     struct {
         unsigned unclaimable:1;
         unsigned kernelPage:1;
+        unsigned IOhole:1;
+        unsigned bios:1;
         unsigned userPage:1;
-        unsigned rest:29;
+        unsigned rest:27;
     } reg;
 }rpage_control;
 
