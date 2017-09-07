@@ -447,7 +447,7 @@ void page_free(struct page_info *pp)
     assert(pp!=0);
 
     if(pp->pp_ref || pp->pp_link) {
-        panic("Page contained free list reference, or had nonzero refcount during free()");
+//        panic("Page contained free list reference, or had nonzero refcount during free()");
     }
 
     if(pp->c0.reg.huge) {
