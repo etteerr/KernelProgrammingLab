@@ -355,13 +355,13 @@ void page_free(struct page_info *pp)
         amount = HUGE_PAGE_AMOUNT;
     }
 
-//    for(i = 0; i < amount; i++){
+    for(i = 0; i < amount; i++){
         pp->pp_link = page_free_list;
         page_free_list = pp;
 
         /* Move to next page. Used if i > 1 */
-//        pp = (struct page_info*)(page2pa(pp) + PGSIZE);
-//    }
+        pp = (struct page_info*)(page2pa(pp) + PGSIZE);
+    }
 }
 
 /*
