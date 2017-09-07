@@ -360,7 +360,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     }
 
     end_address = (uint32_t) page2pa(page_hit);
-    start_address = (uint32_t) page2pa(page_hit - amount);
+    start_address = (uint32_t) page2pa(page_hit - (amount - 1));
 
     last_free = page_free_list;
     for(current = page_free_list; current;) {
