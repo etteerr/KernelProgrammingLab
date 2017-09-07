@@ -169,9 +169,10 @@ typedef union _rpage_control {
         unsigned kernelPage:1;
         unsigned IOhole:1;
         unsigned bios:1;
+        unsigned huge:1;
         unsigned userPage:1;
         uint8_t buddy_order;
-        unsigned rest:17;
+        unsigned rest:18;
     } reg;
 }rpage_control;
 

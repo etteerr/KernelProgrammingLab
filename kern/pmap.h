@@ -21,6 +21,7 @@ extern size_t npages;
  * non-kernel virtual address.
  */
 #define PADDR(kva) _paddr(__FILE__, __LINE__, kva)
+#define HUGE_PAGE_AMOUNT 1024
 
 static inline physaddr_t _paddr(const char *file, int line, void *kva)
 {

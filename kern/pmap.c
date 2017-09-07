@@ -215,9 +215,7 @@ void page_init(void)
     bool is_free;
     physaddr_t page_addr;
     char *nextfree = boot_alloc((uint32_t)0);
-    uint32_t cf = 0; //fre epages counter
-
-    /* TODO: figure out why no pages > EXTPHYSMEM get generated */
+    uint32_t cf = 0; //free pages counter
 
     register rpage_control pc0;
     pc0.RPC = 0;
@@ -240,7 +238,7 @@ void page_init(void)
         cf += is_free; //just a statistic counter
         
         pages[i].c0.RPC = pc0.RPC;
-        pages[i].pp_ref = !is_free; // ? 0 : 1; //Why use if statement for boolean operations?
+        pages[i].pp_ref = !is_free;
         pages[i].pp_link = is_free ? page_free_list : NULL;
         page_free_list = is_free ? &pages[i] : page_free_list;
     }
@@ -311,6 +309,7 @@ void buddy_init() {
 
 void prepare_page(struct page_info *page, int alloc_flags) {
     page_free_list = page->pp_link;
+    cprintf("free_list: %p\n", page_free_list);
 
     page->pp_ref = 0;
     page->pp_link = NULL;
@@ -327,31 +326,58 @@ void prepare_page(struct page_info *page, int alloc_flags) {
 struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     size_t i;
     uint16_t hits = 0;
-    struct page_info *last_hit, *previous;
+    uint32_t start, end;
+    struct page_info *page_hit = NULL, *current, *last_free;
     for(i = 0; i < npages; i++) {
         if(hits >= amount) {
             break;
         }
 
-        if(!pages[i].pp_ref) {
+        if(pages[i].pp_link) {
             hits++;
-            last_hit = &pages[i];
+            page_hit = &pages[i];
         } else {
             hits = 0;
         }
     }
 
-    if(!hits) {
+    if(!hits || hits < amount) {
         return NULL;
     }
 
-    for(i = 0; i < amount; i++) {
-        previous = last_hit->pp_link;
-        prepare_page(last_hit, alloc_flags);
-        last_hit = previous ? previous : last_hit;
+    if(!page_hit) {
+        panic("No page found, but hitcount is correct");
     }
 
-    return last_hit;
+    end = (uint32_t) page2pa(page_hit);
+    start = (uint32_t) (end - amount * PGSIZE);
+
+    last_free = page_free_list;
+    for(current = page_free_list; current;) {
+        if(page2pa(current) >= start && page2pa(current) <= end) {
+            /* Reserve page */
+            if(page_free_list == current) {
+                page_free_list = current->pp_link;
+                last_free = page_free_list;
+
+                /* Unlink current page, and move on with its child */
+                current->pp_link = NULL;
+                current = last_free;
+            } else {
+                /* Link parent page to current page's child */
+                last_free->pp_link = current->pp_link;
+
+                /* Unlink current page, and move on with its child */
+                current->pp_link = NULL;
+                current = last_free->pp_link;
+            }
+        } else {
+            /* Move on with current page's child */
+            current = current->pp_link;
+        }
+    }
+
+    return pa2page((physaddr_t)start);
 }
 
 /*
@@ -376,6 +402,8 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
  */
 struct page_info *page_alloc(int alloc_flags)
 {
+    struct page_info *page;
+
     if(!page_free_list) {
         return NULL;
     }
@@ -383,11 +411,12 @@ struct page_info *page_alloc(int alloc_flags)
     /* TODO: find out what to do for ALLOC_PREMAPPED */
 
     if(alloc_flags & ALLOC_HUGE) {
-        return alloc_consecutive_pages((uint16_t) 1024, alloc_flags);
+        page = alloc_consecutive_pages((uint16_t) HUGE_PAGE_AMOUNT, alloc_flags);
+        page->c0.reg.huge = 1;
+        return page;
     }
 
     /* Pop the top page from the free list */
-    struct page_info *page;
     page = page_free_list;
     prepare_page(page, alloc_flags);
 
@@ -403,15 +432,23 @@ void page_free(struct page_info *pp)
     /* Fill this function in
      * Hint: You may want to panic if pp->pp_ref is nonzero or
      * pp->pp_link is not NULL. */
-
-    /* TODO: Add support for huge pages */
+    uint32_t amount = 1, i;
 
     if(pp->pp_ref || pp->pp_link) {
         panic("Page contained free list reference, or had nonzero refcount during free()");
     }
 
-    pp->pp_link = page_free_list;
-    page_free_list = pp;
+    if(pp->c0.reg.huge) {
+        amount = HUGE_PAGE_AMOUNT;
+    }
+
+    for(i = 0; i < amount; i++){
+        pp->pp_link = page_free_list;
+        page_free_list = pp;
+
+        /* Move to next page. Used if i > 1 */
+        pp = (struct page_info*)(page2pa(pp) + PGSIZE);
+    }
 }
 
 /*
