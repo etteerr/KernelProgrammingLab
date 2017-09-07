@@ -252,7 +252,7 @@ void page_init(void)
 void prepare_page(struct page_info *page, int alloc_flags) {
     page_free_list = page->pp_link;
 
-    page->pp_ref = 1;
+    page->pp_ref = 0;
     page->pp_link = NULL;
 
     if(alloc_flags & ALLOC_ZERO) {
