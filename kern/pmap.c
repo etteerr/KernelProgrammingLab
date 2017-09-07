@@ -10,6 +10,7 @@
 #include <kern/kclock.h>
 #include "../inc/memlayout.h"
 #include "pmap.h"
+#include "buddydef.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages;                  /* Amount of physical memory (in pages) */
@@ -246,6 +247,67 @@ void page_init(void)
     
     cprintf("%u free pages. (%uK)\n", cf, (cf*PGSIZE) / 1024);
 }
+
+#ifdef BUDDY
+static uint32_t* buddy_count;
+
+void* buddy_merge(struct page_info* a) {
+    struct page_info *b = BUDDY_GET_BUDDY_PAGE(a,a->c0.reg.buddy_order);
+    
+    //a must be free
+    assert(a->pp_ref==0);
+    
+    //Before merge, buddies must have the same order
+    //We can only recurse to b, not a (eg O(B) < O(A))
+    if (a->c0.reg.buddy_order > b->c0.reg.buddy_order)
+        b = buddy_merge(b);
+    
+    assert(a->c0.reg.buddy_order < b->c0.reg.buddy_order); //this may not exist
+    
+    
+    //If b has merged, merge A and B
+    
+}
+
+void* buddy_split(struct page_info* a) {
+    struct page_info *b = BUDDY_GET_BUDDY_PAGE(a,a->c0.reg.buddy_order);
+    
+    //Buddies must always have the same order
+    assert(b->c0.reg.buddy_order == a->c0.reg.buddy_order);
+    
+    //buddy order must not be 0
+    assert(a->c0.reg.buddy_order != 0);
+    
+    //Both pages must be free
+    if (a->pp_ref !=0 || b->pp_ref !=0)
+        panic("Invalid split: not all pages free!");
+    
+    //decrement buddy order
+    b->c0.reg.buddy_order = a->c0.reg.buddy_order--;
+    
+    //TODO: Add b to free list
+    //return b to free list as it is now no longer a buddy
+    
+    //return slave buddy
+    return BUDDY_GET_SLAVE(a,b);
+}
+
+
+inline uint32_t buddy_isfree(struct page_info * a) {
+    return !(BUDDY_GET_BUDDY_PAGE(a,a->c0.reg.buddy_order))->pp_ref;
+}
+
+void buddy_init() {
+    //Allocate buddy_count
+    buddy_count = boot_alloc(sizeof(uint32_t)*BUDDY);
+    
+    //set zero
+    memset(buddy_count, 0, sizeof(uint32_t)*BUDDY);
+    
+    //Make buddies of all free pages
+    
+}
+#endif
 
 void prepare_page(struct page_info *page, int alloc_flags) {
     page_free_list = page->pp_link;
