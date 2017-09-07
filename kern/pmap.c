@@ -214,9 +214,7 @@ void page_init(void)
     bool is_free;
     physaddr_t page_addr;
     char *nextfree = boot_alloc((uint32_t)0);
-    uint32_t cf = 0; //fre epages counter
-
-    /* TODO: figure out why no pages > EXTPHYSMEM get generated */
+    uint32_t cf = 0; //free pages counter
 
     register rpage_control pc0;
     pc0.RPC = 0;
@@ -265,15 +263,15 @@ void prepare_page(struct page_info *page, int alloc_flags) {
 struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     size_t i;
     uint16_t hits = 0;
-    struct page_info *last_hit, *previous;
+    struct page_info *page_hit, *previous;
     for(i = 0; i < npages; i++) {
         if(hits >= amount) {
             break;
         }
 
-        if(!pages[i].pp_ref) {
+        if(pages[i].pp_link) {
             hits++;
-            last_hit = &pages[i];
+            page_hit = &pages[i];
         } else {
             hits = 0;
         }
@@ -284,12 +282,15 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     }
 
     for(i = 0; i < amount; i++) {
-        previous = last_hit->pp_link;
-        prepare_page(last_hit, alloc_flags);
-        last_hit = previous ? previous : last_hit;
+        previous = page_hit->pp_link;
+        if(!previous) {
+            panic("Tried to go back more than there are free pages");
+        }
+        prepare_page(page_hit, alloc_flags);
+        page_hit = previous ? previous : page_hit;
     }
 
-    return last_hit;
+    return page_hit;
 }
 
 /*
