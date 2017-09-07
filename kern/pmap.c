@@ -229,7 +229,7 @@ void page_init(void)
         pc0.reg.bios = !i;
         
         //debug print states
-//        cprintf("Page %u: K %u, IO %u, bios %u\n", i, pc0.reg.kernelPage, pc0.reg.IOhole, pc0.reg.bios);
+        //        cprintf("Page %u: K %u, IO %u, bios %u\n", i, pc0.reg.kernelPage, pc0.reg.IOhole, pc0.reg.bios);
         
         //is free if
         //          not kernel              not iohole
@@ -408,8 +408,6 @@ struct page_info *page_alloc(int alloc_flags)
         return NULL;
     }
 
-    /* TODO: find out what to do for ALLOC_PREMAPPED */
-
     if(alloc_flags & ALLOC_HUGE) {
         page = alloc_consecutive_pages((uint16_t) HUGE_PAGE_AMOUNT, alloc_flags);
         page->c0.reg.huge = 1;
@@ -445,6 +443,9 @@ void page_free(struct page_info *pp)
     }
 
     for(i = 0; i < amount; i++){
+        if(!pp) {
+            panic("Page in page_free() is undefined");
+        }
         pp->pp_link = page_free_list;
         page_free_list = pp;
 
