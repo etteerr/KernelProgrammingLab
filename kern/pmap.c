@@ -310,6 +310,11 @@ void buddy_init() {
 #endif
 
 void prepare_page(struct page_info *page, int alloc_flags) {
+    //assert page is free (must)
+    assert(page->c0.reg.free);
+    //No outstanding references
+    assert(!page->pp_ref);
+
     page_free_list = page->pp_link;
     cprintf("free_list: %p\n", page_free_list);
 
@@ -367,6 +372,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
 
                 /* Unlink current page, and move on with its child */
                 current->pp_link = NULL;
+                current->c0.reg.free = 0;
                 current = last_free;
             } else {
                 /* Link parent page to current page's child */
@@ -374,6 +380,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
 
                 /* Unlink current page, and move on with its child */
                 current->pp_link = NULL;
+                current->c0.reg.free = 0;
                 current = last_free->pp_link;
             }
         } else {
@@ -642,7 +649,6 @@ static void check_page_alloc(void)
     if (page2pa(php1) > page2pa(php0)) {
         assert(page2pa(php1) - page2pa(php0) >= 1024*PGSIZE);
     } else {
-        cprintf("%u\n", page2pa(php0) - page2pa(php1));
         assert(page2pa(php0) - page2pa(php1) >= 1024*PGSIZE);
     }
 
