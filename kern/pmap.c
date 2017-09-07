@@ -227,7 +227,7 @@ void page_init(void)
         page_addr = page2pa(&pages[i]);   
         
         //List states of page
-        pc0.reg.kernelPage = page_addr < (uint32_t) nextfree - KERNBASE;  //Kernel allocated space
+        pc0.reg.kernelPage = page_addr >= 0x10000 && page_addr < (uint32_t) nextfree - KERNBASE;  //Kernel allocated space
         pc0.reg.IOhole = (page_addr >= IOPHYSMEM && page_addr < EXTPHYSMEM); //IO hole
         pc0.reg.bios = !i;
         
