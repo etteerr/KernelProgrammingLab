@@ -99,7 +99,7 @@ static void *boot_alloc(uint32_t n)
     // If we reached true OOM state, PANIC!
     uint32_t usage_cp, max;
     usage_cp = ((uint32_t)nextfree-KERNBASE) + n;
-    max = KERNBASE + 0x03D0900;
+    max = 4000000; //4mb
     cprintf("Kernel boot alloc:\n\tnew alloc: %uK\n\tcurrent Usage %uK\n\tmax Usage: %uK\n",n / 1024, usage_cp / 1024, max / 1024);
     if (usage_cp >= max)
         panic("Out of Memory PANIC: boot allocation failed.");
@@ -165,6 +165,7 @@ void mem_init(void)
     //struct page_info *pages;                 /* Physical page state array */
     cprintf("Allocating %u pages.\n", npages);
     pages = boot_alloc(sizeof(struct page_info)*npages); //This panics if Out of Memory
+//    boot_alloc(4000000);
 
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
