@@ -247,6 +247,7 @@ void page_init(void)
 
 void prepare_page(struct page_info *page, int alloc_flags) {
     page_free_list = page->pp_link;
+    cprintf("free_list: %p\n", page_free_list);
 
     page->pp_ref = 0;
     page->pp_link = NULL;
@@ -263,7 +264,8 @@ void prepare_page(struct page_info *page, int alloc_flags) {
 struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     size_t i;
     uint16_t hits = 0;
-    struct page_info *page_hit, *previous;
+    uint32_t start, end;
+    struct page_info *page_hit = NULL, *current, *last_free;
     for(i = 0; i < npages; i++) {
         if(hits >= amount) {
             break;
@@ -277,20 +279,43 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         }
     }
 
-    if(!hits) {
+    if(!hits || hits < amount) {
         return NULL;
     }
 
-    for(i = 0; i < amount; i++) {
-        previous = page_hit->pp_link;
-        if(!previous) {
-            panic("Tried to go back more than there are free pages");
-        }
-        prepare_page(page_hit, alloc_flags);
-        page_hit = previous ? previous : page_hit;
+    if(!page_hit) {
+        panic("No page found, but hitcount is correct");
     }
 
-    return page_hit;
+    end = (uint32_t) page2pa(page_hit);
+    start = (uint32_t) (end - amount * PGSIZE);
+
+    last_free = page_free_list;
+    for(current = page_free_list; current;) {
+        if(page2pa(current) >= start && page2pa(current) <= end) {
+            /* Reserve page */
+            if(page_free_list == current) {
+                page_free_list = current->pp_link;
+                last_free = page_free_list;
+
+                /* Unlink current page, and move on with its child */
+                current->pp_link = NULL;
+                current = last_free;
+            } else {
+                /* Link parent page to current page's child */
+                last_free->pp_link = current->pp_link;
+
+                /* Unlink current page, and move on with its child */
+                current->pp_link = NULL;
+                current = last_free->pp_link;
+            }
+        } else {
+            /* Move on with current page's child */
+            current = current->pp_link;
+        }
+    }
+
+    return pa2page((physaddr_t)start);
 }
 
 /*
@@ -351,7 +376,6 @@ void page_free(struct page_info *pp)
         panic("Page contained free list reference, or had nonzero refcount during free()");
     }
 
-    /* TODO: Add support for huge pages */
     if(pp->c0.reg.huge) {
         amount = HUGE_PAGE_AMOUNT;
     }
