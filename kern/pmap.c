@@ -334,7 +334,7 @@ void prepare_page(struct page_info *page, int alloc_flags) {
 struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     size_t i;
     uint16_t hits = 0;
-    uint32_t start, end;
+    uint32_t start_address, end_address;
     struct page_info *page_hit = NULL, *current, *last_free;
     
     //Find amount consecutive pages
@@ -359,12 +359,12 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         panic("No page found, but hitcount is correct");
     }
 
-    end = (uint32_t) page2pa(page_hit);
-    start = (uint32_t) (end - amount * PGSIZE);
+    end_address = (uint32_t) page2pa(page_hit);
+    start_address = (uint32_t) page2pa(page_hit - amount);
 
     last_free = page_free_list;
     for(current = page_free_list; current;) {
-        if(page2pa(current) >= start && page2pa(current) <= end) {
+        if(page2pa(current) >= start_address && page2pa(current) <= end_address) {
             /* Reserve page */
             if(page_free_list == current) {
                 page_free_list = current->pp_link;
@@ -389,7 +389,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         }
     }
 
-    return pa2page((physaddr_t)start);
+    return pa2page((physaddr_t)start_address);
 }
 
 /*
