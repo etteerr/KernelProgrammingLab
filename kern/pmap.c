@@ -99,7 +99,7 @@ static void *boot_alloc(uint32_t n)
     // If we reached true OOM state, PANIC!
     uint32_t usage_cp, max;
     usage_cp = ((uint32_t)nextfree-KERNBASE) + n;
-    max = npages * PGSIZE;
+    max = KERNBASE + 0x03D0900;
     cprintf("Kernel boot alloc:\n\tnew alloc: %uK\n\tcurrent Usage %uK\n\tmax Usage: %uK\n",n / 1024, usage_cp / 1024, max / 1024);
     if (usage_cp >= max)
         panic("Out of Memory PANIC: boot allocation failed.");
