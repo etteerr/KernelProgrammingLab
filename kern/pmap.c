@@ -241,6 +241,7 @@ void page_init(void)
         pages[i].c0.RPC = pc0.RPC;
         pages[i].pp_ref = !is_free;
         pages[i].pp_link = is_free ? page_free_list : NULL;
+        pages[i].c0.reg.free = is_free;
         page_free_list = is_free ? &pages[i] : page_free_list;
     }
     
@@ -314,6 +315,7 @@ void prepare_page(struct page_info *page, int alloc_flags) {
 
     page->pp_ref = 0;
     page->pp_link = NULL;
+    page->c0.reg.free = 0;
 
     if(alloc_flags & ALLOC_ZERO) {
         memset(page2kva(page), 0, PGSIZE);
@@ -329,12 +331,14 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     uint16_t hits = 0;
     uint32_t start, end;
     struct page_info *page_hit = NULL, *current, *last_free;
+    
+    //Find amount consecutive pages
     for(i = 0; i < npages; i++) {
         if(hits >= amount) {
             break;
         }
 
-        if(pages[i].pp_link) {
+        if(pages[i].c0.reg.free) {
             hits++;
             page_hit = &pages[i];
         } else {
@@ -449,6 +453,9 @@ void page_free(struct page_info *pp)
         }
         pp->pp_link = page_free_list;
         page_free_list = pp;
+        
+        //set flag to free
+        pp->c0.reg.free = 1;
 
         /* Move to next page. Used if i > 1 */
         pp++;
