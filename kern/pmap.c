@@ -25,13 +25,11 @@ static struct page_info *page_free_list; /* Free list of physical pages */
  * Detect machine's physical memory setup.
  ***************************************************************/
 
-static int nvram_read(int r)
-{
+static int nvram_read(int r) {
     return mc146818_read(r) | (mc146818_read(r + 1) << 8);
 }
 
-static void i386_detect_memory(void)
-{
+static void i386_detect_memory(void) {
     size_t npages_extmem;
 
     /* Use CMOS calls to measure available base & extended memory.
@@ -47,9 +45,9 @@ static void i386_detect_memory(void)
         npages = npages_basemem;
 
     cprintf("Physical memory: %uK available, base = %uK, extended = %uK\n",
-        npages * PGSIZE / 1024,
-        npages_basemem * PGSIZE / 1024,
-        npages_extmem * PGSIZE / 1024);
+            npages * PGSIZE / 1024,
+            npages_basemem * PGSIZE / 1024,
+            npages_extmem * PGSIZE / 1024);
 }
 
 
@@ -58,6 +56,7 @@ static void i386_detect_memory(void)
  ***************************************************************/
 
 static void check_page_free_list(bool only_low_memory);
+
 static void check_page_alloc(void);
 
 /* This simple physical memory allocator is used only while JOS is setting up
@@ -72,8 +71,7 @@ static void check_page_alloc(void);
  * If we're out of memory, boot_alloc should panic.
  * This function may ONLY be used during initialization, before the
  * page_free_list list has been set up. */
-static void *boot_alloc(uint32_t n)
-{
+static void *boot_alloc(uint32_t n) {
     static char *nextfree = 0;  /* virtual address of next byte of free memory */
     char *result;
 
@@ -92,23 +90,24 @@ static void *boot_alloc(uint32_t n)
      * LAB 1: Your code here.
      */
     //return pointer to freemem if n=0
-    if (n==0)
-        return (void*)nextfree;
-    
+    if (n == 0)
+        return (void *) nextfree;
+
     //Check if enough free memory exists
     // If we reached true OOM state, PANIC!
     uint32_t usage_cp, max;
-    usage_cp = ((uint32_t)nextfree-KERNBASE) + n;
+    usage_cp = ((uint32_t) nextfree - KERNBASE) + n;
     max = 4000000; //4mb
-    cprintf("Kernel boot alloc:\n\tnew alloc: %uK\n\tcurrent Usage %uK\n\tmax Usage: %uK\n",n / 1024, usage_cp / 1024, max / 1024);
+    cprintf("Kernel boot alloc:\n\tnew alloc: %uK\n\tcurrent Usage %uK\n\tmax Usage: %uK\n", n / 1024, usage_cp / 1024,
+            max / 1024);
     if (usage_cp >= max)
         panic("Out of Memory PANIC: boot allocation failed.");
-    
+
     //nextfree points to free memory, keep this value for return
-    void* newAlloc = (void*) nextfree;
+    void *newAlloc = (void *) nextfree;
     nextfree += n; //increment next free by n
-    nextfree = ROUNDUP((char*) nextfree, PGSIZE);
-       
+    nextfree = ROUNDUP((char *) nextfree, PGSIZE);
+
     /*
      * Before we check our max size, let us first discuss what this should be:
      * Currently we are in virtual memory and the variable end[] is places just after the kernel.
@@ -130,7 +129,7 @@ static void *boot_alloc(uint32_t n)
      * Thanks Japan!
      * http://pekopeko11.sakura.ne.jp/unix_v6/xv6-book/en/_images/F2-2.png
      */
-    
+
     return newAlloc;
 }
 
@@ -144,8 +143,7 @@ static void *boot_alloc(uint32_t n)
  * From UTOP to ULIM, the user is allowed to read but not write.
  * Above ULIM the user cannot read or write.
  */
-void mem_init(void)
-{
+void mem_init(void) {
     uint32_t cr0;
     size_t n;
 
@@ -160,7 +158,7 @@ void mem_init(void)
      */
     //npages of boot_alloc required for paging
     cprintf("Allocating %u pages.\n", npages);
-    pages = boot_alloc(sizeof(struct page_info)*npages); //This panics if Out of Memory
+    pages = boot_alloc(sizeof(struct page_info) * npages); //This panics if Out of Memory
 
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
@@ -188,8 +186,7 @@ void mem_init(void)
  * allocator functions below to allocate and deallocate physical
  * memory via the page_free_list.
  */
-void page_init(void)
-{
+void page_init(void) {
     /*
      * The example code here marks all physical pages as free.
      * However this is not truly the case.  What memory is free?
@@ -210,37 +207,38 @@ void page_init(void)
     size_t i;
     bool is_free;
     physaddr_t page_addr;
-    char *nextfree = boot_alloc((uint32_t)0);
+    char *nextfree = boot_alloc((uint32_t) 0);
     uint32_t cf = 0; //free pages counter
 
     register rpage_control pc0;
     pc0.RPC = 0;
 
     for (i = 0; i < npages; i++) {
-        page_addr = page2pa(&pages[i]);   
-        
+        page_addr = page2pa(&pages[i]);
+
         //List states of page
-        pc0.reg.kernelPage = page_addr >= EXTPHYSMEM && page_addr < (uint32_t) nextfree - KERNBASE;  //Kernel allocated space
+        pc0.reg.kernelPage =
+                page_addr >= EXTPHYSMEM && page_addr < (uint32_t) nextfree - KERNBASE;  //Kernel allocated space
         pc0.reg.IOhole = (page_addr >= IOPHYSMEM && page_addr < EXTPHYSMEM); //IO hole
         pc0.reg.bios = !i;
-        
+
         //debug print states
         //        cprintf("Page %u: K %u, IO %u, bios %u\n", i, pc0.reg.kernelPage, pc0.reg.IOhole, pc0.reg.bios);
-        
+
         //is free if
         //          not kernel              not iohole
         is_free = !pc0.reg.kernelPage && !pc0.reg.IOhole && !pc0.reg.bios;
-        
+
         cf += is_free; //just a statistic counter
-        
+
         pages[i].c0.RPC = pc0.RPC;
         pages[i].pp_ref = !is_free;
         pages[i].pp_link = is_free ? page_free_list : NULL;
         pages[i].c0.reg.free = is_free;
         page_free_list = is_free ? &pages[i] : page_free_list;
     }
-    
-    cprintf("%u free pages. (%uK)\n", cf, (cf*PGSIZE) / 1024);
+
+    cprintf("%u free pages. (%uK)\n", cf, (cf * PGSIZE) / 1024);
 }
 
 #ifdef BUDDY
@@ -304,6 +302,8 @@ void buddy_init() {
 }
 #endif
 
+/* Sets page_free_list to given page's linked sibling page, and clears the page's link.
+ * Writes zeroes to memory if ALLOC_ZERO is passed in the flags. */
 void prepare_page(struct page_info *page, int alloc_flags) {
     //assert page is free (must)
     assert(page->c0.reg.free);
@@ -320,26 +320,28 @@ void prepare_page(struct page_info *page, int alloc_flags) {
     }
 }
 
+/* When ran, panics if page_free_list contains a cycle, using Floyd's
+ * "slow and fast" cycle detection algorithm. */
 void floyd_cycle_detection() {
     uint32_t count = 0;
     struct page_info *slow, *fast;
 
     slow = fast = page_free_list;
 
-    while(true) {
+    while (true) {
         slow = slow->pp_link;          // 1 hop
 
-        if(fast->pp_link)
+        if (fast->pp_link)
             fast = fast->pp_link->pp_link; // 2 hops
         else
             return;          // next node null => no loop
 
-        if(!slow|| !fast) // if either hits null..no loop
+        if (!slow || !fast) // if either hits null..no loop
             return;
 
-        if(slow == fast) // if the two ever meet...we must have a loop
+        if (slow == fast) // if the two ever meet...we must have a loop
             break;
-        if(++count > npages)
+        if (++count > npages)
             break;
     }
 
@@ -384,7 +386,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
 
     for (current = page_free_list; current;) {
         child = current->pp_link;
-        if(!child) {
+        if (!child) {
             break;
         }
         if (page2pa(child) >= start_address && page2pa(child) <= end_address) {
@@ -402,7 +404,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     struct page_info *result = pa2page((physaddr_t) start_address);
     assert(!result->pp_link);
 
-    if(page_free_list == pa2page((physaddr_t) end_address)) {
+    if (page_free_list == pa2page((physaddr_t) end_address)) {
         page_free_list = result - 1;
     }
 
@@ -429,15 +431,14 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
  * Come back later to extend this function to support 4MB huge page allocation.
  * If (alloc_flags & ALLOC_HUGE), returns a huge physical page of 4MB size.
  */
-struct page_info *page_alloc(int alloc_flags)
-{
+struct page_info *page_alloc(int alloc_flags) {
     struct page_info *page;
 
-    if(!page_free_list) {
+    if (!page_free_list) {
         return NULL;
     }
 
-    if(alloc_flags & ALLOC_HUGE) {
+    if (alloc_flags & ALLOC_HUGE) {
         page = alloc_consecutive_pages((uint16_t) HUGE_PAGE_AMOUNT, alloc_flags);
         page->c0.reg.huge = 1;
         return page;
@@ -476,10 +477,10 @@ void page_free(struct page_info *pp) {
             panic("Page in page_free() is undefined");
         }
         if (current->pp_link || current->c0.reg.free) {
-            cprintf("Page in page_free() is already marked as free\n");
+            cprintf("Warning: page in page_free() is already marked as free, ignoring\n");
             continue;
         }
-        if(current != page_free_list) {
+        if (current != page_free_list) {
             current->pp_link = page_free_list;
             page_free_list = current;
         }
@@ -493,8 +494,7 @@ void page_free(struct page_info *pp) {
  * Decrement the reference count on a page,
  * freeing it if there are no more refs.
  */
-void page_decref(struct page_info* pp)
-{
+void page_decref(struct page_info *pp) {
     if (--pp->pp_ref == 0)
         page_free(pp);
 }
@@ -507,8 +507,7 @@ void page_decref(struct page_info* pp)
 /*
  * Check that the pages on the page_free_list are reasonable.
  */
-static void check_page_free_list(bool only_low_memory)
-{
+static void check_page_free_list(bool only_low_memory) {
     struct page_info *pp;
     unsigned pdx_limit = only_low_memory ? 1 : NPDENTRIES;
     int nfree_basemem = 0, nfree_extmem = 0;
@@ -521,7 +520,7 @@ static void check_page_free_list(bool only_low_memory)
         /* Move pages with lower addresses first in the free list, since
          * entry_pgdir does not map all pages. */
         struct page_info *pp1, *pp2;
-        struct page_info **tp[2] = { &pp1, &pp2 };
+        struct page_info **tp[2] = {&pp1, &pp2};
         for (pp = page_free_list; pp; pp = pp->pp_link) {
             int pagetype = PDX(page2pa(pp)) >= pdx_limit;
             *tp[pagetype] = pp;
@@ -566,8 +565,7 @@ static void check_page_free_list(bool only_low_memory)
  * Check the physical page allocator (page_alloc(), page_free(),
  * and page_init()).
  */
-static void check_page_alloc(void)
-{
+static void check_page_alloc(void) {
     struct page_info *pp, *pp0, *pp1, *pp2;
     struct page_info *php0, *php1, *php2;
     int nfree, total_free;
@@ -592,9 +590,9 @@ static void check_page_alloc(void)
     assert(pp0);
     assert(pp1 && pp1 != pp0);
     assert(pp2 && pp2 != pp1 && pp2 != pp0);
-    assert(page2pa(pp0) < npages*PGSIZE);
-    assert(page2pa(pp1) < npages*PGSIZE);
-    assert(page2pa(pp2) < npages*PGSIZE);
+    assert(page2pa(pp0) < npages * PGSIZE);
+    assert(page2pa(pp1) < npages * PGSIZE);
+    assert(page2pa(pp2) < npages * PGSIZE);
 
     /* temporarily steal the rest of the free pages.
      *
@@ -643,7 +641,7 @@ static void check_page_alloc(void)
     assert(nfree == 0);
 
     cprintf("[4K] check_page_alloc() succeeded!\n");
-   
+
     /* test allocation of huge page */
     pp0 = pp1 = php0 = 0;
     assert((pp0 = page_alloc(0)));
@@ -652,9 +650,9 @@ static void check_page_alloc(void)
     assert(pp0);
     assert(php0 && php0 != pp0);
     assert(pp1 && pp1 != php0 && pp1 != pp0);
-    assert(0 == (page2pa(php0) % 1024*PGSIZE));
+    assert(0 == (page2pa(php0) % 1024 * PGSIZE));
     if (page2pa(pp1) > page2pa(php0)) {
-        assert(page2pa(pp1) - page2pa(php0) >= 1024*PGSIZE);
+        assert(page2pa(pp1) - page2pa(php0) >= 1024 * PGSIZE);
     }
 
     /* free and reallocate 2 huge pages */
@@ -667,9 +665,9 @@ static void check_page_alloc(void)
 
     /* Is the inter-huge-page difference right? */
     if (page2pa(php1) > page2pa(php0)) {
-        assert(page2pa(php1) - page2pa(php0) >= 1024*PGSIZE);
+        assert(page2pa(php1) - page2pa(php0) >= 1024 * PGSIZE);
     } else {
-        assert(page2pa(php0) - page2pa(php1) >= 1024*PGSIZE);
+        assert(page2pa(php0) - page2pa(php1) >= 1024 * PGSIZE);
     }
 
     /* free the huge pages we took */
