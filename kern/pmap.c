@@ -152,9 +152,6 @@ void mem_init(void)
     /* Find out how much memory the machine has (npages & npages_basemem). */
     i386_detect_memory();
 
-    /* Remove this line when you're ready to test this function. */
-//    panic("mem_init: This function is not finished\n");
-
     /*********************************************************************
      * Allocate an array of npages 'struct page_info's and store it in 'pages'.
      * The kernel uses this array to keep track of physical pages: for each
@@ -162,10 +159,8 @@ void mem_init(void)
      * 'npages' is the number of physical pages in memory.  Your code goes here.
      */
     //npages of boot_alloc required for paging
-    //struct page_info *pages;                 /* Physical page state array */
     cprintf("Allocating %u pages.\n", npages);
     pages = boot_alloc(sizeof(struct page_info)*npages); //This panics if Out of Memory
-//    boot_alloc(4000000);
 
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
@@ -316,15 +311,39 @@ void prepare_page(struct page_info *page, int alloc_flags) {
     assert(!page->pp_ref);
 
     page_free_list = page->pp_link;
-    cprintf("free_list: %p\n", page_free_list);
-
     page->pp_ref = 0;
     page->pp_link = NULL;
     page->c0.reg.free = 0;
 
-    if(alloc_flags & ALLOC_ZERO) {
+    if (alloc_flags & ALLOC_ZERO) {
         memset(page2kva(page), 0, PGSIZE);
     }
+}
+
+void floyd_cycle_detection() {
+    uint32_t count = 0;
+    struct page_info *slow, *fast;
+
+    slow = fast = page_free_list;
+
+    while(true) {
+        slow = slow->pp_link;          // 1 hop
+
+        if(fast->pp_link)
+            fast = fast->pp_link->pp_link; // 2 hops
+        else
+            return;          // next node null => no loop
+
+        if(!slow|| !fast) // if either hits null..no loop
+            return;
+
+        if(slow == fast) // if the two ever meet...we must have a loop
+            break;
+        if(++count > npages)
+            break;
+    }
+
+    panic("page_free_list has cycles!");
 }
 
 /*
@@ -335,15 +354,15 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     size_t i;
     uint16_t hits = 0;
     uint32_t start_address, end_address;
-    struct page_info *page_hit = NULL, *current, *last_free;
-    
+    struct page_info *page_hit = NULL, *current, *last_free, *child;
+
     //Find amount consecutive pages
-    for(i = 0; i < npages; i++) {
-        if(hits >= amount) {
+    for (i = 0; i < npages; i++) {
+        if (hits >= amount) {
             break;
         }
 
-        if(pages[i].c0.reg.free) {
+        if (pages[i].c0.reg.free) {
             hits++;
             page_hit = &pages[i];
         } else {
@@ -351,45 +370,43 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         }
     }
 
-    if(!hits || hits < amount) {
+    if (!hits || hits < amount) {
         return NULL;
     }
 
-    if(!page_hit) {
+    if (!page_hit) {
         panic("No page found, but hitcount is correct");
     }
 
     end_address = (uint32_t) page2pa(page_hit);
     start_address = (uint32_t) page2pa(page_hit - (amount - 1));
 
-    last_free = page_free_list;
-    for(current = page_free_list; current;) {
-        if(page2pa(current) >= start_address && page2pa(current) <= end_address) {
-            /* Reserve page */
-            if(page_free_list == current) {
-                page_free_list = current->pp_link;
-                last_free = page_free_list;
 
-                /* Unlink current page, and move on with its child */
-                current->pp_link = NULL;
-                current->c0.reg.free = 0;
-                current = last_free;
-            } else {
-                /* Link parent page to current page's child */
-                last_free->pp_link = current->pp_link;
-
-                /* Unlink current page, and move on with its child */
-                current->pp_link = NULL;
-                current->c0.reg.free = 0;
-                current = last_free->pp_link;
-            }
+    for (current = page_free_list; current;) {
+        child = current->pp_link;
+        if(!child) {
+            break;
+        }
+        if (page2pa(child) >= start_address && page2pa(child) <= end_address) {
+            /* Unlink current page, and move on with its child */
+            current->pp_link = child->pp_link;
+            child->pp_ref = 0;
+            child->pp_link = NULL;
+            child->c0.reg.free = 0;
         } else {
             /* Move on with current page's child */
             current = current->pp_link;
         }
     }
 
-    return pa2page((physaddr_t)start_address);
+    struct page_info *result = pa2page((physaddr_t) start_address);
+    assert(!result->pp_link);
+
+    if(page_free_list == pa2page((physaddr_t) end_address)) {
+        page_free_list = result - 1;
+    }
+
+    return result;
 }
 
 /*
@@ -437,35 +454,38 @@ struct page_info *page_alloc(int alloc_flags)
  * Return a page to the free list.
  * (This function should only be called when pp->pp_ref reaches 0.)
  */
-void page_free(struct page_info *pp)
-{
+void page_free(struct page_info *pp) {
     /* Fill this function in
      * Hint: You may want to panic if pp->pp_ref is nonzero or
      * pp->pp_link is not NULL. */
-    uint32_t amount = 1, i;
-    
-    assert(pp!=0);
+    uint32_t amount = 1, i, page_index;
+    struct page_info *current;
 
-    if(pp->pp_ref || pp->pp_link) {
-//        panic("Page contained free list reference, or had nonzero refcount during free()");
+    assert(pp != 0);
+
+    if (pp->pp_ref || pp->pp_link) {
+        panic("Page contained free list reference, or had nonzero refcount during free()");
     }
 
-    if(pp->c0.reg.huge) {
+    if (pp->c0.reg.huge) {
         amount = HUGE_PAGE_AMOUNT;
     }
 
-    for(i = 0; i < amount; i++){
-        if(!pp) {
+    for (current = pp + amount - 1; current >= pp; current--) {
+        if (!current) {
             panic("Page in page_free() is undefined");
         }
-        pp->pp_link = page_free_list;
-        page_free_list = pp;
-        
-        //set flag to free
-        pp->c0.reg.free = 1;
+        if (current->pp_link || current->c0.reg.free) {
+            cprintf("Page in page_free() is already marked as free\n");
+            continue;
+        }
+        if(current != page_free_list) {
+            current->pp_link = page_free_list;
+            page_free_list = current;
+        }
 
-        /* Move to next page. Used if i > 1 */
-        pp++;
+        //set flag to free
+        current->c0.reg.free = 1;
     }
 }
 
