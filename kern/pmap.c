@@ -221,16 +221,18 @@ void page_init(void) {
                 page_addr >= EXTPHYSMEM && page_addr < (uint32_t) nextfree - KERNBASE;  //Kernel allocated space
         pc0.reg.IOhole = (page_addr >= IOPHYSMEM && page_addr < EXTPHYSMEM); //IO hole
         pc0.reg.bios = !i;
+        //Every 1024 pages are 4mb alligned
+        pc0.reg.alligned4mb = (i%1024)==0;
 
         //debug print states
-        //        cprintf("Page %u: K %u, IO %u, bios %u\n", i, pc0.reg.kernelPage, pc0.reg.IOhole, pc0.reg.bios);
+//                cprintf("Page %u: K %u, IO %u, bios %u, 4mb alligned %u\n", i, pc0.reg.kernelPage, pc0.reg.IOhole, pc0.reg.bios, pc0.reg.alligned4mb);
 
         //is free if
         //          not kernel              not iohole
         is_free = !pc0.reg.kernelPage && !pc0.reg.IOhole && !pc0.reg.bios;
 
         cf += is_free; //just a statistic counter
-
+        
         pages[i].c0.RPC = pc0.RPC;
         pages[i].pp_ref = !is_free;
         pages[i].pp_link = is_free ? page_free_list : NULL;
@@ -364,7 +366,10 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
             break;
         }
 
-        if (pages[i].c0.reg.free) {
+        //If page is free, add to hit.
+        //If there are not hits, page must be 4mb alligned (see flag)
+
+        if (pages[i].c0.reg.free && (pages[i].c0.reg.alligned4mb || hits)) {
             hits++;
             page_hit = &pages[i];
         } else {
@@ -439,7 +444,9 @@ struct page_info *page_alloc(int alloc_flags) {
     }
 
     if (alloc_flags & ALLOC_HUGE) {
-        page = alloc_consecutive_pages((uint16_t) HUGE_PAGE_AMOUNT, alloc_flags);
+        page = alloc_consecutive_pages((uint16_t) HUGE_PAGE_AMOUNT, alloc_flags); //CAN RETURN NULL
+        if (!page)
+            return page; //return null
         page->c0.reg.huge = 1;
         return page;
     }
