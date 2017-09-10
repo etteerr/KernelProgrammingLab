@@ -104,7 +104,7 @@ static void *boot_alloc(uint32_t n) {
     // If we reached true OOM state, PANIC!
     uint32_t usage_cp, max;
     usage_cp = ((uint32_t) nextfree - KERNBASE) + n;
-    max = 4000000; //4mb
+    max = 4<<20; //4MiB
     cprintf("Kernel boot alloc:\n\tnew alloc: %uK\n\tcurrent Usage %uK\n\tmax Usage: %uK\n", n / 1024, usage_cp / 1024,
             max / 1024);
     if (usage_cp >= max)
@@ -313,7 +313,7 @@ void page_init(void) {
         pc0.reg.IOhole = (page_addr >= IOPHYSMEM && page_addr < EXTPHYSMEM); //IO hole
         pc0.reg.bios = !i;
         //Every 1024 pages are 4mb alligned
-        pc0.reg.alligned4mb = (i%1024)==0;
+        pc0.reg.alligned4mb = (i%HUGE_PAGE_AMOUNT)==0;
 
         //debug print states
 //                cprintf("Page %u: K %u, IO %u, bios %u, 4mb alligned %u\n", i, pc0.reg.kernelPage, pc0.reg.IOhole, pc0.reg.bios, pc0.reg.alligned4mb);
