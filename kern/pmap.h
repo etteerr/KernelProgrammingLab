@@ -14,7 +14,18 @@ extern char bootstacktop[], bootstack[];
 extern struct page_info *pages;
 extern size_t npages;
 
+//The 4MiB mapping at boot
 extern pde_t *kern_pgdir;
+
+/**************
+ * Me struct:
+ *  Page table entry
+ *  1024 * uint32_t
+ *  Super easy mapping for paging
+ */
+typedef struct {
+    pde_t entry[1024];
+} pgtable;
 
 /* This macro takes a kernel virtual address -- an address that points above
  * KERNBASE, where the machine's maximum 256MB of physical memory is mapped --
