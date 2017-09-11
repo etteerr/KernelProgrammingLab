@@ -23,7 +23,7 @@ extern pde_t *kern_pgdir;
  * When the processor is running in protected mode, 
  * the CPL must be 0 to execute this instruction.
  */
-#define INVALIDATE_TLB(M) asm volatile("invlpg (%0)" : : "r" (*M) : "memory")
+#define INVALIDATE_TLB(M) invlpg(M);
 
 /*
  * Defines for Page Directory entries
