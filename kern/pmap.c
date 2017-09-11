@@ -655,7 +655,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         //Does not exist
         
         //Are we told to create a page? No? NULL you go
-        if (create == 0 && !PDE_GET_BIT_HUGE_PAGE(entry))
+        if (create == 0 && !(entry & PDE_BIT_HUGE))
             return NULL;
         else if (create == 0) //But if its 4M, this is your entry
             return &pgdir[pgdi];
@@ -689,7 +689,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     //Note: We return the entry only, we dont care if the physical page exists or is present (present bit set)
     
     //Page table exists, determine type
-    if (PDE_GET_BIT_HUGE_PAGE(entry)) {
+    if (entry & PDE_BIT_HUGE) {
         //PDE entry to 4m page        
         //Return page dir entry
         return (pte_t *) &pgdir[pgdi];
@@ -780,10 +780,9 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     //overwrite permissions
     //These must (for now) always be these values
     if (pp->c0.reg.huge) {
-        *entry |= (uint32_t )1 << PDE_BIT_HUGE;
-        *entry |= 1 << PDE_BIT_PRESENT;
+        *entry |= (uint32_t )(PDE_BIT_HUGE | PDE_BIT_PRESENT);
     }else {
-        *entry |= 1 << PTE_BIT_PRESENT;
+        *entry |= PTE_BIT_PRESENT;
     }
     
     return 0;
@@ -820,7 +819,7 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
     uint32_t phys_addr = PTE_GET_PHYS_ADDRESS(*entry);
     
     //Return page pointer if page is present (eg. not swapped out)
-    if (PTE_GET_BIT_PRESENT(*entry))
+    if (*entry & PTE_BIT_PRESENT)
         return pa2page(phys_addr);
     
     panic("Page present bit not set!");
