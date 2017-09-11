@@ -190,8 +190,8 @@ void mem_init(void) {
      */
     page_init();
 
-    /* Full memory 0-0xFFFF to UTOP and beyond */
-    boot_map_region(kern_pgdir, UTOP, npages*PGSIZE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
+    /* Full memory (0-0x???????) to (KERNBASE and beyond) */
+    boot_map_region(kern_pgdir, KERNBASE, npages*PGSIZE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     check_page_free_list(1);
     check_page_alloc();
@@ -715,8 +715,10 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
         pte_t *pentry = pgdir_walk(pgdir, (void *)((uint32_t)va + i), CREATE_NORMAL);
         
         //Map pentry to physical region pa
+//        cprintf("%#08x at index %#08x\n", pentry, i);
         *pentry = (pa + i) | perm;
     }
+//    cprintf("Done!\n");
 }
 
 /*
