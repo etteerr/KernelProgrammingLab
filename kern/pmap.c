@@ -190,6 +190,18 @@ void mem_init(void) {
      */
     page_init();
 
+    /* BIOS memory */
+    boot_map_region(kern_pgdir, KERNBASE, PGSIZE, 0, 0);
+
+    /* Available memory */
+    boot_map_region(kern_pgdir, KERNBASE+PGSIZE, IOPHYSMEM-PGSIZE, PGSIZE, PTE_BIT_RW);
+
+    /* Kernel memory */
+    boot_map_region(kern_pgdir, KERNBASE+EXTPHYSMEM, (uint32_t)boot_alloc((uint32_t)0) - KERNBASE, EXTPHYSMEM, 0);
+
+    /* Available memory */
+    boot_map_region(kern_pgdir, (uint32_t)boot_alloc((uint32_t)0), (npages * PGSIZE) + KERNBASE - (uint32_t)boot_alloc((uint32_t)0), EXTPHYSMEM, PTE_BIT_RW);
+
     check_page_free_list(1);
     check_page_alloc();
     check_page();
@@ -712,7 +724,12 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
  * Hint: the TA solution uses pgdir_walk
  */
 static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm) {
-    /* Fill this function in */
+    uint32_t i;
+    struct page_info *page;
+    for(i = 0; i < size; i += PGSIZE) {
+        page = pa2page(pa + i);
+        page_insert(pgdir, page, (void *)((uint32_t)va + i), perm | PTE_BIT_PRESENT);
+    }
 }
 
 /*
