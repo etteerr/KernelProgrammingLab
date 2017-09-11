@@ -656,12 +656,12 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         //Create a 4K page
         //We thus need to allocate a page for the pg table
         if (create & CREATE_NORMAL)
-            if (!(entry = (uint32_t)page2pa(page_alloc(ALLOC_ZERO)))) //Allocate & zero out => entry
+            if (!(entry = (uint32_t)page2kva(page_alloc(ALLOC_ZERO)))) //Allocate & zero out => entry
                 return NULL; //Alloc failed
             
         
         if (create & CREATE_HUGE) {
-            if (!(entry = (uint32_t)page2pa(page_alloc(ALLOC_HUGE | ALLOC_ZERO)))) //Allocate & zero out => entry
+            if (!(entry = (uint32_t)page2kva(page_alloc(ALLOC_HUGE | ALLOC_ZERO)))) //Allocate & zero out => entry
                 return NULL; //Alloc failed
             
             //We are a page, so we need to set the user bit
@@ -690,7 +690,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     }
     
     //Page dir entry links to page table
-    pte_t * pgtable = (pte_t *) PDE_GET_ADDRESS(entry);
+    pte_t * pgtable = (pte_t *) PDE_GET_ADDRESS(pgdir[pgdi]);
     assert(pgtable);
 
     return &pgtable[ptdi];
