@@ -191,16 +191,7 @@ void mem_init(void) {
     page_init();
 
     /* BIOS memory */
-    boot_map_region(kern_pgdir, KERNBASE, PGSIZE, 0, 0);
-
-    /* Available memory */
-    boot_map_region(kern_pgdir, KERNBASE+PGSIZE, IOPHYSMEM-PGSIZE, PGSIZE, PTE_BIT_RW);
-
-    /* Kernel memory */
-    boot_map_region(kern_pgdir, KERNBASE+EXTPHYSMEM, (uint32_t)boot_alloc((uint32_t)0) - KERNBASE, EXTPHYSMEM, 0);
-
-    /* Available memory */
-    boot_map_region(kern_pgdir, (uint32_t)boot_alloc((uint32_t)0), (npages * PGSIZE) + KERNBASE - (uint32_t)boot_alloc((uint32_t)0), EXTPHYSMEM, PTE_BIT_RW);
+    boot_map_region(kern_pgdir, UTOP, npages*PGSIZE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     check_page_free_list(1);
     check_page_alloc();
@@ -306,7 +297,7 @@ void page_init(void) {
      * Change the code to reflect this.
      * NB: DO NOT actually touch the physical memory corresponding to free
      *     pages! */
-    size_t i;
+    int32_t i;
     bool is_free;
     physaddr_t page_addr;
     char *nextfree = boot_alloc((uint32_t) 0);
@@ -315,7 +306,7 @@ void page_init(void) {
     register rpage_control pc0;
     pc0.RPC = 0;
 
-    for (i = 0; i < npages; i++) {
+    for (i = npages; i>=0; i--) {
         page_addr = page2pa(&pages[i]);
 
         //List states of page
@@ -340,6 +331,7 @@ void page_init(void) {
         pages[i].pp_link = is_free ? page_free_list : NULL;
         pages[i].c0.reg.free = is_free;
         page_free_list = is_free ? &pages[i] : page_free_list;
+        
     }
 
     cprintf("%u free pages. (%uK)\n", cf, (cf * PGSIZE) / 1024);
@@ -762,7 +754,7 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
  */
 int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     pte_t * entry;
-    if (pp->c0.reg.alligned4mb)
+    if (perm & PDE_BIT_HUGE)
         entry = pgdir_walk(pgdir, va, CREATE_HUGE);
     else
         entry = pgdir_walk(pgdir, va, CREATE_NORMAL);
@@ -794,7 +786,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     
     //overwrite permissions
     //These must (for now) always be these values
-    if (pp->c0.reg.huge) {
+    if (*entry | PDE_BIT_HUGE) {
         *entry |= (uint32_t )(PDE_BIT_HUGE | PDE_BIT_PRESENT);
     }else {
         *entry |= PTE_BIT_PRESENT;
