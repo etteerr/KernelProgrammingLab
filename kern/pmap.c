@@ -595,6 +595,15 @@ void page_decref(struct page_info *pp) {
         page_free(pp);
 }
 
+/**
+ * create a new pde entry + alloc table
+ * @return pde_t
+ */
+pde_t make_new_pde_entry() {
+    //We can make checks here if we want
+    return (uint32_t) page_alloc(ALLOC_ZERO);
+}
+
 /*
  * Given 'pgdir', a pointer to a page directory, pgdir_walk returns
  * a pointer to the page table entry (PTE) for linear address 'va'.
@@ -628,8 +637,82 @@ void page_decref(struct page_info *pp) {
  * table and page directory entries.
  */
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
-    /* Fill this function in */
-    return NULL;
+    //Make a few assertions
+    assert(pgdir);
+    assert(va);
+    
+    //Setup indexes (10, 10, 12)
+    register uint32_t pgdi = VA_GET_PDE_INDEX(va);
+    register uint32_t ptdi = VA_GET_PTE_INDEX(va);
+    
+    //Begin walking the directory and tables
+    uint32_t entry = pgdir[pgdi];
+    
+    //determine table exist (and create if applicable)
+    if (!entry) {
+        //Does not exist
+        
+        //Are we told to create a page? No? NULL you go
+        if (create == 0 && !PDE_GET_BIT_HUGE_PAGE(entry))
+            return NULL;
+        else if (create == 0) //But if its 4M, this is your entry
+            return &pgdir[pgdi];
+        
+        //Create a 4K page
+        //We thus need to allocate a page for the pg table
+        if (create & CREATE_NORMAL)
+            if (!(entry = make_new_pde_entry())) //Allocate & zero out => entry
+                return NULL; //Alloc failed
+        
+        //Dont alloc 4M, only return entry (as done few lines above)
+        //But what of the create_huge flag?
+        //TODO: Find use for CREATE_HUGE flag
+//        //Create a 4M page
+//        if (create & CREATE_HUGE)
+//            if (!(entry = make_new_pde_entry())) //Allocate & zero out => entry
+//                return NULL; //Alloc failed
+        
+        //entry address is no presumed valid
+        //Setup flags
+        entry |= 0b011; // RW and Present bits set (do not set user, that is per pte entry, pde overrides those)
+        
+        //Save entry
+        pgdir[pgdi] = entry;
+        
+        //flush TLB
+        INVALIDATE_TLB(&pgdir[pgdi]);
+    }
+    
+    //Note: We return the entry only, we dont care if the physical page exists or is present (present bit set)
+    
+    //Page table exists, determine type
+    if (PDE_GET_BIT_HUGE_PAGE(entry)) {
+        //PDE entry to 4m page        
+        //Return page dir entry
+        return (pte_t *) &pgdir[pgdi];
+    }
+    
+    //Page dir entry links to page table
+    pte_t * pgtable = (pte_t *) PDE_GET_PHYS_ADDRESS(entry);
+    assert(pgtable);
+    entry = pgtable[VA_GET_PTE_INDEX(va)];
+
+//    if (!entry) {
+//        //Entry does not yet exist
+//        if (!(create & CREATE_NORMAL))
+//            return NULL;
+//        
+//        //create it if asked
+//        entry = (uint32_t) page_alloc(0);
+//        assert(!(entry & 0xFFF)); //assert we have it 4k alligned and all other bit are thus empty
+//        
+//        //Setup entry
+//        entry |= 0b111; //User, RW, Present
+//        
+//        //Invalidate....
+//    }
+    
+    return &pgtable[VA_GET_PTE_INDEX(va)];
 }
 
 /*

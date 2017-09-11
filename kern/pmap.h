@@ -17,6 +17,14 @@ extern size_t npages;
 //The 4MiB mapping at boot
 extern pde_t *kern_pgdir;
 
+/** 
+ * INVLPG—Invalidate TLB Entries
+ * The INVLPG instruction is a privileged instruction. 
+ * When the processor is running in protected mode, 
+ * the CPL must be 0 to execute this instruction.
+ */
+#define INVALIDATE_TLB(M) asm volatile("invlpg (%0)" : : "r" (*M) : "memory")
+
 /*
  * Defines for Page Directory entries
  */
@@ -43,8 +51,12 @@ extern pde_t *kern_pgdir;
 #define PTE_BIT_GLOBAL          8
 /*
  * Gets physical page address (4096 alligned) from a page directory entry
+ * 
+ * Note: This can be used to read 4M addresses. 
+ * Note that bit 21 to 12 are reserved and must not be written to, 
+ * hence they must be 4M alligned as well!
  */
-#define PDE_GET_PHYS_ADDRESS(A) A & 0xFFFFF000;
+#define PDE_GET_PHYS_ADDRESS(A) (A & 0xFFFFF000)
 /*
  * Gets the present bit from a page directory entry
  * 
@@ -121,32 +133,6 @@ extern pde_t *kern_pgdir;
 
 #define VA_GET_PDE_INDEX(A) ((uint32_t) A >> 22) & 0x3FF //10bit mask
 #define VA_GET_PTE_INDEX(A) ((uint32_t) A >> 12) & 0x3FF
-
-
-/* 
- * The following two defines gives nice names to the types
- * And enables use of sizeof
- */
-
-/**************
- * Me struct:
- *  Page Directory
- *  1024 * uint32_t
- *  Super easy mapping for paging
- */
-typedef struct {
-    pde_t entry[1024];
-} pgdir;
-
-/**************
- * Me struct:
- *  Page Table 
- *  1024 * uint32_t
- *  Super easy mapping for paging
- */
-typedef struct {
-    pte_t entry[1024];
-} pgtable;
 
 /* This macro takes a kernel virtual address -- an address that points above
  * KERNBASE, where the machine's maximum 256MB of physical memory is mapped --
