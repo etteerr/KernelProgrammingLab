@@ -26,6 +26,12 @@ extern pde_t *kern_pgdir;
 #define INVALIDATE_TLB(M) invlpg(M);
 
 /*
+ * States if page A and B are the same page
+ * This helps to check if we are in the page directory or not
+ */
+#define SAME_PAGE_4K(A,B) (((uint32_t)A & 0xFFFFF000) == ((uint32_t)B & 0xFFFFF000))
+
+/*
  * Defines for Page Directory entries
  */
 #define PDE_PHYS_ADDRESS        12 //Of a  pgtable

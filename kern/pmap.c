@@ -664,13 +664,18 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
             if (!(entry = make_new_pde_entry())) //Allocate & zero out => entry
                 return NULL; //Alloc failed
         
-        //Dont alloc 4M, only return entry (as done few lines above)
-        //But what of the create_huge flag?
-        //TODO: Find use for CREATE_HUGE flag
+        if (create & CREATE_HUGE) {
+            if (!(entry = (uint32_t)page_alloc(ALLOC_HUGE | ALLOC_ZERO))) //Allocate & zero out => entry
+                return NULL; //Alloc failed
+            
+            //We are a page, so we need to set the user bit
+            entry |= 0b100;
+        }
         
         //entry address is no presumed valid
         //Setup flags
         entry |= 0b011; // RW and Present bits set (do not set user, that is per pte entry, pde overrides those)
+        
         
         //Save entry
         pgdir[pgdi] = entry;
@@ -689,7 +694,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     }
     
     //Page dir entry links to page table
-    pte_t * pgtable = (pte_t *) PDE_GET_PHYS_ADDRESS(entry);
+    pte_t * pgtable = (pte_t *) KADDR(PDE_GET_PHYS_ADDRESS(entry));
     assert(pgtable);
     entry = pgtable[ptdi];
     
@@ -739,7 +744,46 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
  * Also add support for huge page insertion.
  */
 int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
-    /* Fill this function in */
+    pte_t * entry;
+    if (pp->c0.reg.alligned4mb)
+        entry = pgdir_walk(pgdir, va, CREATE_HUGE);
+    else
+        entry = pgdir_walk(pgdir, va, CREATE_NORMAL);
+    
+    //pgdir_walk failure
+    if (!entry)
+        return E_NO_MEM;
+    
+    //If the entry exists, remove it
+    //page_remove asserts we do not delete a pg table with valid entries
+    if (*entry) {
+        //Page exists
+        //When pp == paddr, the page is 'simply' cleared as end result if the ref counter hits 0
+        struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*entry));
+        page_remove(pgdir, va);
+    }
+    
+    //entry is free
+    assert((*entry)==0);
+    
+    //fill entry
+    entry = (uint32_t *) page2pa(pp);
+    
+    //Assert entry valid (lower 12 bits are 0)
+    assert(!((uint32_t)entry & 0xFFF));
+    
+    //Set callers permissions
+    *entry |= perm;
+    
+    //overwrite permissions
+    //These must (for now) always be these values
+    if (pp->c0.reg.huge) {
+        *entry |= (uint32_t )1 << PDE_BIT_HUGE;
+        *entry |= 1 << PDE_BIT_PRESENT;
+    }else {
+        *entry |= 1 << PTE_BIT_PRESENT;
+    }
+    
     return 0;
 }
 
@@ -803,9 +847,21 @@ void page_remove(pde_t *pgdir, void *va) {
         return;
     
     /** Start page removal **/
+    //Check if this is the pgdir
+    if (SAME_PAGE_4K(pgdir, entry)) {
+        //This is a pde_t!
+        //Now check that the pg table is also empty!
+        if (*entry) {
+            //Get writable kernel address
+            pte_t * pgtable = KADDR(PDE_GET_PHYS_ADDRESS(*entry));
+            
+            for(int i = 0;i<1024; i++)
+                assert(pgtable[i]==0);
+        }
+    }
     
     //page must not be referenced 0 times
-    assert(page != 0); 
+    assert(page->pp_ref != 0); 
     
     //decrement page
     page->pp_ref--; 
