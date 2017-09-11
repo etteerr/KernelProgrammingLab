@@ -667,10 +667,6 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         //Dont alloc 4M, only return entry (as done few lines above)
         //But what of the create_huge flag?
         //TODO: Find use for CREATE_HUGE flag
-//        //Create a 4M page
-//        if (create & CREATE_HUGE)
-//            if (!(entry = make_new_pde_entry())) //Allocate & zero out => entry
-//                return NULL; //Alloc failed
         
         //entry address is no presumed valid
         //Setup flags
@@ -696,21 +692,6 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     pte_t * pgtable = (pte_t *) PDE_GET_PHYS_ADDRESS(entry);
     assert(pgtable);
     entry = pgtable[ptdi];
-
-//    if (!entry) {
-//        //Entry does not yet exist
-//        if (!(create & CREATE_NORMAL))
-//            return NULL;
-//        
-//        //create it if asked
-//        entry = (uint32_t) page_alloc(0);
-//        assert(!(entry & 0xFFF)); //assert we have it 4k alligned and all other bit are thus empty
-//        
-//        //Setup entry
-//        entry |= 0b111; //User, RW, Present
-//        
-//        //Invalidate....
-//    }
     
     return &pgtable[VA_GET_PTE_INDEX(va)];
 }
