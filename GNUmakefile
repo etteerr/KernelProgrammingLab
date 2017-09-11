@@ -90,7 +90,7 @@ PERL	:= perl
 # Compiler flags
 # -fno-builtin is required to avoid refs to undefined functions in the kernel.
 # -O1 and -fno-builtin to make backtraces work more nicely.
-CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-inline -fno-builtin -I$(TOP) -MD -std=gnu11
+CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O0 -fno-inline -fno-builtin -I$(TOP) -MD -std=gnu11
 CFLAGS += -fno-omit-frame-pointer
 CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32
 

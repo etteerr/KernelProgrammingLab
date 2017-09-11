@@ -811,7 +811,7 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
     //Get entry
     pte_t * pentry = pgdir_walk(pgdir, va, 0);
 
-    //Return null if entry is null
+    //Return null if entry pointer is null
     if (!pentry)
         return NULL;
     
@@ -825,8 +825,6 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
     //Return page pointer if page is present (eg. not swapped out)
     if (*pentry & PTE_BIT_PRESENT)
         return pa2page(phys_addr);
-    
-    panic("Page present bit not set!");
 
     return NULL;
 }
