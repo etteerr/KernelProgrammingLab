@@ -755,7 +755,26 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
  * Hint: the TA solution uses pgdir_walk and pa2page.
  */
 struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
-    /* Fill this function in */
+    //Get entry
+    pte_t * entry = pgdir_walk(pgdir, va, 0);
+
+    //Return null if entry is null
+    if (!entry)
+        return NULL;
+    
+    //Store entry
+    if (*pte_store)
+        *pte_store = entry;
+    
+    //Extract page
+    uint32_t phys_addr = PTE_GET_PHYS_ADDRESS(*entry);
+    
+    //Return page pointer if page is present (eg. not swapped out)
+    if (PTE_GET_BIT_PRESENT(*entry))
+        return pa2page(phys_addr);
+    
+    panic("Page present bit not set!");
+
     return NULL;
 }
 

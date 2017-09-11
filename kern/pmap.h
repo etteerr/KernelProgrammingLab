@@ -51,12 +51,18 @@ extern pde_t *kern_pgdir;
 #define PTE_BIT_GLOBAL          8
 /*
  * Gets physical page address (4096 alligned) from a page directory entry
+ * This address thus is the beginning of a pg table
  * 
  * Note: This can be used to read 4M addresses. 
  * Note that bit 21 to 12 are reserved and must not be written to, 
  * hence they must be 4M alligned as well!
  */
 #define PDE_GET_PHYS_ADDRESS(A) (A & 0xFFFFF000)
+/*
+ * Gets physical page address (4096 alligned) from a page directory entry
+ * This address thus is the physical page
+ */
+#define PTE_GET_PHYS_ADDRESS(A) (A & 0xFFFFF000)
 /*
  * Gets the present bit from a page directory entry
  * 
