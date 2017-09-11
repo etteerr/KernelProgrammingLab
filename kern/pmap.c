@@ -306,7 +306,7 @@ void page_init(void) {
     register rpage_control pc0;
     pc0.RPC = 0;
 
-    for (i = npages; i>=0; i--) {
+    for (i = npages-1; i>=0; i--) {
         page_addr = page2pa(&pages[i]);
 
         //List states of page
