@@ -647,15 +647,16 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     //Begin walking the directory and tables
     uint32_t entry = pgdir[pgdi];
     
+    if (entry & PDE_BIT_HUGE) //if its 4M, this is your entry
+            return &pgdir[pgdi];
+    
     //determine table exist (and create if applicable)
     if (!entry) {
         //Does not exist
         
         //Are we told to create a page? No? NULL you go
-        if (create == 0 && !PDE_GET_BIT_HUGE_PAGE(entry))
+        if (create == 0)
             return NULL;
-        else if (create == 0) //But if its 4M, this is your entry
-            return &pgdir[pgdi];
         
         //Create a 4K page
         //We thus need to allocate a page for the pg table
