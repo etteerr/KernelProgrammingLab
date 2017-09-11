@@ -18,47 +18,130 @@ extern size_t npages;
 extern pde_t *kern_pgdir;
 
 /*
+ * Defines for Page Directory entries
+ */
+#define PDE_PHYS_ADDRESS        12 //Of a  pgtable
+#define PDE_BIT_PRESENT         0
+#define PDE_BIT_RW              1
+#define PDE_BIT_USER            2
+#define PDE_BIT_WRITETHROUGH    3
+#define PDE_BIT_DISABLECACHE    4
+#define PDE_BIT_ACCESSED        5
+#define PDE_BIT_HUGE            7
+
+/*
+ * Defines for page table entries
+ */
+#define PTE_PHYS_ADDRESS        12 //Of physical page
+#define PTE_BIT_PRESENT         0
+#define PTE_BIT_RW              1
+#define PTE_BIT_USER            2
+#define PTE_BIT_WRITETHROUGH    3
+#define PTE_BIT_DISABLECACHE    4
+#define PTE_BIT_ACCESSED        5
+#define PTE_BIT_DIRTY           6
+#define PTE_BIT_GLOBAL          8
+/*
  * Gets physical page address (4096 alligned) from a page directory entry
  */
 #define PDE_GET_PHYS_ADDRESS(A) A & 0xFFFFF000;
 /*
  * Gets the present bit from a page directory entry
+ * 
+ * When P is not set, the processor ignores the rest of the entry 
+ * and you can use all remaining 31 bits for extra information, 
+ * like recording where the page has ended up in swap space.
+ * ~ OSDEV.wiki
  */
-#define PDE_GET_BIT_PRESENT(A) A & 0x1;
+#define PDE_GET_BIT_PRESENT(A) A & 0x1
 /*
  * Gets the (read) write permission bit
  */
-#define PDE_GET_BIT_RW(A) A>>1 & 0x1;
+#define PDE_GET_BIT_RW(A) A>>PDE_BIT_RW & 0x1
 /*
  * Get user permission bit (user allowed access if set)
  */
-#define PDE_GET_BIT_USER(A) A>>2 & 0x1;
+#define PDE_GET_BIT_USER(A) A>>PDE_BIT_USER & 0x1
 /*
  * Get the writethrough bit, if set write-back disabled (eg. no write cache)
  */
-#define PDE_GET_BIT_WRITETHROUGH(A) A>>3 & 0x1;
+#define PDE_GET_BIT_WRITETHROUGH(A) A>>PDE_BIT_WRITETHROUGH & 0x1
 /*
  * If set, page will not be cached
  */
-#define PDE_GET_BIT_DISABLE_CACHE(A) A>>4 & 0x1;
+#define PDE_GET_BIT_DISABLE_CACHE(A) A>>PDE_BIT_DISABLECACHE & 0x1
 /*
  * Bit is set if page has been written to
  * Bit can be cleared by OS, is not done by CPU
  */
-#define PDE_GET_BIT_ACCESSED(A) A>>5 & 0x1;
+#define PDE_GET_BIT_ACCESSED(A) A>>PDE_BIT_ACCESSED & 0x1
 /*
  * if set, entry is considered to be a 4MiB page
  */
-#define PDE_GET_BIT_HUGE_PAGE(A) A>>6 & 0x1;
+#define PDE_GET_BIT_HUGE_PAGE(A) A>>PDE_BIT_HUGE & 0x1
+
+
+/*
+ * if set, Physical page information is assumed to be present
+ */
+#define PTE_GET_BIT_PRESENT(A)      A>>PTE_BIT_PRESENT & 0x1;
+/*
+ * If set, write access is granted to page
+ */
+#define PTE_GET_BIT_RW(A)           A>>PTE_BIT_RW & 0x1;
+/*
+ * If set, user may access page
+ */
+#define PTE_GET_BIT_USER(A)         A>>PTE_BIT_USER & 0x1;
+/*
+ * If set, write-through enabled (write-back disabled)
+ */
+#define PTE_GET_BIT_WRITETHROUGH(A) A>>PTE_BIT_WRITETHROUGH& 0x1;
+/*
+ * If set, page will not be cached
+ */
+#define PTE_GET_BIT_DISABLECACHE(A) A>>PTE_BIT_DISABLECACHE & 0x1;
+/*
+ * Set by cpu. if set, page is accessed. OS must clear if OS needs this.
+ */
+#define PTE_GET_BIT_ACCESSED(A)     A>>PTE_BIT_ACCESSED & 0x1;
+/*
+ * (Is set by cpu?) Must be unset by OS?
+ * "If the Dirty flag ('D') is set, then the page has been written to. This flag is not updated by the CPU, and once set will not unset itself." ~ OSDEV.wiki
+ */
+#define PTE_GET_BIT_DIRTY(A)        A>>PTE_BIT_DIRTY & 0x1;
+/*
+ * "The Global, or 'G' above, flag, if set, 
+ * prevents the TLB from updating the address in its cache if CR3 is reset. 
+ * Note, that the page global enable bit in CR4 must be set to enable this feature."
+ * ~ OSDEV.wiki
+ */
+#define PTE_GET_BIT_GLOBAL(A)       A>>PTE_BIT_GLOBAL & 0x1;
+
+
+/* 
+ * The following two defines gives nice names to the types
+ * And enables use of sizeof
+ */
 
 /**************
  * Me struct:
- *  Page table entry
+ *  Page Directory
  *  1024 * uint32_t
  *  Super easy mapping for paging
  */
 typedef struct {
     pde_t entry[1024];
+} pgdir;
+
+/**************
+ * Me struct:
+ *  Page Table 
+ *  1024 * uint32_t
+ *  Super easy mapping for paging
+ */
+typedef struct {
+    pte_t entry[1024];
 } pgtable;
 
 /* This macro takes a kernel virtual address -- an address that points above
