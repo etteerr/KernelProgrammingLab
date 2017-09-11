@@ -816,7 +816,7 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
         return NULL;
     
     //Store entry
-    if (*pte_store)
+    if (pte_store)
         *pte_store = entry;
     
     //Extract page
@@ -848,7 +848,7 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
  */
 void page_remove(pde_t *pgdir, void *va) {
     //Get page and entry info
-    pte_t * entry = (pte_t *)1;
+    pte_t * entry = 0;
     struct page_info * page = page_lookup(pgdir, va, &entry);
     
     //Be silent
