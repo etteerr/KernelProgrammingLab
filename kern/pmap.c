@@ -190,7 +190,7 @@ void mem_init(void) {
      */
     page_init();
 
-    /* BIOS memory */
+    /* Full memory 0-0xFFFF to UTOP and beyond */
     boot_map_region(kern_pgdir, UTOP, npages*PGSIZE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     check_page_free_list(1);
@@ -564,8 +564,8 @@ void page_free(struct page_info *pp) {
 
     assert(pp != 0);
 
-    if (pp->pp_ref || pp->pp_link) {
-        panic("Page contained free list reference, or had nonzero refcount during free()");
+    if (pp->pp_ref) {
+        panic("Page contained nonzero refcount during free()");
     }
 
     if (pp->c0.reg.huge) {
@@ -597,15 +597,6 @@ void page_free(struct page_info *pp) {
 void page_decref(struct page_info *pp) {
     if (--pp->pp_ref == 0)
         page_free(pp);
-}
-
-/**
- * create a new pde entry + alloc table
- * @return pde_t
- */
-pde_t make_new_pde_entry() {
-    //We can make checks here if we want
-    return (uint32_t) page_alloc(ALLOC_ZERO);
 }
 
 /*
@@ -665,12 +656,12 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         //Create a 4K page
         //We thus need to allocate a page for the pg table
         if (create & CREATE_NORMAL)
-            if (!(entry = make_new_pde_entry())) //Allocate & zero out => entry
+            if (!(entry = (uint32_t)page2kva(page_alloc(ALLOC_ZERO)))) //Allocate & zero out => entry
                 return NULL; //Alloc failed
             
         
         if (create & CREATE_HUGE) {
-            if (!(entry = (uint32_t)page_alloc(ALLOC_HUGE | ALLOC_ZERO))) //Allocate & zero out => entry
+            if (!(entry = (uint32_t)page2kva(page_alloc(ALLOC_HUGE | ALLOC_ZERO)))) //Allocate & zero out => entry
                 return NULL; //Alloc failed
             
             //We are a page, so we need to set the user bit
@@ -699,11 +690,10 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     }
     
     //Page dir entry links to page table
-    pte_t * pgtable = (pte_t *) PDE_GET_ADDRESS(entry);
+    pte_t * pgtable = (pte_t *) PDE_GET_ADDRESS(pgdir[pgdi]);
     assert(pgtable);
-    entry = pgtable[ptdi];
-    
-    return &pgtable[VA_GET_PTE_INDEX(va)];
+
+    return &pgtable[ptdi];
 }
 
 /*
@@ -721,8 +711,11 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
     uint32_t i;
     struct page_info *page;
     for(i = 0; i < size; i += PGSIZE) {
-        page = pa2page(pa + i);
-        page_insert(pgdir, page, (void *)((uint32_t)va + i), perm | PTE_BIT_PRESENT);
+        //Walk dir, create table if non ext., get pointer to entry, profit
+        pte_t *pentry = pgdir_walk(pgdir, (void *)((uint32_t)va + i), CREATE_NORMAL);
+        
+        //Map pentry to physical region pa
+        *pentry = (pa + i) | perm;
     }
 }
 
@@ -754,43 +747,40 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
  * Also add support for huge page insertion.
  */
 int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
-    pte_t * entry;
+    pte_t * pentry;
     if (perm & PDE_BIT_HUGE)
-        entry = pgdir_walk(pgdir, va, CREATE_HUGE);
+        pentry = pgdir_walk(pgdir, va, CREATE_HUGE);
     else
-        entry = pgdir_walk(pgdir, va, CREATE_NORMAL);
+        pentry = pgdir_walk(pgdir, va, CREATE_NORMAL);
     
     //pgdir_walk failure
-    if (!entry || !va) //if entry returns null, it becomes a address...
+    if (!pentry || !va) //if entry returns null, it becomes a address...
         return -E_NO_MEM;
     
     //If the entry exists, remove it
     //page_remove asserts we do not delete a pg table with valid entries
-    if (*entry) {
+    if (*pentry & PTE_BIT_PRESENT) {
         //Page exists
         //When pp == paddr, the page is 'simply' cleared as end result if the ref counter hits 0
-        struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*entry));
+        struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*pentry));
         page_remove(pgdir, va);
     }
     
     //entry is free
-    assert((*entry)==0);
+    assert(!(*pentry & PTE_BIT_PRESENT));
     
     //fill entry
-    *entry = (uint32_t) page2pa(pp);
-    
-    //Assert entry valid (lower 12 bits are 0)
-    assert(!((uint32_t)entry & 0xFFF));
+    *pentry = (uint32_t) page2pa(pp);
     
     //Set callers permissions
-    *entry |= perm;
+    *pentry |= perm;
     
     //overwrite permissions
     //These must (for now) always be these values
-    if ((*entry) & PDE_BIT_HUGE) {
-        *entry |= (uint32_t )(PDE_BIT_HUGE | PDE_BIT_PRESENT);
+    if ((*pentry) & PDE_BIT_HUGE) {
+        *pentry |= (uint32_t )(PDE_BIT_HUGE | PDE_BIT_PRESENT);
     }else {
-        *entry |= PTE_BIT_PRESENT;
+        *pentry |= PTE_BIT_PRESENT;
     }
     
     return 0;
@@ -809,24 +799,22 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
  */
 struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {    
     //Get entry
-    pte_t * entry = pgdir_walk(pgdir, va, 0);
+    pte_t * pentry = pgdir_walk(pgdir, va, 0);
 
-    //Return null if entry is null
-    if (!entry)
+    //Return null if entry pointer is null
+    if (!pentry)
         return NULL;
     
     //Store entry
     if (pte_store)
-        *pte_store = entry;
+        *pte_store = pentry;
     
     //Extract page
-    uint32_t phys_addr = PTE_GET_PHYS_ADDRESS(*entry);
+    uint32_t phys_addr = PTE_GET_PHYS_ADDRESS(*pentry);
     
     //Return page pointer if page is present (eg. not swapped out)
-    if (*entry & PTE_BIT_PRESENT)
+    if (*pentry & PTE_BIT_PRESENT)
         return pa2page(phys_addr);
-    
-    panic("Page present bit not set!");
 
     return NULL;
 }
@@ -848,8 +836,8 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
  */
 void page_remove(pde_t *pgdir, void *va) {
     //Get page and entry info
-    pte_t * entry = 0;
-    struct page_info * page = page_lookup(pgdir, va, &entry);
+    pte_t * pentry = 0;
+    struct page_info * page = page_lookup(pgdir, va, &pentry);
     
     //Be silent
     if (!page)
@@ -857,12 +845,12 @@ void page_remove(pde_t *pgdir, void *va) {
     
     /** Start page removal **/
     //Check if this is the pgdir
-    if (SAME_PAGE_4K(pgdir, entry)) {
+    if (SAME_PAGE_4K(pgdir, pentry)) {
         //This is a pde_t!
         //Now check that the pg table is also empty!
-        if (*entry) {
+        if (*pentry) {
             //Get writable kernel address
-            pte_t * pgtable = KADDR(PDE_GET_ADDRESS(*entry));
+            pte_t * pgtable = KADDR(PDE_GET_ADDRESS(*pentry));
             
             for(int i = 0;i<1024; i++)
                 assert(pgtable[i]==0);
@@ -880,10 +868,10 @@ void page_remove(pde_t *pgdir, void *va) {
         page_free(page);
     
     //reset entry
-    *entry = 0;
+    *pentry = 0;
     
     //invalidate entry
-    INVALIDATE_TLB(entry);
+    INVALIDATE_TLB(pentry);
 }
 
 /*
