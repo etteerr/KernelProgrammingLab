@@ -564,8 +564,8 @@ void page_free(struct page_info *pp) {
 
     assert(pp != 0);
 
-    if (pp->pp_ref || pp->pp_link) {
-        panic("Page contained free list reference, or had nonzero refcount during free()");
+    if (pp->pp_ref) {
+        panic("Page contained nonzero refcount during free()");
     }
 
     if (pp->c0.reg.huge) {
@@ -765,7 +765,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     
     //If the entry exists, remove it
     //page_remove asserts we do not delete a pg table with valid entries
-    if (*pentry) {
+    if (*pentry & PTE_BIT_PRESENT) {
         //Page exists
         //When pp == paddr, the page is 'simply' cleared as end result if the ref counter hits 0
         struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*pentry));
@@ -773,13 +773,10 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     }
     
     //entry is free
-    assert((*pentry)==0);
+    assert(!(*pentry & PTE_BIT_PRESENT));
     
     //fill entry
     *pentry = (uint32_t) page2pa(pp);
-    
-    //Assert entry valid (lower 12 bits are 0)
-    assert(!((uint32_t)pentry & 0xFFF));
     
     //Set callers permissions
     *pentry |= perm;
