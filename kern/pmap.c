@@ -695,7 +695,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     //Page dir entry links to page table
     pte_t * pgtable = (pte_t *) PDE_GET_PHYS_ADDRESS(entry);
     assert(pgtable);
-    entry = pgtable[VA_GET_PTE_INDEX(va)];
+    entry = pgtable[ptdi];
 
 //    if (!entry) {
 //        //Entry does not yet exist
