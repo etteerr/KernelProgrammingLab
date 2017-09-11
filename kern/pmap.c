@@ -641,7 +641,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     assert(pgdir);
 //    assert(va);
     if (!va)
-        return NULL;
+        return 0;
     
     //Setup indexes (10, 10, 12)
     register uint32_t pgdi = VA_GET_PDE_INDEX(va);
@@ -753,8 +753,8 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
         entry = pgdir_walk(pgdir, va, CREATE_NORMAL);
     
     //pgdir_walk failure
-    if (!entry)
-        return E_NO_MEM;
+    if (!entry || !va) //if entry returns null, it becomes a address...
+        return -E_NO_MEM;
     
     //If the entry exists, remove it
     //page_remove asserts we do not delete a pg table with valid entries
