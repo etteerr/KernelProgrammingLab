@@ -667,6 +667,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         if (create & CREATE_NORMAL)
             if (!(entry = make_new_pde_entry())) //Allocate & zero out => entry
                 return NULL; //Alloc failed
+            
         
         if (create & CREATE_HUGE) {
             if (!(entry = (uint32_t)page_alloc(ALLOC_HUGE | ALLOC_ZERO))) //Allocate & zero out => entry
@@ -776,7 +777,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     assert((*entry)==0);
     
     //fill entry
-    entry = (uint32_t *) page2pa(pp);
+    *entry = (uint32_t) page2pa(pp);
     
     //Assert entry valid (lower 12 bits are 0)
     assert(!((uint32_t)entry & 0xFFF));
@@ -786,7 +787,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     
     //overwrite permissions
     //These must (for now) always be these values
-    if (*entry | PDE_BIT_HUGE) {
+    if ((*entry) & PDE_BIT_HUGE) {
         *entry |= (uint32_t )(PDE_BIT_HUGE | PDE_BIT_PRESENT);
     }else {
         *entry |= PTE_BIT_PRESENT;
