@@ -190,7 +190,7 @@ void mem_init(void) {
      */
     page_init();
 
-    /* BIOS memory */
+    /* Full memory 0-0xFFFF to UTOP and beyond */
     boot_map_region(kern_pgdir, UTOP, npages*PGSIZE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     check_page_free_list(1);
@@ -599,15 +599,6 @@ void page_decref(struct page_info *pp) {
         page_free(pp);
 }
 
-/**
- * create a new pde entry + alloc table
- * @return pde_t
- */
-pde_t make_new_pde_entry() {
-    //We can make checks here if we want
-    return (uint32_t) page_alloc(ALLOC_ZERO);
-}
-
 /*
  * Given 'pgdir', a pointer to a page directory, pgdir_walk returns
  * a pointer to the page table entry (PTE) for linear address 'va'.
@@ -665,12 +656,12 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         //Create a 4K page
         //We thus need to allocate a page for the pg table
         if (create & CREATE_NORMAL)
-            if (!(entry = make_new_pde_entry())) //Allocate & zero out => entry
+            if (!(entry = (uint32_t)page2pa(page_alloc(ALLOC_ZERO)))) //Allocate & zero out => entry
                 return NULL; //Alloc failed
             
         
         if (create & CREATE_HUGE) {
-            if (!(entry = (uint32_t)page_alloc(ALLOC_HUGE | ALLOC_ZERO))) //Allocate & zero out => entry
+            if (!(entry = (uint32_t)page2pa(page_alloc(ALLOC_HUGE | ALLOC_ZERO)))) //Allocate & zero out => entry
                 return NULL; //Alloc failed
             
             //We are a page, so we need to set the user bit
@@ -720,8 +711,11 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
     uint32_t i;
     struct page_info *page;
     for(i = 0; i < size; i += PGSIZE) {
-        page = pa2page(pa + i);
-        page_insert(pgdir, page, (void *)((uint32_t)va + i), perm | PTE_BIT_PRESENT);
+        //Walk dir, create table if non ext., get pointer to entry, profit
+        pte_t *pentry = pgdir_walk(pgdir, (void *)((uint32_t)va + i), CREATE_NORMAL);
+        
+        //Map pentry to physical region pa
+        *pentry = (pa + i) | perm;
     }
 }
 
