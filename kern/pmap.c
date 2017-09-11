@@ -794,7 +794,31 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
  *  tlb_invalidate, and page_decref.
  */
 void page_remove(pde_t *pgdir, void *va) {
-    /* Fill this function in */
+    //Get page and entry info
+    pte_t * entry = (pte_t *)1;
+    struct page_info * page = page_lookup(pgdir, va, &entry);
+    
+    //Be silent
+    if (!page)
+        return;
+    
+    /** Start page removal **/
+    
+    //page must not be referenced 0 times
+    assert(page != 0); 
+    
+    //decrement page
+    page->pp_ref--; 
+    
+    //Dealloc page if ref hits 0
+    if (!page->pp_ref)
+        page_free(page);
+    
+    //reset entry
+    *entry = 0;
+    
+    //invalidate entry
+    INVALIDATE_TLB(entry);
 }
 
 /*
