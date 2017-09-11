@@ -17,6 +17,40 @@ extern size_t npages;
 //The 4MiB mapping at boot
 extern pde_t *kern_pgdir;
 
+/*
+ * Gets physical page address (4096 alligned) from a page directory entry
+ */
+#define PDE_GET_PHYS_ADDRESS(A) A & 0xFFFFF000;
+/*
+ * Gets the present bit from a page directory entry
+ */
+#define PDE_GET_BIT_PRESENT(A) A & 0x1;
+/*
+ * Gets the (read) write permission bit
+ */
+#define PDE_GET_BIT_RW(A) A>>1 & 0x1;
+/*
+ * Get user permission bit (user allowed access if set)
+ */
+#define PDE_GET_BIT_USER(A) A>>2 & 0x1;
+/*
+ * Get the writethrough bit, if set write-back disabled (eg. no write cache)
+ */
+#define PDE_GET_BIT_WRITETHROUGH(A) A>>3 & 0x1;
+/*
+ * If set, page will not be cached
+ */
+#define PDE_GET_BIT_DISABLE_CACHE(A) A>>4 & 0x1;
+/*
+ * Bit is set if page has been written to
+ * Bit can be cleared by OS, is not done by CPU
+ */
+#define PDE_GET_BIT_ACCESSED(A) A>>5 & 0x1;
+/*
+ * if set, entry is considered to be a 4MiB page
+ */
+#define PDE_GET_BIT_HUGE_PAGE(A) A>>6 & 0x1;
+
 /**************
  * Me struct:
  *  Page table entry
