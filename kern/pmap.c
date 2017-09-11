@@ -701,9 +701,8 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     //Page dir entry links to page table
     pte_t * pgtable = (pte_t *) PDE_GET_ADDRESS(entry);
     assert(pgtable);
-    entry = pgtable[ptdi];
-    
-    return &pgtable[VA_GET_PTE_INDEX(va)];
+
+    return &pgtable[ptdi];
 }
 
 /*
