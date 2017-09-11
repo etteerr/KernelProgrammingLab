@@ -754,43 +754,43 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
  * Also add support for huge page insertion.
  */
 int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
-    pte_t * entry;
+    pte_t * pentry;
     if (perm & PDE_BIT_HUGE)
-        entry = pgdir_walk(pgdir, va, CREATE_HUGE);
+        pentry = pgdir_walk(pgdir, va, CREATE_HUGE);
     else
-        entry = pgdir_walk(pgdir, va, CREATE_NORMAL);
+        pentry = pgdir_walk(pgdir, va, CREATE_NORMAL);
     
     //pgdir_walk failure
-    if (!entry || !va) //if entry returns null, it becomes a address...
+    if (!pentry || !va) //if entry returns null, it becomes a address...
         return -E_NO_MEM;
     
     //If the entry exists, remove it
     //page_remove asserts we do not delete a pg table with valid entries
-    if (*entry) {
+    if (*pentry) {
         //Page exists
         //When pp == paddr, the page is 'simply' cleared as end result if the ref counter hits 0
-        struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*entry));
+        struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*pentry));
         page_remove(pgdir, va);
     }
     
     //entry is free
-    assert((*entry)==0);
+    assert((*pentry)==0);
     
     //fill entry
-    *entry = (uint32_t) page2pa(pp);
+    *pentry = (uint32_t) page2pa(pp);
     
     //Assert entry valid (lower 12 bits are 0)
-    assert(!((uint32_t)entry & 0xFFF));
+    assert(!((uint32_t)pentry & 0xFFF));
     
     //Set callers permissions
-    *entry |= perm;
+    *pentry |= perm;
     
     //overwrite permissions
     //These must (for now) always be these values
-    if ((*entry) & PDE_BIT_HUGE) {
-        *entry |= (uint32_t )(PDE_BIT_HUGE | PDE_BIT_PRESENT);
+    if ((*pentry) & PDE_BIT_HUGE) {
+        *pentry |= (uint32_t )(PDE_BIT_HUGE | PDE_BIT_PRESENT);
     }else {
-        *entry |= PTE_BIT_PRESENT;
+        *pentry |= PTE_BIT_PRESENT;
     }
     
     return 0;
@@ -809,21 +809,21 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
  */
 struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {    
     //Get entry
-    pte_t * entry = pgdir_walk(pgdir, va, 0);
+    pte_t * pentry = pgdir_walk(pgdir, va, 0);
 
     //Return null if entry is null
-    if (!entry)
+    if (!pentry)
         return NULL;
     
     //Store entry
     if (pte_store)
-        *pte_store = entry;
+        *pte_store = pentry;
     
     //Extract page
-    uint32_t phys_addr = PTE_GET_PHYS_ADDRESS(*entry);
+    uint32_t phys_addr = PTE_GET_PHYS_ADDRESS(*pentry);
     
     //Return page pointer if page is present (eg. not swapped out)
-    if (*entry & PTE_BIT_PRESENT)
+    if (*pentry & PTE_BIT_PRESENT)
         return pa2page(phys_addr);
     
     panic("Page present bit not set!");
@@ -848,8 +848,8 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
  */
 void page_remove(pde_t *pgdir, void *va) {
     //Get page and entry info
-    pte_t * entry = 0;
-    struct page_info * page = page_lookup(pgdir, va, &entry);
+    pte_t * pentry = 0;
+    struct page_info * page = page_lookup(pgdir, va, &pentry);
     
     //Be silent
     if (!page)
@@ -857,12 +857,12 @@ void page_remove(pde_t *pgdir, void *va) {
     
     /** Start page removal **/
     //Check if this is the pgdir
-    if (SAME_PAGE_4K(pgdir, entry)) {
+    if (SAME_PAGE_4K(pgdir, pentry)) {
         //This is a pde_t!
         //Now check that the pg table is also empty!
-        if (*entry) {
+        if (*pentry) {
             //Get writable kernel address
-            pte_t * pgtable = KADDR(PDE_GET_ADDRESS(*entry));
+            pte_t * pgtable = KADDR(PDE_GET_ADDRESS(*pentry));
             
             for(int i = 0;i<1024; i++)
                 assert(pgtable[i]==0);
@@ -880,10 +880,10 @@ void page_remove(pde_t *pgdir, void *va) {
         page_free(page);
     
     //reset entry
-    *entry = 0;
+    *pentry = 0;
     
     //invalidate entry
-    INVALIDATE_TLB(entry);
+    INVALIDATE_TLB(pentry);
 }
 
 /*
