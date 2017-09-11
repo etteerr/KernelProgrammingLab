@@ -92,7 +92,7 @@ extern pde_t *kern_pgdir;
  * Note that bit 21 to 12 are reserved and must not be written to, 
  * hence they must be 4M alligned as well!
  */
-#define PDE_GET_PHYS_ADDRESS(A) (A & 0xFFFFF000)
+#define PDE_GET_ADDRESS(A) (A & 0xFFFFF000)
 /*
  * Gets physical page address (4096 alligned) from a page directory entry
  * This address thus is the physical page

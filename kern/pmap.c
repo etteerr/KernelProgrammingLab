@@ -698,7 +698,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     }
     
     //Page dir entry links to page table
-    pte_t * pgtable = (pte_t *) KADDR(PDE_GET_PHYS_ADDRESS(entry));
+    pte_t * pgtable = (pte_t *) PDE_GET_ADDRESS(entry);
     assert(pgtable);
     entry = pgtable[ptdi];
     
@@ -861,7 +861,7 @@ void page_remove(pde_t *pgdir, void *va) {
         //Now check that the pg table is also empty!
         if (*entry) {
             //Get writable kernel address
-            pte_t * pgtable = KADDR(PDE_GET_PHYS_ADDRESS(*entry));
+            pte_t * pgtable = KADDR(PDE_GET_ADDRESS(*entry));
             
             for(int i = 0;i<1024; i++)
                 assert(pgtable[i]==0);
