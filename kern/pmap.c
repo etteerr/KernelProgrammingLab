@@ -655,15 +655,20 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         
         //Create a 4K page
         //We thus need to allocate a page for the pg table
-        if (create & CREATE_NORMAL)
-            if (!(entry = (uint32_t)page2kva(page_alloc(ALLOC_ZERO)))) //Allocate & zero out => entry
+        if (create & CREATE_NORMAL){
+            struct page_info * pp = page_alloc(ALLOC_ZERO);
+            if (!(pp)) //Allocate & zero out => entry
                 return NULL; //Alloc failed
+            
+            entry = (uint32_t)page2kva(pp);
+        }
             
         
         if (create & CREATE_HUGE) {
-            if (!(entry = (uint32_t)page2kva(page_alloc(ALLOC_HUGE | ALLOC_ZERO)))) //Allocate & zero out => entry
+            struct page_info * pp = page_alloc(ALLOC_HUGE | ALLOC_ZERO);
+            if (!pp) //Allocate & zero out => entry
                 return NULL; //Alloc failed
-            
+            entry = (uint32_t)page2kva(pp);
             //We are a page, so we need to set the user bit
             entry |= PDE_BIT_USER;
         }
