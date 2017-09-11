@@ -639,9 +639,6 @@ pde_t make_new_pde_entry() {
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     //Make a few assertions
     assert(pgdir);
-//    assert(va);
-    if (!va)
-        return 0;
     
     //Setup indexes (10, 10, 12)
     register uint32_t pgdi = VA_GET_PDE_INDEX(va);
@@ -799,11 +796,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
  *
  * Hint: the TA solution uses pgdir_walk and pa2page.
  */
-struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
-    //Check entry
-    if (va == 0)
-        return NULL; //No mapping
-    
+struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {    
     //Get entry
     pte_t * entry = pgdir_walk(pgdir, va, 0);
 
@@ -835,7 +828,7 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
  *   - The ref count on the physical page should decrement.
  *   - The physical page should be freed if the refcount reaches 0.
  *   - The pg table entry corresponding to 'va' should be set to 0.
- *     (if such a PTE exists)
+ *     (if such a PTE exists)ME
  *   - The TLB must be invalidated if you remove an entry from
  *     the page table.
  *
