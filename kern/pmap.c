@@ -639,7 +639,9 @@ pde_t make_new_pde_entry() {
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     //Make a few assertions
     assert(pgdir);
-    assert(va);
+//    assert(va);
+    if (!va)
+        return NULL;
     
     //Setup indexes (10, 10, 12)
     register uint32_t pgdi = VA_GET_PDE_INDEX(va);
@@ -799,6 +801,10 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
  * Hint: the TA solution uses pgdir_walk and pa2page.
  */
 struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
+    //Check entry
+    if (va == 0)
+        return NULL; //No mapping
+    
     //Get entry
     pte_t * entry = pgdir_walk(pgdir, va, 0);
 
