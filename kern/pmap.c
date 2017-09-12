@@ -756,12 +756,12 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
 //                return NULL; //Alloc failed
 //            entry = (uint32_t)page2pa(pp);
             //We are a page, so we need to set the user bit
-            entry |= PDE_BIT_USER;
+            entry |= PDE_BIT_HUGE;
         }
-        
+        else
         //entry address is no presumed valid
         //Setup flags
-        entry |= PTE_BIT_RW | PTE_BIT_PRESENT; // RW and Present bits set (do not set user, that is per pte entry, pde overrides those)
+            entry |= PTE_BIT_RW | PTE_BIT_PRESENT; // RW and Present bits set (do not set user, that is per pte entry, pde overrides those)
         
         
         //Save entry
