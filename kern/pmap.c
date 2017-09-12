@@ -574,13 +574,15 @@ void page_free(struct page_info *pp) {
     if (pp->c0.reg.huge) {
         amount = HUGE_PAGE_AMOUNT;
     }
+    
+    int warn = 0;
 
     for (current = pp + amount - 1; current >= pp; current--) {
         if (!current) {
             panic("Page in page_free() is undefined");
         }
         if (current->pp_link || current->c0.reg.free) {
-            cprintf("Warning: page in page_free() is already marked as free, ignoring\n");
+            warn++;
             continue;
         }
         if (current != page_free_list) {
@@ -591,6 +593,9 @@ void page_free(struct page_info *pp) {
         //set flag to free
         current->c0.reg.free = 1;
     }
+    
+    if (warn)
+        cprintf("Warning: %u pages in page_free() where already marked as free.\n", warn);
 }
 
 /*
