@@ -927,6 +927,10 @@ struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store) {
     if (pte_store)
         *pte_store = pentry;
     
+    //If 4M, return
+    if (*pentry & PDE_BIT_HUGE)
+        return pa2page(PDE_GET_ADDRESS(*pentry));
+    
     //Extract page
     uint32_t phys_addr = PTE_GET_PHYS_ADDRESS(*pentry);
     
