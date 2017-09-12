@@ -453,6 +453,16 @@ void floyd_cycle_detection() {
     panic("page_free_list has cycles!");
 }
 
+int is_page_in_free_list(struct page_info *page) {
+    struct page_info *entry = page_free_list;
+    for(; entry; entry = entry->pp_link) {
+        if(entry == page) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /*
  * Traverses naively over all pages to find a consecutive block of the given
  * amount of pages.
@@ -475,6 +485,9 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         if (pages[i].c0.reg.free && ((pages[i].c0.reg.alligned4mb || hits) || amount==1)) {
             hits++;
             page_hit = &pages[i];
+
+            /* TODO: remove debug assert, this is slow */
+            assert(is_page_in_free_list(&pages[i]));
         } else {
             hits = 0;
         }
