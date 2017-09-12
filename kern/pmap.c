@@ -461,7 +461,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     size_t i;
     uint16_t hits = 0;
     uint32_t start_address, end_address;
-    struct page_info *page_hit = NULL, *current, *last_free, *child;
+    struct page_info *page_hit = NULL;
 
     //Find amount consecutive pages
     for (i = 0; i < npages; i++) {
@@ -493,22 +493,27 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
 
     uint32_t outed = 0;
 
-    for (current = page_free_list; current;) {
-        child = current->pp_link;
-        if (!child) {
-            break;
-        }
-        if (page2pa(child) >= start_address && page2pa(child) <= end_address) {
-            /* Unlink current page, and move on with its child */
-            current->pp_link = child->pp_link;
-            child->pp_ref = 0;
-            child->pp_link = NULL;
-            child->c0.reg.free = 0;
+    //Extract pages and set ref & link & free to 0
+    struct page_info *current, **p_nextfree, *next;
+    current = page_free_list;
+    p_nextfree = &page_free_list;
+    
+    
+    
+    for(; current; current = next) {
+        next = current->pp_link;
+        
+        //If its our page, extract
+        if (page2pa(current) >= start_address && page2pa(current) <= end_address) {
+            current->pp_link = 0;
+            current->pp_link = NULL;
+            current->c0.reg.free = 0;
+            *p_nextfree = next;
             outed++;
-        } else {
-            /* Move on with current page's child */
-            current = current->pp_link;
-        }
+        } else
+            p_nextfree = &current->pp_link;
+        
+        
     }
 
     struct page_info *result = pa2page((physaddr_t) start_address);
