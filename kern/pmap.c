@@ -244,7 +244,7 @@ void mem_init(void) {
      * Permissions: kernel RW, user NONE
      * Your code goes here:
      */
-    boot_map_region(kern_pgdir, KERNBASE, 0xFFFFFFFF-KERNBASE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
+    boot_map_region(kern_pgdir, KERNBASE, 0xFFFFF000-KERNBASE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     /* Enable Page Size Extensions for huge page support */
     lcr4(rcr4() | CR4_PSE);
@@ -1222,7 +1222,6 @@ static void check_kern_pgdir(void) {
                 assert(pgdir[i] & PTE_P);
                 break;
             default:
-                cprintf("%u\n", i);
                 if (i >= PDX(KERNBASE)) {
                     assert(pgdir[i] & PTE_P);
                     assert(pgdir[i] & PTE_W);
