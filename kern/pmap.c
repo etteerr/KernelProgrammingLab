@@ -229,7 +229,7 @@ void mem_init(void) {
      */
     boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, ((uint32_t)bootstacktop - KERNBASE)-KSTKSIZE, PTE_BIT_RW | PTE_BIT_PRESENT);
     /* Invalid phys addr to trigger fault when accessed */
-    boot_map_region(kern_pgdir, KSTACKTOP-PTSIZE, KSTKGAP, 0xFFFFF000 - KSTKGAP);
+    boot_map_region(kern_pgdir, KSTACKTOP-PTSIZE, KSTKGAP, 0xFFFFF000 - KSTKGAP,0);
 
     /* Note: Dont map anything between KSTACKTOP - PTSIZE and KSTACKTOP - KTSIZE
      * leaving this as guard region.
@@ -244,7 +244,7 @@ void mem_init(void) {
      * Permissions: kernel RW, user NONE
      * Your code goes here:
      */
-    boot_map_region(kern_pgdir, KERNBASE, npages*PGSIZE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
+    boot_map_region(kern_pgdir, KERNBASE, 0xFFFFFFFF-KERNBASE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     /* Enable Page Size Extensions for huge page support */
     lcr4(rcr4() | CR4_PSE);
@@ -1222,6 +1222,7 @@ static void check_kern_pgdir(void) {
                 assert(pgdir[i] & PTE_P);
                 break;
             default:
+                cprintf("%u\n", i);
                 if (i >= PDX(KERNBASE)) {
                     assert(pgdir[i] & PTE_P);
                     assert(pgdir[i] & PTE_W);

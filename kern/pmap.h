@@ -99,8 +99,8 @@ extern pde_t *kern_pgdir;
  */
 #define PTE_GET_PHYS_ADDRESS(A) (A & 0xFFFFF000)
 
-#define VA_GET_PDE_INDEX(A) ((uint32_t) A >> 22) & 0x3FF //10bit mask
-#define VA_GET_PTE_INDEX(A) ((uint32_t) A >> 12) & 0x3FF
+#define VA_GET_PDE_INDEX(A) (((uint32_t) (A) >> 22) & 0x3FF) //10bit mask
+#define VA_GET_PTE_INDEX(A) (((uint32_t) (A) >> 12) & 0x3FF)
 
 /* This macro takes a kernel virtual address -- an address that points above
  * KERNBASE, where the machine's maximum 256MB of physical memory is mapped --
