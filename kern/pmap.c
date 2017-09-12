@@ -522,6 +522,29 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     return result;
 }
 
+
+struct page_info * remove_page_from_freelist(struct page_info * pp) {
+    struct page_info * i, **p, *page;
+    for(i=page_free_list; i!=NULL; i=i->pp_link) {
+        if (pp==i) {
+            //Our page in low VM
+            assert(i->c0.reg.free);
+            *p = i->pp_link;
+
+            page = i;
+            //Prepare page
+            page->pp_link = NULL;
+            page->c0.reg.free = 0;
+
+            return page;
+        }
+
+        p=&i->pp_link;
+    }
+    
+    return NULL;
+}
+
 /*
  * Allocates a physical page.
  * If (alloc_flags & ALLOC_ZERO), fills the entire
@@ -712,15 +735,19 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
             if (!(pp)) //Allocate & zero out => entry
                 return NULL; //Alloc failed
             
+            
+            pp->pp_ref++;
+            
             entry = (uint32_t)page2pa(pp);
+            
         }
             
         
         if (create & CREATE_HUGE) {
-            struct page_info * pp = page_alloc(ALLOC_HUGE | ALLOC_ZERO);
-            if (!pp) //Allocate & zero out => entry
-                return NULL; //Alloc failed
-            entry = (uint32_t)page2pa(pp);
+//            struct page_info * pp = page_alloc(ALLOC_HUGE | ALLOC_ZERO);
+//            if (!pp) //Allocate & zero out => entry
+//                return NULL; //Alloc failed
+//            entry = (uint32_t)page2pa(pp);
             //We are a page, so we need to set the user bit
             entry |= PDE_BIT_USER;
         }
@@ -843,6 +870,20 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     }else {
         *pentry |= PTE_BIT_PRESENT;
     }
+    
+    //Remove page from free list, it is referenced
+    pp = remove_page_from_freelist(pp);
+    if (!pp) {
+        *pentry = 0;
+        return -E_UNSPECIFIED;
+    }
+    
+    //Flush
+    uint32_t addr = (uint32_t) pentry - KERNBASE;
+    INVALIDATE_TLB((void*)addr);
+    
+    //page is now referenced
+    pp->pp_ref++;
     
     return 0;
 }
