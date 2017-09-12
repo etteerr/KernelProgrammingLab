@@ -524,6 +524,8 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
 
 
 struct page_info * remove_page_from_freelist(struct page_info * pp) {
+    //If the page is free, it should not be in free list
+    
     struct page_info * i, **p, *page;
     for(i=page_free_list; i!=NULL; i=i->pp_link) {
         if (pp==i) {
@@ -542,7 +544,12 @@ struct page_info * remove_page_from_freelist(struct page_info * pp) {
         p=&i->pp_link;
     }
     
-    return NULL;
+    
+    if (pp->c0.reg.free)
+        cprintf("Warning: Page not found in remove_page while free was set!\n");
+    
+    pp->c0.reg.free = 0;
+    return pp; //Page not found
 }
 
 /*
@@ -835,6 +842,7 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
  * Also add support for huge page insertion.
  */
 int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
+    register uint32_t pgdi = VA_GET_PDE_INDEX(va);
     pte_t * pentry;
     if (perm & PDE_BIT_HUGE)
         pentry = pgdir_walk(pgdir, va, CREATE_HUGE);
@@ -849,13 +857,17 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     //page_remove asserts we do not delete a pg table with valid entries
     if (*pentry & PTE_BIT_PRESENT) {
         //Page exists
-        //When pp == paddr, the page is 'simply' cleared as end result if the ref counter hits 0
-        struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*pentry));
-        page_remove(pgdir, va);
+        
+        //check if page is the same
+        uint32_t pppaddr = page2pa(pp);
+        
+        if (PTE_GET_PHYS_ADDRESS(*pentry) != pppaddr) {        
+            //When pp == paddr, the page is 'simply' cleared as end result if the ref counter hits 0
+            struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*pentry));
+            page_remove(pgdir, va);
+        }else 
+            pp->pp_ref--;
     }
-    
-    //entry is free
-    assert(!(*pentry & PTE_BIT_PRESENT));
     
     //fill entry
     *pentry = (uint32_t) page2pa(pp);
@@ -863,12 +875,16 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     //Set callers permissions
     *pentry |= perm;
     
-    //overwrite permissions
+    //Make sure some PGD permissions reflect their childs permissions
+    uint32_t * pgde = &pgdir[pgdi];
+    
+    //overwrite permissions (and set PGD)
     //These must (for now) always be these values
     if ((*pentry) & PDE_BIT_HUGE) {
         *pentry |= (uint32_t )(PDE_BIT_HUGE | PDE_BIT_PRESENT);
     }else {
         *pentry |= PTE_BIT_PRESENT;
+        *pgde |= (*pentry) & 0b11111;
     }
     
     //Remove page from free list, it is referenced
