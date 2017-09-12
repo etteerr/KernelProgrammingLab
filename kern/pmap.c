@@ -190,9 +190,6 @@ void mem_init(void) {
      */
     page_init();
 
-    /* Full memory (0-0x???????) to (KERNBASE and beyond) */
-    boot_map_region(kern_pgdir, KERNBASE, npages*PGSIZE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
-
     check_page_free_list(1);
     check_page_alloc();
     check_page();
@@ -208,6 +205,8 @@ void mem_init(void) {
      *    - pages itself -- kernel RW, user NONE
      * Your code goes here:
      */
+    boot_map_region(kern_pgdir, UPAGES, PTSIZE, ((uint32_t)pages) - KERNBASE, PTE_BIT_USER | PTE_BIT_PRESENT);
+    boot_map_region(kern_pgdir, ((uint32_t)pages), PTSIZE, ((uint32_t)pages) - KERNBASE, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     /*********************************************************************
      * Use the physical memory that 'bootstack' refers to as the kernel
@@ -221,6 +220,9 @@ void mem_init(void) {
      *     Permissions: kernel RW, user NONE
      * Your code goes here:
      */
+    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, ((uint32_t)bootstacktop)-KSTKSIZE, PTE_BIT_RW | PTE_BIT_PRESENT);
+    /* Invalid phys addr to trigger fault when accessed */
+    boot_map_region(kern_pgdir, KSTACKTOP-PTSIZE, KSTKGAP, 0xFFFFFFFF - PTSIZE, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     /* Note: Dont map anything between KSTACKTOP - PTSIZE and KSTACKTOP - KTSIZE
      * leaving this as guard region.
@@ -235,6 +237,7 @@ void mem_init(void) {
      * Permissions: kernel RW, user NONE
      * Your code goes here:
      */
+    boot_map_region(kern_pgdir, KERNBASE, npages*PGSIZE, 0, PTE_BIT_RW | PTE_BIT_PRESENT);
 
     /* Enable Page Size Extensions for huge page support */
     lcr4(rcr4() | CR4_PSE);
