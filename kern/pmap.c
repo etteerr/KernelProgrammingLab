@@ -227,9 +227,9 @@ void mem_init(void) {
      *     Permissions: kernel RW, user NONE
      * Your code goes here:
      */
-    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, ((uint32_t)bootstacktop)-KSTKSIZE, PTE_BIT_RW | PTE_BIT_PRESENT);
+    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, ((uint32_t)bootstacktop - KERNBASE)-KSTKSIZE, PTE_BIT_RW | PTE_BIT_PRESENT);
     /* Invalid phys addr to trigger fault when accessed */
-    boot_map_region(kern_pgdir, KSTACKTOP-PTSIZE, KSTKGAP, 0xFFFFFFFF - PTSIZE, PTE_BIT_RW | PTE_BIT_PRESENT);
+    boot_map_region(kern_pgdir, KSTACKTOP-PTSIZE, KSTKGAP, 0xFFFFF000 - KSTKGAP);
 
     /* Note: Dont map anything between KSTACKTOP - PTSIZE and KSTACKTOP - KTSIZE
      * leaving this as guard region.
@@ -811,7 +811,7 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
         //Map pentry to physical region pa
         *pentry = (pa + i) | perm;
     }
-    cprintf("Mapped %#08x-%#08x to %#08x-%#08x\n", va, va+size, pa, pa+size);
+    cprintf("Mapped va %#08x-%#08x to pa %#08x-%#08x\n", va, va+size, pa, pa+size);
 }
 
 /*
