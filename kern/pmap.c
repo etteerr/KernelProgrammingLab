@@ -966,28 +966,12 @@ void page_remove(pde_t *pgdir, void *va) {
         return;
     
     /** Start page removal **/
-    //Check if this is the pgdir
-    if (SAME_PAGE_4K(pgdir, pentry)) {
-        //This is a pde_t!
-        //Now check that the pg table is also empty!
-        if (*pentry) {
-            //Get writable kernel address
-            pte_t * pgtable = KADDR(PDE_GET_ADDRESS(*pentry));
-            
-            for(int i = 0;i<1024; i++)
-                assert(pgtable[i]==0);
-        }
-    }
-    
+
     //page must not be referenced 0 times
     assert(page->pp_ref != 0); 
     
     //decrement page
-    page->pp_ref--; 
-    
-    //Dealloc page if ref hits 0
-    if (!page->pp_ref)
-        page_free(page);
+    page_decref(page);
     
     //reset entry
     *pentry = 0;
