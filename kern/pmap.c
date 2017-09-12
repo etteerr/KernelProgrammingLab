@@ -552,7 +552,7 @@ struct page_info *page_alloc(int alloc_flags) {
     }
 
     /* Pop the top page from the free list */
-    if (!(alloc_flags | ALLOC_PREMAPPED))
+    if (!(alloc_flags & ALLOC_PREMAPPED))
         page = page_free_list;
     else {
         struct page_info **p, * i;
