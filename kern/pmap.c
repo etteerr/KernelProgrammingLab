@@ -139,6 +139,13 @@ static void *boot_alloc(uint32_t n) {
     return newAlloc;
 }
 
+/* 
+ * Bootstrapping flag
+ *  Only 4M is mapped when this flag is set
+ */
+static uint8_t boot_low_mem=1; 
+
+
 /*
  * Set up a two-level page table:
  *    kern_pgdir is its linear (virtual) address of the rnpages_basememoot
@@ -552,7 +559,7 @@ struct page_info *page_alloc(int alloc_flags) {
     }
 
     /* Pop the top page from the free list */
-    if (!(alloc_flags & ALLOC_PREMAPPED))
+    if (!((alloc_flags & ALLOC_PREMAPPED) || boot_low_mem))
         page = page_free_list;
     else {
         struct page_info **p, * i;
@@ -581,6 +588,8 @@ struct page_info *page_alloc(int alloc_flags) {
             
             p=&i->pp_link;
         }
+        
+        return NULL; //No success in finding a page
     }
     
     assert(page);
@@ -703,7 +712,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
             if (!(pp)) //Allocate & zero out => entry
                 return NULL; //Alloc failed
             
-            entry = (uint32_t)page2kva(pp);
+            entry = (uint32_t)page2pa(pp);
         }
             
         
@@ -711,7 +720,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
             struct page_info * pp = page_alloc(ALLOC_HUGE | ALLOC_ZERO);
             if (!pp) //Allocate & zero out => entry
                 return NULL; //Alloc failed
-            entry = (uint32_t)page2kva(pp);
+            entry = (uint32_t)page2pa(pp);
             //We are a page, so we need to set the user bit
             entry |= PDE_BIT_USER;
         }
@@ -738,8 +747,11 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
     }
     
     //Page dir entry links to page table
-    pte_t * pgtable = (pte_t *) PDE_GET_ADDRESS(pgdir[pgdi]);
+    pte_t * pgtable = (pte_t *) (PDE_GET_ADDRESS(pgdir[pgdi]));
+    pgtable = (pte_t*) ((uint32_t) pgtable + KERNBASE);
+    
     assert(pgtable);
+    assert(&pgtable[ptdi]);
 
     return &pgtable[ptdi];
 }
@@ -803,7 +815,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
         pentry = pgdir_walk(pgdir, va, CREATE_NORMAL);
     
     //pgdir_walk failure
-    if (!pentry || !va) //if entry returns null, it becomes a address...
+    if (!pentry) //if entry returns null, it becomes a address...
         return -E_NO_MEM;
     
     //If the entry exists, remove it
