@@ -465,7 +465,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         //If page is free, add to hit.
         //If there are not hits, page must be 4mb alligned (see flag)
 
-        if (pages[i].c0.reg.free && (pages[i].c0.reg.alligned4mb || hits)) {
+        if (pages[i].c0.reg.free && ((pages[i].c0.reg.alligned4mb || hits) || amount==1)) {
             hits++;
             page_hit = &pages[i];
         } else {
@@ -484,6 +484,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     end_address = (uint32_t) page2pa(page_hit);
     start_address = (uint32_t) page2pa(page_hit - (amount - 1));
 
+    uint32_t outed = 0;
 
     for (current = page_free_list; current;) {
         child = current->pp_link;
@@ -496,6 +497,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
             child->pp_ref = 0;
             child->pp_link = NULL;
             child->c0.reg.free = 0;
+            outed++;
         } else {
             /* Move on with current page's child */
             current = current->pp_link;
@@ -503,6 +505,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     }
 
     struct page_info *result = pa2page((physaddr_t) start_address);
+    assert(outed == amount);
     assert(!result->pp_link);
 
     if (page_free_list == pa2page((physaddr_t) end_address)) {
@@ -533,8 +536,9 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
  * If (alloc_flags & ALLOC_HUGE), returns a huge physical page of 4MB size.
  */
 struct page_info *page_alloc(int alloc_flags) {
-    struct page_info *page;
+    struct page_info *page = 0;
 
+    //Check page free list
     if (!page_free_list) {
         return NULL;
     }
@@ -548,9 +552,40 @@ struct page_info *page_alloc(int alloc_flags) {
     }
 
     /* Pop the top page from the free list */
-    page = page_free_list;
-    prepare_page(page, alloc_flags);
+    if (!(alloc_flags | ALLOC_PREMAPPED))
+        page = page_free_list;
+    else {
+        struct page_info **p, * i;
 
+        p = &page_free_list;
+        for(i=page_free_list; i!=NULL; i=i->pp_link) {
+            uint32_t pa = page2pa(i);
+            
+            if (pa < 4<<20) {
+                //Our page in low VM
+                assert(i->c0.reg.free);
+                *p = i->pp_link;
+                
+                page = i;
+                //Prepare page
+                page->pp_ref = 0;
+                page->pp_link = NULL;
+                page->c0.reg.free = 0;
+
+                if (alloc_flags & ALLOC_ZERO) {
+                    memset(page2kva(page), 0, PGSIZE);
+                }
+                
+                return page;
+            }
+            
+            p=&i->pp_link;
+        }
+    }
+    
+    assert(page);
+    prepare_page(page, alloc_flags);
+    
     return page;
 }
 
