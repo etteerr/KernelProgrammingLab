@@ -811,7 +811,7 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
         //Map pentry to physical region pa
         *pentry = (pa + i) | perm;
     }
-    cprintf("Mapped %08x-%08x to %08x-%08x", va, va+size, pa, pa+size);
+    cprintf("Mapped %#08x-%#08x to %#08x-%#08x\n", va, va+size, pa, pa+size);
 }
 
 /*
