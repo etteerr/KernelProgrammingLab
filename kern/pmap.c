@@ -768,7 +768,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         pgdir[pgdi] = entry;
         
         //flush TLB
-        INVALIDATE_TLB(&pgdir[pgdi]);
+        tlb_invalidate(pgdir, (void*)va);
     }
     
     //Note: We return the entry only, we dont care if the physical page exists or is present (present bit set)
@@ -896,7 +896,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     
     //Flush
     uint32_t addr = (uint32_t) pentry - KERNBASE;
-    INVALIDATE_TLB((void*)addr);
+    tlb_invalidate(pgdir, va);
     
     //page is now referenced
     pp->pp_ref++;
@@ -989,7 +989,7 @@ void page_remove(pde_t *pgdir, void *va) {
     *pentry = 0;
     
     //invalidate entry
-    INVALIDATE_TLB(pentry);
+    tlb_invalidate(pgdir, va);
 }
 
 /*
