@@ -9,6 +9,8 @@
 #include <inc/memlayout.h>
 #include <inc/assert.h>
 
+struct env;
+
 extern char bootstacktop[], bootstack[];
 
 extern struct page_info *pages;
@@ -17,10 +19,10 @@ extern size_t npages;
 //The 4MiB mapping at boot
 extern pde_t *kern_pgdir;
 
-/** 
+/**
  * INVLPG—Invalidate TLB Entries
- * The INVLPG instruction is a privileged instruction. 
- * When the processor is running in protected mode, 
+ * The INVLPG instruction is a privileged instruction.
+ * When the processor is running in protected mode,
  * the CPL must be 0 to execute this instruction.
  */
 #define INVALIDATE_TLB(M) invlpg(M);
@@ -87,9 +89,9 @@ extern pde_t *kern_pgdir;
 /*
  * Gets physical page address (4096 alligned) from a page directory entry
  * This address thus is the beginning of a pg table
- * 
- * Note: This can be used to read 4M addresses. 
- * Note that bit 21 to 12 are reserved and must not be written to, 
+ *
+ * Note: This can be used to read 4M addresses.
+ * Note that bit 21 to 12 are reserved and must not be written to,
  * hence they must be 4M alligned as well!
  */
 #define PDE_GET_ADDRESS(A) (A & 0xFFFFF000)
@@ -154,6 +156,9 @@ void page_decref(struct page_info *pp);
 
 void tlb_invalidate(pde_t *pgdir, void *va);
 
+int  user_mem_check(struct env *env, const void *va, size_t len, int perm);
+void user_mem_assert(struct env *env, const void *va, size_t len, int perm);
+
 static inline physaddr_t page2pa(struct page_info *pp)
 {
     return (pp - pages) << PGSHIFT;
@@ -170,5 +175,7 @@ static inline void *page2kva(struct page_info *pp)
 {
     return KADDR(page2pa(pp));
 }
+
+pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
 
 #endif /* !JOS_KERN_PMAP_H */
