@@ -178,4 +178,6 @@ static inline void *page2kva(struct page_info *pp)
 
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
 
+struct page_info* alloc_consecutive_pages(uint16_t amount, int alloc_flags);
+
 #endif /* !JOS_KERN_PMAP_H */

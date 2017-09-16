@@ -289,6 +289,59 @@ static void region_alloc(struct env *e, void *va, size_t len)
      *   You should round va down, and round (va + len) up.
      *   (Watch out for corner-cases!)
      */
+    //Assertions
+    assert(len>0);
+    assert(e);
+    
+    /* Bootstrap */
+    //rounded down virtual address
+    uint32_t rva = ((uint32_t) va ) & ~0xFFF; //bit mask lower bits to round down
+    //ROunded up length
+    size_t rlen = ROUNDUP(len, 0xFFF);
+    //number of physical pages to allocate
+    uint32_t numpages = rlen/PGSIZE;
+    
+    /* Allocate */
+    //Allocated start page
+    struct page_info * pp = alloc_consecutive_pages(numpages,  0);
+    
+    
+    //TODO: try allocating separate pages if consecutive does not succeed
+    //assert allocation successful
+    assert(pp);
+    
+    /* Page table determination */
+    //Determine amount of page table entries required
+    uint32_t pages4M, pages4K;
+    //Determine 4K pages in total
+    pages4K = numpages;
+    //Determine number of 4M pages in total
+    pages4M = pages4K / 1024;
+    
+    /* setup va tables */
+    uint32_t i = 0;
+    uint32_t res = 0;
+    for(; i<pages4M; i++)
+        res |= page_insert(
+                e->env_pgdir, //the env pgdir
+                pp+(i*1024), //origin address of pp + offset 4M pages
+                (void*)(rva + (i*1024*PGSIZE)), 
+                PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_USER
+                );
+    //Convert i * 4M pages to i * 4K pages
+    i *= 1024;
+    
+    //i == number of 4k pages mapped via 4M, iterate till all leftovers are done
+    for(; i<pages4K; i++)
+        res |= page_insert(
+                    e->env_pgdir, //the env pgdir
+                    pp+i, //origin address of pp + offset 4M pages
+                    (void*)(rva + (i*PGSIZE)), 
+                    PDE_BIT_RW | PDE_BIT_USER
+                    );
+    
+    //Check if there where any errors
+    assert(res==0);
 }
 
 /*
