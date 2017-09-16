@@ -295,6 +295,9 @@ static void region_alloc(struct env *e, void *va, size_t len)
      *   You should round va down, and round (va + len) up.
      *   (Watch out for corner-cases!)
      */
+    //Set print header
+    cprintf("region_alloc: %#08x to %#08x\n", va, va+len);
+    
     //Assertions
     assert(len>0);
     assert(e);
@@ -303,14 +306,15 @@ static void region_alloc(struct env *e, void *va, size_t len)
     //rounded down virtual address
     uint32_t rva = ((uint32_t) va ) & ~0xFFF; //bit mask lower bits to round down
     //ROunded up length
-    size_t rlen = ROUNDUP(len, 0xFFF);
+    size_t rlen = ROUNDUP(len, PGSIZE);
     //number of physical pages to allocate
     uint32_t numpages = rlen/PGSIZE;
     
     /* Allocate */
     //Allocated start page
+    cprintf("\tAllocating... ");
     struct page_info * pp = alloc_consecutive_pages(numpages,  0);
-    
+    cprintf("Success!\n");
     
     //TODO: try allocating separate pages if consecutive does not succeed
     //assert allocation successful
@@ -325,6 +329,9 @@ static void region_alloc(struct env *e, void *va, size_t len)
     pages4M = pages4K / 1024;
     
     /* setup va tables */
+    cprintf("\tSetting up %u 4M and %u 4K pages at %#08x to %#08x... ", 
+    pages4M, pages4K, rva, rva+rlen);
+    
     uint32_t i = 0;
     uint32_t res = 0;
     for(; i<pages4M; i++)
@@ -348,8 +355,28 @@ static void region_alloc(struct env *e, void *va, size_t len)
     
     //Check if there where any errors
     assert(res==0);
+    cprintf("Success!\n");
+    
+    /* Check virtual pages */
+    cprintf("\tChecking access (R/W) to va range... ");
+    //Load enviroment pagedir
+    lcr3(PADDR(e->env_pgdir));
+    //Create 32 bit sized bites (volatile hack to prevent optimizations)
+    volatile uint32_t * data;
+    //Print Check variables
+    
+    //Check RW access to virtual memory
+    for(data=(uint32_t*)va; data<(uint32_t*)(va+len); data++) {
+        volatile uint32_t tmp = *data; //volatile prevents optimization
+        *data = tmp;
+    }
+    //If no pagefault happend, check succes!
+    cprintf("Successful!\n");
+    //Restore kernel pagedir
+    lcr3(PADDR(kern_pgdir));
 
     /* Invalidate TLB */
+    //Legacy code if lcr3 changes, keep this line!
     tlb_invalidate(e->env_pgdir, va);
 }
 
