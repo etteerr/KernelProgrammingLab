@@ -194,6 +194,8 @@ void mem_init(void) {
      * Make 'envs' point to an array of size 'NENV' of 'struct env'.
      * LAB 3: Your code here.
      */
+    cprintf("Allocating %u user environments.\n", NENV);
+    envs = boot_alloc(sizeof(struct env) * NENV);
 
     /*********************************************************************
      * Now that we've allocated the initial kernel data structures, we set
@@ -203,7 +205,7 @@ void mem_init(void) {
      */
     page_init();
 
-    check_page_free_list(1);
+    check_page_free_list((bool)1);
     check_page_alloc();
     check_page();
 
@@ -239,6 +241,9 @@ void mem_init(void) {
      *    - envs itself -- kernel RW, user NONE
      * LAB 3: Your code here.
      */
+
+    boot_map_region(kern_pgdir, (uintptr_t)envs, NENV*sizeof(struct env), PADDR(envs), PTE_BIT_RW | PTE_BIT_PRESENT);
+    boot_map_region(kern_pgdir, UENVS, NENV*sizeof(struct env), PADDR(envs), PTE_BIT_USER | PTE_BIT_PRESENT);
 
     /*********************************************************************
      * Use the physical memory that 'bootstack' refers to as the kernel
