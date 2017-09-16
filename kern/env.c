@@ -127,7 +127,7 @@ void env_init(void)
     struct env* uenv;
     for(i = NENV - 1; i >= 0; i--) {
         uenv = &envs[i];
-        memset(uenv, 0, NENV * sizeof(struct env));
+        memset(uenv, 0, sizeof(struct env));
 
         /* ENV_FREE is 0, and id is 0 already as well, but for clarity:  */
         uenv->env_status |= ENV_FREE;
