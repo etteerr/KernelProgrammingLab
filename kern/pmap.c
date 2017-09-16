@@ -514,7 +514,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         //If page is free, add to hit.
         //If there are not hits, page must be 4mb alligned (see flag)
 
-        if (pages[i].c0.reg.free && ((pages[i].c0.reg.alligned4mb || hits) || amount==1)) {
+        if (pages[i].c0.reg.free && ((pages[i].c0.reg.alligned4mb || hits) || amount<1024)) {
             hits++;
             page_hit = &pages[i];
 
