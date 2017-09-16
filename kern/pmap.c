@@ -491,6 +491,8 @@ int is_page_in_free_list(struct page_info *page) {
 /*
  * Traverses naively over all pages to find a consecutive block of the given
  * amount of pages.
+ * 
+ * Returns NULL on failure to do so
  */
 struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
     size_t i;
@@ -512,7 +514,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
             page_hit = &pages[i];
 
             /* TODO: remove debug assert, this is slow */
-            assert(is_page_in_free_list(&pages[i]));
+//            assert(is_page_in_free_list(&pages[i]));
         } else {
             hits = 0;
         }
