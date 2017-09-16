@@ -332,7 +332,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
                 e->env_pgdir, //the env pgdir
                 pp+(i*1024), //origin address of pp + offset 4M pages
                 (void*)(rva + (i*1024*PGSIZE)), 
-                PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_USER
+                PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_USER | PDE_BIT_PRESENT
                 );
     //Convert i * 4M pages to i * 4K pages
     i *= 1024;
@@ -343,7 +343,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
                     e->env_pgdir, //the env pgdir
                     pp+i, //origin address of pp + offset 4M pages
                     (void*)(rva + (i*PGSIZE)), 
-                    PDE_BIT_RW | PDE_BIT_USER
+                    PDE_BIT_RW | PDE_BIT_USER | PDE_BIT_PRESENT
                     );
     
     //Check if there where any errors
