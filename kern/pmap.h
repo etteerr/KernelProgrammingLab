@@ -180,4 +180,6 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
 
 struct page_info* alloc_consecutive_pages(uint16_t amount, int alloc_flags);
 
+static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm);
+
 #endif /* !JOS_KERN_PMAP_H */

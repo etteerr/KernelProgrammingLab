@@ -12,6 +12,8 @@
 #include <kern/trap.h>
 #include <kern/monitor.h>
 #include "../inc/env.h"
+#include "pmap.h"
+#include "../inc/memlayout.h"
 
 struct env *envs = NULL;            /* All environments */
 struct env *curenv = NULL;          /* The current env */
@@ -198,11 +200,13 @@ static int env_setup_vm(struct env *e)
      */
 
     /* LAB 3: Your code here. */
+    p->pp_ref++;
+    e->env_pgdir = page2kva(p);
+    memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
 
     /* UVPT maps the env's own page table read-only.
      * Permissions: kernel R, user R */
     e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
-
     return 0;
 }
 
