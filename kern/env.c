@@ -433,8 +433,6 @@ static void load_icode(struct env *e, uint8_t *binary)
      */
 
     /* LAB 3: Your code here. */
-    /* Switch to user environment page directory */
-    lcr3(PADDR(e->env_pgdir));
 
     /* Now map one page for the program's initial stack at virtual address
      * USTACKTOP - PGSIZE. */
@@ -448,18 +446,21 @@ static void load_icode(struct env *e, uint8_t *binary)
     struct elf_proghdr *eph = ph + elf_header->e_phnum;
     for (; ph < eph; ph++)
         if(ph->p_type == ELF_PROG_LOAD) {
-            region_alloc(e, (void *)ph->p_va, ph->p_memsz);
+            assert(ph->p_memsz >= ph->p_filesz);
+            region_alloc(e, (void *)ph->p_va, ph->p_memsz); //resets lcr3 to kern_pgdir
+            /* Switch to user environment page directory */
+            lcr3(PADDR(e->env_pgdir));
             /* We can use virtual addresses because the uenv's pgdir has been loaded */
             memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
             /* Zero out remaining bytes */
-            memcpy((void *)ph->p_va, binary + ph->p_offset + ph->p_filesz, ph->p_offset - ph->p_filesz);
+            memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
+            /* Switch back to kernel page directory */
+            lcr3(PADDR(e->env_pgdir));
         }
 
     /* Add ELF entry to environment's instruction pointer */
     e->env_tf.tf_eip = elf_header->e_entry;
 
-    /* Switch back to kernel page directory */
-    lcr3(PADDR(e->env_pgdir));
 }
 
 /*
