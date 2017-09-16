@@ -11,6 +11,7 @@
 #include <kern/pmap.h>
 #include <kern/trap.h>
 #include <kern/monitor.h>
+#include "../inc/env.h"
 
 struct env *envs = NULL;            /* All environments */
 struct env *curenv = NULL;          /* The current env */
@@ -120,6 +121,21 @@ void env_init(void)
 {
     /* Set up envs array. */
     /* LAB 3: Your code here. */
+    ssize_t i;
+    struct env* uenv;
+    for(i = NENV - 1; i >= 0; i--) {
+        uenv = &envs[i];
+        memset(uenv, 0, NENV * sizeof(struct env));
+
+        /* ENV_FREE is 0, and id is 0 already as well, but for clarity:  */
+        uenv->env_status |= ENV_FREE;
+        uenv->env_id = 0;
+
+        if(i < (NENV - 1)) {
+            uenv->env_link = &envs[i+1];
+        }
+        env_free_list = uenv;
+    }
 
     /* Per-CPU part of the initialization */
     env_init_percpu();
