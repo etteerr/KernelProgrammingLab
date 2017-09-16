@@ -548,7 +548,7 @@ void env_run(struct env *e)
     if (curenv != e) {
         
         //set a running env back to runnable
-        if (curenv->env_status == ENV_RUNNING)
+        if (curenv && curenv->env_status == ENV_RUNNING)
             curenv->env_status = ENV_RUNNABLE;
         
         //switch curenv variable
