@@ -416,7 +416,7 @@ void env_create(uint8_t *binary, enum env_type type)
     /* LAB 3: Your code here. */
     
     //Allocate environment
-    env * e = 0;
+    struct env * e = 0;
     assert(env_alloc(&e, 0)==0);
     
     //Setup env
@@ -566,6 +566,6 @@ void env_run(struct env *e)
     assert(curenv->env_status = ENV_RUNNING);
     
     /* restore env registers */
-    env_pop_tf(e->env_tf);
+    env_pop_tf(&e->env_tf);
 }
 
