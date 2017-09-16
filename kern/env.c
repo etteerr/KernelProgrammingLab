@@ -348,6 +348,9 @@ static void region_alloc(struct env *e, void *va, size_t len)
     
     //Check if there where any errors
     assert(res==0);
+
+    /* Invalidate TLB */
+    tlb_invalidate(e->env_pgdir, va);
 }
 
 /*
