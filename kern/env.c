@@ -418,6 +418,17 @@ static void load_icode(struct env *e, uint8_t *binary)
 void env_create(uint8_t *binary, enum env_type type)
 {
     /* LAB 3: Your code here. */
+    
+    //Allocate environment
+    struct env * e = 0;
+    assert(env_alloc(&e, 0)==0);
+    
+    //Setup env
+    e->env_type = type;
+    
+    //Load code
+    load_icode(e, binary); //also setups env registers (such SP and IP)
+    
 }
 
 /*
@@ -532,6 +543,33 @@ void env_run(struct env *e)
 
     /* LAB 3: Your code here. */
 
-    panic("env_run not yet implemented");
+    
+    /* switch environment */
+    if (curenv != e) {
+        
+        //set a running env back to runnable
+        if (curenv->env_status == ENV_RUNNING)
+            curenv->env_status = ENV_RUNNABLE;
+        
+        //switch curenv variable
+        curenv = e;
+        
+        //update new curenv status
+        assert(curenv->env_status == ENV_RUNNABLE);
+        curenv->env_status = ENV_RUNNING;
+        
+        //inc runs
+        curenv->env_runs++;
+        
+        //set memory environment
+        lcr3(PADDR(curenv->env_pgdir)); //convert KVA to PA
+    }
+    
+    //Check if everything is OK
+    assert(curenv == e);
+    assert(curenv->env_status = ENV_RUNNING);
+    
+    /* restore env registers */
+    env_pop_tf(&e->env_tf);
 }
 
