@@ -14,6 +14,8 @@
 #include "../inc/env.h"
 #include "pmap.h"
 #include "../inc/memlayout.h"
+#include "../inc/trap.h"
+#include "../inc/elf.h"
 
 struct env *envs = NULL;            /* All environments */
 struct env *curenv = NULL;          /* The current env */
@@ -401,11 +403,33 @@ static void load_icode(struct env *e, uint8_t *binary)
      */
 
     /* LAB 3: Your code here. */
+    /* Switch to user environment page directory */
+    lcr3(PADDR(e->env_pgdir));
 
     /* Now map one page for the program's initial stack at virtual address
      * USTACKTOP - PGSIZE. */
+    region_alloc(e, (void*)(USTACKTOP - PGSIZE), PGSIZE);
 
     /* LAB 3: Your code here. */
+    struct elf *elf_header = (struct elf *)binary;
+    assert(elf_header->e_magic == ELF_MAGIC);
+
+    struct elf_proghdr *ph = (struct elf_proghdr *) ((uint8_t *) elf_header + elf_header->e_phoff);
+    struct elf_proghdr *eph = ph + elf_header->e_phnum;
+    for (; ph < eph; ph++)
+        if(ph->p_type == ELF_PROG_LOAD) {
+            region_alloc(e, (void *)ph->p_va, ph->p_memsz);
+            /* We can use virtual addresses because the uenv's pgdir has been loaded */
+            memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+            /* Zero out remaining bytes */
+            memcpy((void *)ph->p_va, binary + ph->p_offset + ph->p_filesz, ph->p_offset - ph->p_filesz);
+        }
+
+    /* Add ELF entry to environment's instruction pointer */
+    e->env_tf.tf_eip = elf_header->e_entry;
+
+    /* Switch back to kernel page directory */
+    lcr3(PADDR(e->env_pgdir));
 }
 
 /*
@@ -422,10 +446,10 @@ void env_create(uint8_t *binary, enum env_type type)
     //Allocate environment
     struct env * e = 0;
     assert(env_alloc(&e, 0)==0);
-    
+
     //Setup env
     e->env_type = type;
-    
+
     //Load code
     load_icode(e, binary); //also setups env registers (such SP and IP)
     
