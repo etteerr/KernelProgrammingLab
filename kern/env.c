@@ -398,6 +398,17 @@ static void load_icode(struct env *e, uint8_t *binary)
 void env_create(uint8_t *binary, enum env_type type)
 {
     /* LAB 3: Your code here. */
+    
+    //Allocate environment
+    env * e = 0;
+    assert(env_alloc(&e, 0)==0);
+    
+    //Setup env
+    e->env_type = type;
+    
+    //Load code
+    load_icode(e, binary); //also setups env registers (such SP and IP)
+    
 }
 
 /*
