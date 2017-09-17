@@ -68,7 +68,7 @@ void trap_init(void)
     /* LAB 3: Your code here. */
     /* TODO: this doesn't trigger the trap yet, perhaps the
      * function pointer isn't correct yet. */
-    SETGATE(idt[T_DIVIDE], 1, (uint32_t)&trap_divzero, 0, 3);
+    SETGATE(idt[T_DIVIDE], 0, GD_KT >> 3, (uint32_t)&trap_divzero, 3);
 
     /* Per-CPU setup */
     trap_init_percpu();
