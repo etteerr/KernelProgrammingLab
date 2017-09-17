@@ -166,7 +166,7 @@ static void trap_dispatch(struct trapframe *tf)
      * up to five parameters in DX, CX, BX, DI, SI.
      * Interrupt kernel with T_SYSCALL.
     */
-    if (tf->tf_regs.reg_eax < NSYSCALLS) {
+    if (tf->tf_trapno  == T_SYSCALL) {
         //setup params
         uint32_t a1,a2,a3,a4,a5,callnum,ret;
         callnum = tf->tf_regs.reg_eax;
