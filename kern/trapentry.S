@@ -46,9 +46,21 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
-
+TRAPHANDLER_NOEC(trap_divzero, T_DIVIDE)
+/* TODO: add trap handlers for other faults */
 
 
 /*
  * Lab 3: Your code here for _alltraps
  */
+_alltraps:
+    /* Set DS and ES to GD_KD */
+    push 0
+    mov GD_KD, %ds
+    push 0
+    mov GD_KD, %es
+    /* Push all registers in struct pushregs to stack */
+    pushal
+    /* Push pointer to stack as argument to trap() */
+    pushl %esp
+    jmp trap

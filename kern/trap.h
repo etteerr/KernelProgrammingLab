@@ -20,4 +20,6 @@ void print_trapframe(struct trapframe *tf);
 void page_fault_handler(struct trapframe *);
 void backtrace(struct trapframe *);
 
+void trap_divzero();
+
 #endif /* JOS_KERN_TRAP_H */

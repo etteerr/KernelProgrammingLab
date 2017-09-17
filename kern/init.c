@@ -33,7 +33,7 @@ void i386_init(void)
     trap_init();
 
     
-    panic("Env & trap done...");
+//    panic("Env & trap done...");
 #if defined(TEST)
     /* Don't touch -- used by grading script! */
     ENV_CREATE(TEST, ENV_TYPE_USER);
@@ -42,6 +42,7 @@ void i386_init(void)
     ENV_CREATE(user_divzero, ENV_TYPE_USER);
 #endif
 
+//    panic("Running user env");
     /* We only have one user environment for now, so just run it. */
     env_run(&envs[0]);
 }
