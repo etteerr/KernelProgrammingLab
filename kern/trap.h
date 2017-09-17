@@ -21,5 +21,24 @@ void page_fault_handler(struct trapframe *);
 void backtrace(struct trapframe *);
 
 void trap_divzero();
+void trap_debug();
+void trap_nmi();
+void trap_break();
+void trap_overflow();
+void trap_bound();
+void trap_illop();
+void trap_device();
+void trap_doublefault();
+void trap_invtss();
+void trap_segnp();
+void trap_stack();
+void trap_genprotfault();
+void trap_pagefault();
+void trap_floaterr();
+void trap_aligncheck();
+void trap_machcheck();
+void trap_simderr();
+void trap_syscall();
+void trap_default();
 
 #endif /* JOS_KERN_TRAP_H */
