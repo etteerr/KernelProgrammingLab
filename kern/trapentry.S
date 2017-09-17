@@ -47,7 +47,25 @@
  * Lab 3: Your code here for generating entry points for the different traps.
  */
 TRAPHANDLER_NOEC(trap_divzero, T_DIVIDE)
-/* TODO: add trap handlers for other faults */
+TRAPHANDLER_NOEC(trap_debug, T_DEBUG)
+TRAPHANDLER_NOEC(trap_nmi, T_NMI)
+TRAPHANDLER_NOEC(trap_break, T_BRKPT)
+TRAPHANDLER_NOEC(trap_overflow, T_OFLOW)
+TRAPHANDLER_NOEC(trap_bound, T_BOUND)
+TRAPHANDLER_NOEC(trap_illop, T_ILLOP)
+TRAPHANDLER_NOEC(trap_device, T_DEVICE)
+TRAPHANDLER(trap_doublefault, T_DBLFLT)
+TRAPHANDLER(trap_invtss, T_TSS)
+TRAPHANDLER(trap_segnp, T_SEGNP)
+TRAPHANDLER(trap_stack, T_STACK)
+TRAPHANDLER(trap_genprotfault, T_GPFLT)
+TRAPHANDLER(trap_pagefault, T_PGFLT)
+TRAPHANDLER(trap_floaterr, T_FPERR)
+TRAPHANDLER(trap_aligncheck, T_ALIGN)
+TRAPHANDLER(trap_machcheck, T_MCHK)
+TRAPHANDLER(trap_simderr, T_SIMDERR)
+TRAPHANDLER(trap_syscall, T_SYSCALL)
+TRAPHANDLER(trap_default, T_DEFAULT)
 
 
 /*
