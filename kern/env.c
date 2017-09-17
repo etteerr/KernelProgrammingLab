@@ -328,13 +328,16 @@ static void region_alloc(struct env *e, void *va, size_t len)
     //Determine number of 4M pages in total
     pages4M = pages4K / 1024;
     
+    // --------------- Remove 4M support --------------- //
+    pages4M = 0;
+    
     /* setup va tables */
     cprintf("\tSetting up %u 4M and %u 4K pages at %#08x to %#08x... ", 
-    pages4M, pages4K, rva, rva+rlen);
+    pages4M, pages4K-pages4M*1024, rva, rva+rlen);
     
     uint32_t i = 0;
     uint32_t res = 0;
-    for(; i<pages4M; i++)
+    for(; i<pages4M; i++) 
         res |= page_insert(
                 e->env_pgdir, //the env pgdir
                 pp+(i*1024), //origin address of pp + offset 4M pages
