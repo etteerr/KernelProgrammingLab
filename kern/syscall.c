@@ -84,9 +84,7 @@ int32_t syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3,
         case SYS_getenvid:
             return sys_getenvid();
         case SYS_env_destroy:
-            return sys_env_destroy(a1);
-        case NSYSCALLS:
-            
+            return sys_env_destroy(a1);            
         default:
             return -E_NO_SYS;
     }
