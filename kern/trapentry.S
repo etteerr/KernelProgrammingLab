@@ -65,4 +65,4 @@ _alltraps:
     pushal
     /* Push pointer to stack as argument to trap() */
     pushl %esp
-    jmp trap
+    call trap
