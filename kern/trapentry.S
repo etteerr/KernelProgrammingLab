@@ -73,14 +73,15 @@ TRAPHANDLER(trap_default, T_DEFAULT)
  */
 _alltraps:
     /* Set DS and ES to GD_KD */
-    push $0
-    mov $(GD_KD), %ax
+    /* NOTE: AX, DX, CX, BX, DI, SI reserved! */
+    push %eax //save eax
+    mov $(GD_KD), %ax 
     mov %ax, %ds
-    push $0
     mov $(GD_KD), %ax
     mov %ax, %es
+    pop %eax //restore eax
     /* Push all registers in struct pushregs to stack */
-    pushal
+    pushal //E-ACDB-X  SP BP SI DI
     /* Push pointer to stack as argument to trap() */
     pushl %esp
     call trap
