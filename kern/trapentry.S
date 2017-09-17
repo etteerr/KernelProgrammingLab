@@ -56,9 +56,11 @@ TRAPHANDLER_NOEC(trap_divzero, T_DIVIDE)
 _alltraps:
     /* Set DS and ES to GD_KD */
     push $0
-    mov GD_KD, %ds
+    mov $(GD_KD), %ax
+    mov %ax, %ds
     push $0
-    mov GD_KD, %es
+    mov $(GD_KD), %ax
+    mov %ax, %es
     /* Push all registers in struct pushregs to stack */
     pushal
     /* Push pointer to stack as argument to trap() */
