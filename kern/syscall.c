@@ -11,6 +11,25 @@
 #include <kern/syscall.h>
 #include <kern/console.h>
 
+
+int has_memaccess(void *addr) {
+    //Get entry
+    pte_t * entry = pgdir_walk(curenv->env_pgdir, addr, 0);
+    
+    //Check permissions
+    if (!(*entry & (PTE_BIT_PRESENT | PTE_BIT_USER))) {
+        if (!(*entry & PTE_BIT_PRESENT))
+            cprintf("Invalid memory access to %#08x by env %u: page not present.\n", addr, curenv->env_id);
+
+        if (!(*entry & PTE_BIT_USER))
+            cprintf("Invalid memory access to %#08x by env %u: page not user accessable.\n", addr, curenv->env_id);
+
+        return 0;
+    }
+
+    return 1;
+}
+
 /*
  * Print a string to the system console.
  * The string is exactly 'len' characters long.
@@ -22,9 +41,12 @@ static void sys_cputs(const char *s, size_t len)
      * Destroy the environment if not. */
 
     /* LAB 3: Your code here. */
-
+    
     /* Print the string supplied by the user. */
-    cprintf("%.*s", len, s);
+    if (has_memaccess((void*) s) && has_memaccess((void*) s + len))
+        cprintf("%.*s", len, s);
+    else
+        env_destroy(curenv);
 }
 
 /*
