@@ -18,7 +18,8 @@ int has_memaccess(void *addr) {
     
     //Check permissions & address
     if (
-            (!(*entry & (PTE_BIT_PRESENT | PTE_BIT_USER))) ||
+            !((*entry) & PTE_BIT_PRESENT) ||
+            !((*entry) & PTE_BIT_USER) ||
             (uint32_t)addr >= KERNBASE
         ) 
     {
