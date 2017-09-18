@@ -242,8 +242,8 @@ void mem_init(void) {
      * LAB 3: Your code here.
      */
 
-    boot_map_region(kern_pgdir, (uintptr_t)envs, NENV*sizeof(struct env), PADDR(envs), PTE_BIT_RW | PTE_BIT_PRESENT);
-    boot_map_region(kern_pgdir, UENVS, NENV*sizeof(struct env), PADDR(envs), PTE_BIT_USER | PTE_BIT_PRESENT);
+    boot_map_region(kern_pgdir, (uintptr_t)envs, PTSIZE, PADDR(envs), PTE_BIT_RW | PTE_BIT_PRESENT);
+    boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_BIT_USER | PTE_BIT_PRESENT);
 
     /*********************************************************************
      * Use the physical memory that 'bootstack' refers to as the kernel
