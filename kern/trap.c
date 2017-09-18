@@ -177,19 +177,22 @@ static void trap_dispatch(struct trapframe *tf)
 
             //Set the user env. eax
             tf->tf_regs.reg_eax = ret;
-            return;
+            break;
         case T_PGFLT:
             page_fault_handler(tf);
-            return;
-    }
-    
-    /* Unexpected trap: The user process or the kernel has a bug. */
-    print_trapframe(tf);
-    if (tf->tf_cs == GD_KT)
-        panic("unhandled trap in kernel");
-    else {
-        env_destroy(curenv);
-        return;
+            break;
+        case T_BRKPT:
+            breakpoint_handler(tf);
+            break;
+        default:
+            /* Unexpected trap: The user process or the kernel has a bug. */
+            print_trapframe(tf);
+            if (tf->tf_cs == GD_KT)
+                panic("unhandled trap in kernel");
+            else {
+                env_destroy(curenv);
+            }
+            break;
     }
 }
 
@@ -250,4 +253,8 @@ void page_fault_handler(struct trapframe *tf)
         curenv->env_id, fault_va, tf->tf_eip);
     print_trapframe(tf);
     env_destroy(curenv);
+}
+
+void breakpoint_handler(struct trapframe *tf) {
+    monitor(tf);
 }
