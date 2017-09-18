@@ -719,7 +719,7 @@ void page_free(struct page_info *pp) {
     }
 
     if (warn)
-        cprintf("Warning: %u pages in page_free() where already marked as free.\n", warn);
+        cprintf("Warning: %u pages in page_free() were already marked as free.\n", warn);
 }
 
 /*
