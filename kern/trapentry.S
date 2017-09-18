@@ -81,6 +81,8 @@ _alltraps:
     mov %ax, %es
     pop %eax //restore eax
     /* Push all registers in struct pushregs to stack */
+    push %ds
+    push %es
     pushal //E-ACDB-X  SP BP SI DI
     /* Push pointer to stack as argument to trap() */
     pushl %esp
