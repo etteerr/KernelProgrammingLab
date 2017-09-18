@@ -64,7 +64,7 @@ TRAPHANDLER(trap_floaterr, T_FPERR)
 TRAPHANDLER(trap_aligncheck, T_ALIGN)
 TRAPHANDLER(trap_machcheck, T_MCHK)
 TRAPHANDLER(trap_simderr, T_SIMDERR)
-TRAPHANDLER(trap_syscall, T_SYSCALL)
+TRAPHANDLER_NOEC(trap_syscall, T_SYSCALL)
 TRAPHANDLER(trap_default, T_DEFAULT)
 
 
