@@ -173,15 +173,14 @@ static void trap_dispatch(struct trapframe *tf)
             a4 = tf->tf_regs.reg_edi;
             a5 = tf->tf_regs.reg_esi;
             //Do systemcall
-
             ret = syscall(callnum, a1,a2,a3,a4,a5);
 
             //Set the user env. eax
             tf->tf_regs.reg_eax = ret;
-            break;
+            return;
         case T_PGFLT:
             page_fault_handler(tf);
-            break;
+            return;
     }
     
     /* Unexpected trap: The user process or the kernel has a bug. */
