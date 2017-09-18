@@ -178,10 +178,10 @@ static void trap_dispatch(struct trapframe *tf)
 
             //Set the user env. eax
             tf->tf_regs.reg_eax = ret;
-            break;
+            return;
         case T_PGFLT:
             page_fault_handler(tf);
-            break;
+            return;
     }
     
     /* Unexpected trap: The user process or the kernel has a bug. */
