@@ -811,7 +811,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
         else
         //entry address is no presumed valid
         //Setup flags
-            entry |= PTE_BIT_RW | PTE_BIT_PRESENT; // RW and Present bits set (do not set user, that is per pte entry, pde overrides those)
+            entry |= PTE_BIT_RW | PTE_BIT_PRESENT | PDE_BIT_USER; // RW and Present bits set (do not set user, that is per pte entry, pde overrides those)
 
 
         //Save entry
