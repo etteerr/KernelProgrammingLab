@@ -1062,11 +1062,49 @@ static uintptr_t user_mem_check_addr;
  */
 int user_mem_check(struct env *env, const void *va, size_t len, int perm)
 {
-    /* LAB 3: Your code here. */
+    
+    /* Make sure perm has user permissions as check */
+    perm |= PTE_BIT_USER;
+    
+    /* Setup variables */
+    int hasperm = 1; //preemtive yes
+    int validaddr = 1; //preemtive yes
+    
+    /* setup rounddown to page address */
+    uint32_t addr  = (uint32_t) va;
+    user_mem_check_addr = addr;
+    addr = ROUNDDOWN(addr, PGSIZE);
+    
+    //Check all pages
+    for(uint32_t i = addr; i <= addr+len;) {
+        /* Get pte entry pointer */
+        pte_t * pentry = pgdir_walk(env->env_pgdir, (void*) i, 0);
 
+        /* check pte permissions */
+        hasperm &= perm == ((*pentry) & perm);
+        
+        /* Check address */
+        validaddr &= i < ULIM;
+        
+        /* Return if problem found */
+        if (!(hasperm && validaddr)) 
+            return -E_FAULT;
+        
+        /* increment i */        
+        if ((*pentry) & PDE_BIT_HUGE)
+            i += 1024*PGSIZE;
+        else 
+            i += PGSIZE;
+        
+        /* Set current memory check */
+        user_mem_check_addr = i;
+        
+    }
+    
+    
     return 0;
-}
 
+}
 /*
  * Checks that environment 'env' is allowed to access the range
  * of memory [va, va+len) with permissions 'perm | PTE_U | PTE_P'.

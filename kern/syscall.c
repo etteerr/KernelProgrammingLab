@@ -12,33 +12,6 @@
 #include <kern/console.h>
 
 
-int has_memaccess(void *addr) {
-    //Get entry
-    pte_t * entry = pgdir_walk(curenv->env_pgdir, addr, 0);
-    
-    //Check permissions & address
-    if (
-            !((*entry) & PTE_BIT_PRESENT) ||
-            !((*entry) & PTE_BIT_USER) ||
-            (uint32_t)addr >= KERNBASE
-        ) 
-    {
-        if (!(*entry & PTE_BIT_PRESENT))
-            cprintf("Invalid memory access to %#08x by env %u: page not present.\n", addr, curenv->env_id);
-
-        if (!(*entry & PTE_BIT_USER))
-            cprintf("Invalid memory access to %#08x by env %u: page not user accessable.\n", addr, curenv->env_id);
-        
-        if ((uint32_t)addr >= KERNBASE)
-            cprintf("Invalid memory access to %#08x by env %u: page is in kernel memory\n", addr, curenv->env_id);
-
-            
-        return 0;
-    }
-
-    return 1;
-}
-
 /*
  * Print a string to the system console.
  * The string is exactly 'len' characters long.
@@ -50,12 +23,9 @@ static void sys_cputs(const char *s, size_t len)
      * Destroy the environment if not. */
 
     /* LAB 3: Your code here. */
-    
+    user_mem_assert(curenv, (void*) s, len, PTE_BIT_USER | PTE_BIT_PRESENT);
     /* Print the string supplied by the user. */
-    if (has_memaccess((void*) s) && has_memaccess((void*) s + len))
-        cprintf("%.*s", len, s);
-    else
-        env_destroy(curenv);
+    cprintf("%.*s", len, s);
 }
 
 /*
