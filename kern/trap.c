@@ -157,33 +157,31 @@ void print_regs(struct pushregs *regs)
 
 static void trap_dispatch(struct trapframe *tf)
 {
-    /* Handle processor exceptions. */
-    /* LAB 3: Your code here. */
-    
-    
     /* *** Handle system call interupts by passing to syscall ***
      * Generic system call: passes system call number in AX,
      * up to five parameters in DX, CX, BX, DI, SI.
      * Interrupt kernel with T_SYSCALL.
     */
-    if (tf->tf_trapno  == T_SYSCALL) {
-        //setup params
-        uint32_t a1,a2,a3,a4,a5,callnum,ret;
-        callnum = tf->tf_regs.reg_eax;
-        a1 = tf->tf_regs.reg_edx;
-        a2 = tf->tf_regs.reg_ecx;
-        a3 = tf->tf_regs.reg_ebx;
-        a4 = tf->tf_regs.reg_edi;
-        a5 = tf->tf_regs.reg_esi;
-        //Do systemcall
+    uint32_t a1,a2,a3,a4,a5,callnum,ret;
+    switch(tf->tf_trapno) {
+        case T_SYSCALL:
+            //setup params
+            callnum = tf->tf_regs.reg_eax;
+            a1 = tf->tf_regs.reg_edx;
+            a2 = tf->tf_regs.reg_ecx;
+            a3 = tf->tf_regs.reg_ebx;
+            a4 = tf->tf_regs.reg_edi;
+            a5 = tf->tf_regs.reg_esi;
+            //Do systemcall
 
-        ret = syscall(callnum, a1,a2,a3,a4,a5);
-        
-        //Set the user env. eax 
-        tf->tf_regs.reg_eax = ret;
-        
-        //return
-        return;
+            ret = syscall(callnum, a1,a2,a3,a4,a5);
+
+            //Set the user env. eax
+            tf->tf_regs.reg_eax = ret;
+            break;
+        case T_PGFLT:
+            page_fault_handler(tf);
+            break;
     }
     
     /* Unexpected trap: The user process or the kernel has a bug. */
