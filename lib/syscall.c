@@ -23,7 +23,7 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
      */
 #ifdef BONUS_LAB3
     asm volatile(
-    "mov $1, %%ESP\n"
+    "mov $1, %%EAX\n"
     "cpuid"
     : "=edx" (ret)
     :
@@ -32,8 +32,6 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
     
     if (ret & 1 << 11)  {
         asm volatile (
-        "call mini\n"
-        "mini:\n"
         "push %%ebp\n"
         "mov %%esp, %%ebp\n"
         "sysenter"

@@ -96,7 +96,7 @@ void trap_init(void)
 
 void trap_prep_sysenter() {
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_CS), "d"(0), "a"(GD_KT));
-    asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"(PADDR((void *)KSTACKTOP)));
+    asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"((void*)KERNBASE));
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_EIP), "d"(0), "a"(&trap_sysenter));
 }
 
@@ -268,6 +268,26 @@ void breakpoint_handler(struct trapframe *tf) {
     monitor(tf);
 }
 
-void trap_sysenter() {
-    /* TODO: fill */
+void trap_sysenter() {    
+    /* Prepre all variables*/
+    uint32_t num, a1, a2, a3, a4, a5, p_esp;
+    
+    asm volatile(
+    "push %%ebp\n"
+    "push %%eax\n"
+    "mov (%%ebp),%%eax\n"
+    "mov %%eax, %0\n"
+    "pop %%eax\n"
+    : "=m" (p_esp),
+    "=a" (num),
+    "=d" (a1),
+    "=c" (a2),
+    "=b" (a3),
+    "=D" (a4),
+    "=S" (a5)
+    ::);
+    
+    uint32_t * ptr = (uint32_t *) p_esp;
+    
+    cprintf("(%u) (%u)\n", *(ptr-1), *(ptr-2));
 }
