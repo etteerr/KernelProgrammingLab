@@ -272,24 +272,35 @@ void breakpoint_handler(struct trapframe *tf) {
 
 void trap_sysenter() {    
     /* Prepre all variables*/
-    uint32_t num, a1, a2, a3, a4, a5, p_esp;
+    uint32_t p_esp;
     
+    /* int num, int check, uint32_t a1, uint32_t a2,
+        uint32_t a3, uint32_t a4, uint32_t a5
+     * */
     asm volatile(
-    "push %%ebp\n"
-    "push %%eax\n"
-    "mov (%%ebp),%%eax\n"
+    "mov (%%ebp), %%eax\n" //read userspace stack pointer
+    "mov %%eax, %%esp\n"   //Make it our stackpointer
+    "mov %%esp, %%ebp\n"   //and base pointer
     "mov %%eax, %0\n"
-    "pop %%eax\n"
-    : "=m" (p_esp),
-    "=a" (num),
-    "=d" (a1),
-    "=c" (a2),
-    "=b" (a3),
-    "=D" (a4),
-    "=S" (a5)
-    ::);
+    : "=rm" (p_esp)
+    :
+    :  //Do not specify ebp & esp as we do not want them saved (ASM hack)
+    );
     
-    uint32_t * ptr = (uint32_t *) p_esp;
+    struct _caller_stack {
+        uint32_t basepointer;
+        int num;
+        int check;
+        uint32_t a1;
+        uint32_t a2;
+        uint32_t a3; 
+        uint32_t a4; 
+        uint32_t a5;
+    };
     
-    cprintf("(%u) (%u)\n", *(ptr-1), *(ptr-2));
+     struct _caller_stack* caller_stack = (struct _caller_stack*) p_esp;
+     
+     cprintf("Dummy\n");
+     asm volatile("mov %eax, (0x0)");
+    
 }
