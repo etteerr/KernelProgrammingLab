@@ -245,7 +245,7 @@ void trap(struct trapframe *tf)
 
 void page_fault_handler(struct trapframe *tf)
 {
-    uint32_t fault_va;
+    uint32_t fault_va, cs;
 
     /* Read processor's CR2 register to find the faulting address */
     fault_va = rcr2();
@@ -253,6 +253,11 @@ void page_fault_handler(struct trapframe *tf)
     /* Handle kernel-mode page faults. */
 
     /* LAB 3: Your code here. */
+    asm volatile("mov %%cs, %%eax":"=a"(cs));
+    if(cs == GD_KT) {
+        cprintf("Kernel fault va %08x ip %08x\n", fault_va, tf->tf_eip);
+        panic("Exiting due to kernel page fault");
+    }
 
     /* We've already handled kernel-mode exceptions, so if we get here, the page
      * fault happened in user mode. */
