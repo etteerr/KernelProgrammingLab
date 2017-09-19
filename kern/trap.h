@@ -9,11 +9,16 @@
 #include <inc/trap.h>
 #include <inc/mmu.h>
 
+#define IA32_SYSENTER_CS 0x0174
+#define IA32_SYSENTER_ESP 0x0175
+#define IA32_SYSENTER_EIP 0x0176
+
 /* The kernel's interrupt descriptor table */
 extern struct gatedesc idt[];
 extern struct pseudodesc idt_pd;
 
 void trap_init(void);
+void trap_prep_sysenter();
 void trap_init_percpu(void);
 void print_regs(struct pushregs *regs);
 void print_trapframe(struct trapframe *tf);
@@ -41,5 +46,8 @@ void trap_machcheck();
 void trap_simderr();
 void trap_syscall();
 void trap_default();
+
+/* Special trap to host the sysenter opcode's call */
+void trap_sysenter();
 
 #endif /* JOS_KERN_TRAP_H */
