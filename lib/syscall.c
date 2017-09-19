@@ -37,12 +37,7 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
         "mov %%esp, %%ebp\n"
         "sysenter"
         : "=a" (ret)
-        : "a" (num),
-          "d" (a1),
-          "c" (a2),
-          "b" (a3),
-          "D" (a4),
-          "S" (a5)
+        : 
         : "cc", "memory"
         );
     }else{
