@@ -288,6 +288,10 @@ void trap_sysenter() {
     );
     
     struct _caller_stack {
+        uint32_t padd1[1];
+        uint32_t syscall_return;
+        uint32_t padd[10];
+        uint32_t returnaddr;
         uint32_t basepointer;
         int num;
         int check;
@@ -300,7 +304,22 @@ void trap_sysenter() {
     
      struct _caller_stack* caller_stack = (struct _caller_stack*) p_esp;
      
-     cprintf("Dummy\n");
-     asm volatile("mov %eax, (0x0)");
+     uint32_t a1,a2,a3,a4,a5,callnum,ret;
+     //setup params
+    callnum = caller_stack->num;
+    a1 = caller_stack->a1;
+    a2 = caller_stack->a2;
+    a3 = caller_stack->a3;
+    a4 = caller_stack->a4;
+    a5 = caller_stack->a5;
+    //Do systemcall
+    ret = syscall(callnum, a1,a2,a3,a4,a5);
     
+    asm volatile(
+    "sysexit\n"
+    : "=a" (ret),
+    "=d" (caller_stack->syscall_return),
+    "=c" (caller_stack->basepointer)
+    ::
+    );
 }

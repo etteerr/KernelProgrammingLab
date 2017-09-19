@@ -33,9 +33,12 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
     /* Check if CPU supports sysenter opcode */
     if (ret & 1 << 11)  {
         asm volatile (
+        "lea exitpoint, %%eax\n"
+        "push %%eax\n"
         "push %%ebp\n"
         "mov %%esp, %%ebp\n"
-        "sysenter"
+        "sysenter\n"
+        "exitpoint:\n"
         : "=a" (ret)
         : 
         : "cc", "memory"
