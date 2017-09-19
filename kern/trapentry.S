@@ -75,9 +75,8 @@ _alltraps:
     /* Set DS and ES to GD_KD */
     /* NOTE: AX, DX, CX, BX, DI, SI reserved! */
     push %eax //save eax
-    mov $(GD_KD), %ax 
+    mov $GD_KD, %ax 
     mov %ax, %ds
-    mov $(GD_KD), %ax
     mov %ax, %es
     pop %eax //restore eax
     /* Push all registers in struct pushregs to stack */
@@ -87,3 +86,5 @@ _alltraps:
     /* Push pointer to stack as argument to trap() */
     pushl %esp
     call trap
+spin: //We should not come here
+    jmp spin
