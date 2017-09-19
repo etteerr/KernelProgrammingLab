@@ -8,6 +8,7 @@
 #include <kern/monitor.h>
 #include <kern/env.h>
 #include <kern/syscall.h>
+#include "../inc/types.h"
 
 static struct taskstate ts;
 
@@ -60,7 +61,6 @@ static const char *trapname(int trapno)
     return "(unknown trap)";
 }
 
-
 void trap_init(void)
 {
     extern struct segdesc gdt[];
@@ -89,6 +89,15 @@ void trap_init(void)
 
     /* Per-CPU setup */
     trap_init_percpu();
+#ifdef BONUS_LAB3
+    trap_prep_sysenter();
+#endif
+}
+
+void trap_prep_sysenter() {
+    asm volatile("wrmsr"::"c"(IA32_SYSENTER_CS), "d"(0), "a"(GD_KT));
+    asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"(PADDR((void *)KSTACKTOP)));
+    asm volatile("wrmsr"::"c"(IA32_SYSENTER_EIP), "d"(0), "a"(&trap_sysenter));
 }
 
 /* Initialize and load the per-CPU TSS and IDT. */
@@ -257,4 +266,8 @@ void page_fault_handler(struct trapframe *tf)
 
 void breakpoint_handler(struct trapframe *tf) {
     monitor(tf);
+}
+
+void trap_sysenter() {
+    /* TODO: fill */
 }
