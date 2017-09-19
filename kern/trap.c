@@ -279,20 +279,20 @@ void trap_sysenter() {
      * */
     asm volatile(
     "mov (%%ebp), %%eax\n" //read userspace stack pointer
-    "mov %%eax, %%esp\n"   //Make it our stackpointer
-    "mov %%esp, %%ebp\n"   //and base pointer
+//    "mov %%eax, %%esp\n"   //Make it our stackpointer
+//    "mov %%esp, %%ebp\n"   //and base pointer
     "mov %%eax, %0\n"
-    : "=rm" (p_esp)
+    : "=m" (p_esp)
     :
-    :  //Do not specify ebp & esp as we do not want them saved (ASM hack)
+    :  "eax"//Do not specify ebp & esp as we do not want them saved (ASM hack)
     );
     
     struct _caller_stack {
-        uint32_t padd1[1];
+        uint32_t basepointer;
         uint32_t syscall_return;
         uint32_t padd[10];
         uint32_t returnaddr;
-        uint32_t basepointer;
+        uint32_t padd1;
         int num;
         int check;
         uint32_t a1;
@@ -314,12 +314,13 @@ void trap_sysenter() {
     a5 = caller_stack->a5;
     //Do systemcall
     ret = syscall(callnum, a1,a2,a3,a4,a5);
+    asm volatile("push %eax");
     
+    asm volatile("mov %0, %%edx\n":: "r" (caller_stack->syscall_return));
+    asm volatile("mov %0, %%ecx\n":: "r" (caller_stack->basepointer));
+    asm volatile("pop %eax");
     asm volatile(
     "sysexit\n"
-    : "=a" (ret),
-    "=d" (caller_stack->syscall_return),
-    "=c" (caller_stack->basepointer)
-    ::
+    : "=a" (ret)::
     );
 }

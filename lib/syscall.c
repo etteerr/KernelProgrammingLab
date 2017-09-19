@@ -22,6 +22,14 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
      * memory locations.
      */
 #ifdef BONUS_LAB3
+    static uint32_t ebp = 0;
+    asm volatile(
+    "push %%ebp\n"
+    "pop %%eax\n"
+    "mov %%eax, %0\n"
+    : "=m" (ebp)
+    ::);
+    
     asm volatile(
     "mov $1, %%EAX\n"
     "cpuid"
@@ -39,10 +47,19 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
         "mov %%esp, %%ebp\n"
         "sysenter\n"
         "exitpoint:\n"
+        "mov %%esp, %%ebp\n"
         : "=a" (ret)
         : 
         : "cc", "memory"
         );
+        
+        asm volatile (
+        "push %%eax\n"
+        "mov %0, %%eax\n"
+        "mov %%eax, %%ebp\n"
+        "pop %%eax\n"
+        ::"r" (ebp):);
+        
     }else{
         asm volatile("int %1\n"
             : "=a" (ret)
