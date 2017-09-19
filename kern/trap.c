@@ -96,7 +96,11 @@ void trap_init(void)
 
 void trap_prep_sysenter() {
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_CS), "d"(0), "a"(GD_KT));
+<<<<<<< HEAD
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"((void*)KERNBASE));
+=======
+    asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"((void *)KSTACKTOP));
+>>>>>>> ab43bf2c174402927e6da5c039be1874d1c1b9a9
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_EIP), "d"(0), "a"(&trap_sysenter));
 }
 
@@ -245,14 +249,16 @@ void trap(struct trapframe *tf)
 
 void page_fault_handler(struct trapframe *tf)
 {
-    uint32_t fault_va;
+    uint32_t fault_va, cs;
 
     /* Read processor's CR2 register to find the faulting address */
     fault_va = rcr2();
 
     /* Handle kernel-mode page faults. */
-
-    /* LAB 3: Your code here. */
+    if ((tf->tf_cs & 3) != 3) {
+        cprintf("Kernel fault va %08x ip %08x\n", fault_va, tf->tf_eip);
+        panic("Exiting due to kernel page fault");
+    }
 
     /* We've already handled kernel-mode exceptions, so if we get here, the page
      * fault happened in user mode. */

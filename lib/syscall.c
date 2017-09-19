@@ -29,7 +29,8 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
     :
     : "%eax", "%ebx", "%ecx"
     );
-    
+
+    /* Check if CPU supports sysenter opcode */
     if (ret & 1 << 11)  {
         asm volatile (
         "push %%ebp\n"
@@ -45,7 +46,6 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
         : "cc", "memory"
         );
     }else{
-    
         asm volatile("int %1\n"
             : "=a" (ret)
             : "i" (T_SYSCALL),
