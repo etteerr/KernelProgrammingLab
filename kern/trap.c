@@ -89,12 +89,14 @@ void trap_init(void)
 
     /* Per-CPU setup */
     trap_init_percpu();
+#ifdef BONUS_LAB3
     trap_prep_sysenter();
+#endif
 }
 
 void trap_prep_sysenter() {
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_CS), "d"(0), "a"(GD_KT));
-    asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"(PADDR(KSTACKTOP)));
+    asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"(PADDR((void *)KSTACKTOP)));
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_EIP), "d"(0), "a"(&trap_sysenter));
 }
 
