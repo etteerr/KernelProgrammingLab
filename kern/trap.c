@@ -96,11 +96,7 @@ void trap_init(void)
 
 void trap_prep_sysenter() {
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_CS), "d"(0), "a"(GD_KT));
-<<<<<<< HEAD
-    asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"((void*)KERNBASE));
-=======
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_ESP), "d"(0), "a"((void *)KSTACKTOP));
->>>>>>> ab43bf2c174402927e6da5c039be1874d1c1b9a9
     asm volatile("wrmsr"::"c"(IA32_SYSENTER_EIP), "d"(0), "a"(&trap_sysenter));
 }
 
