@@ -86,3 +86,5 @@ _alltraps:
     /* Push pointer to stack as argument to trap() */
     pushl %esp
     call trap
+spin: //We should not come here
+    jmp spin
