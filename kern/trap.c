@@ -251,10 +251,7 @@ void page_fault_handler(struct trapframe *tf)
     fault_va = rcr2();
 
     /* Handle kernel-mode page faults. */
-
-    /* LAB 3: Your code here. */
-    asm volatile("mov %%cs, %%eax":"=a"(cs));
-    if(cs == GD_KT) {
+    if ((tf->tf_cs & 3) != 3) {
         cprintf("Kernel fault va %08x ip %08x\n", fault_va, tf->tf_eip);
         panic("Exiting due to kernel page fault");
     }
