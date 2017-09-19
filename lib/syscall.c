@@ -8,14 +8,6 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
 {
     int32_t ret;
     
-    asm volatile(
-    "mov $1, %%ESP\n"
-    "cpuid"
-    : "=edx" (ret)
-    :
-    : "%eax", "%ebx", "%ecx"
-    );
-
     /*
      * Generic system call: pass system call number in AX,
      * up to five parameters in DX, CX, BX, DI, SI.
@@ -29,6 +21,14 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
      * potentially change the condition codes and arbitrary
      * memory locations.
      */
+#ifdef BONUS_LAB3
+    asm volatile(
+    "mov $1, %%ESP\n"
+    "cpuid"
+    : "=edx" (ret)
+    :
+    : "%eax", "%ebx", "%ecx"
+    );
     
     if (ret & 1 << 11)  {
         asm volatile (
@@ -59,6 +59,18 @@ static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
               "S" (a5)
             : "cc", "memory");
     }
+#else
+    asm volatile("int %1\n"
+            : "=a" (ret)
+            : "i" (T_SYSCALL),
+              "a" (num),
+              "d" (a1),
+              "c" (a2),
+              "b" (a3),
+              "D" (a4),
+              "S" (a5)
+            : "cc", "memory");
+#endif
 
     if(check && ret > 0)
         panic("syscall %d returned %d (> 0)", num, ret);
