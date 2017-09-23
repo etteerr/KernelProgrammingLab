@@ -3,7 +3,7 @@
 #include <inc/stdio.h>
 #include <inc/string.h>
 #include <inc/assert.h>
-
+#include <kern/vma.h>
 #include <kern/monitor.h>
 #include <kern/console.h>
 #include <kern/pmap.h>
@@ -31,7 +31,7 @@ void i386_init(void)
     mem_init();
     
     /* Assertions */
-    assert(sizeof(vma_arr)<= PGSIZE);
+    assert(sizeof(struct vma_arr)<= PGSIZE);
 
     /* Lab 3 user environment initialization functions. */
     env_init();

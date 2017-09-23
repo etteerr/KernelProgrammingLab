@@ -42,7 +42,7 @@ struct vma_arr {
     uint8_t occupied;
     uint8_t lowest_va_vma;
     
-    vma vmas[VMA_ARRAY_SIZE];
+    struct vma vmas[VMA_ARRAY_SIZE];
 };
 
 #endif /* VMA_H */
