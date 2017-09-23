@@ -33,14 +33,14 @@ struct vma {
     void *va;
     size_t len;
     int perm;
-    uint8_t p_adj = 0;
-    uint8_t n_adj = 0;
+    uint8_t p_adj;
+    uint8_t n_adj;
     /* LAB 4: You may add more fields here, if required. */
 };
 
 struct vma_arr {
-    uint8_t occupied = 0;
-    uint8_t lowest_va_vma = 0;
+    uint8_t occupied;
+    uint8_t lowest_va_vma;
     
     vma vmas[VMA_ARRAY_SIZE];
 };
