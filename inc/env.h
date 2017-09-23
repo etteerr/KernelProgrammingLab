@@ -7,10 +7,9 @@
 #include <inc/trap.h>
 #include <inc/memlayout.h>
 
-#include <kern/vma.h>
 
 typedef int32_t envid_t;
-
+struct vma_arr;
 /*
  * An environment ID 'envid_t' has three parts:
  *
