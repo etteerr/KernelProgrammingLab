@@ -7,6 +7,8 @@
 #include <inc/trap.h>
 #include <inc/memlayout.h>
 
+#include <kern/vma.h>
+
 typedef int32_t envid_t;
 
 /*
@@ -45,7 +47,7 @@ enum env_type {
     ENV_TYPE_USER = 0,
 };
 
-struct env {
+typedef struct env {
     struct trapframe env_tf;    /* Saved registers */
     struct env *env_link;       /* Next free env */
     envid_t env_id;             /* Unique environment identifier */
@@ -56,7 +58,8 @@ struct env {
 
     /* Address space */
     pde_t *env_pgdir;           /* Kernel virtual address of page dir */
-};
+    struct vma_arr* vma_list;
+} env_t;
 
 
 
