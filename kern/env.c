@@ -1,21 +1,21 @@
 /* See COPYRIGHT for copyright information. */
 
-#include <inc/x86.h>
-#include <inc/mmu.h>
-#include <inc/error.h>
-#include <inc/string.h>
-#include <inc/assert.h>
-#include <inc/elf.h>
-
-#include <kern/env.h>
-#include <kern/pmap.h>
-#include <kern/trap.h>
-#include <kern/monitor.h>
+#include "../inc/x86.h"
 #include "../inc/env.h"
-#include "pmap.h"
-#include "../inc/memlayout.h"
-#include "../inc/trap.h"
 #include "../inc/elf.h"
+#include "../inc/mmu.h"
+#include "../inc/trap.h"
+#include "../inc/types.h"
+#include "../inc/error.h"
+#include "../inc/string.h"
+#include "../inc/assert.h"
+#include "../inc/memlayout.h"
+
+#include "env.h"
+#include "vma.h"
+#include "pmap.h"
+#include "trap.h"
+#include "monitor.h"
 
 struct env *envs = NULL;            /* All environments */
 struct env *curenv = NULL;          /* The current env */
@@ -460,9 +460,11 @@ static void load_icode(struct env *e, uint8_t *binary)
 
     /* vmatest binary uses the following */
     /* 1. Map one RO page of VMA for UTEMP at virtual address UTEMP.
-     * 2. Map one RW page of VMA for UTEMP+PGSIZE at virtual address UTEMP. */
+     * 2. Map one RW page of VMA for UTEMP+PGSIZE at virtual address UTEMP+PGSIZE. */
 
     /* LAB 4: Your code here. */
+    vma_new(e, UTEMP, PGSIZE, VMA_PERM_READ);
+    vma_new(e, UTEMP+PGSIZE, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE);
 }
 
 /*

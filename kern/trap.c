@@ -1,14 +1,16 @@
-#include <inc/mmu.h>
-#include <inc/x86.h>
-#include <inc/assert.h>
-
-#include <kern/pmap.h>
-#include <kern/trap.h>
-#include <kern/console.h>
-#include <kern/monitor.h>
-#include <kern/env.h>
-#include <kern/syscall.h>
+#include "../inc/mmu.h"
+#include "../inc/x86.h"
+#include "../inc/stdio.h"
+#include "../inc/trap.h"
 #include "../inc/types.h"
+#include "../inc/assert.h"
+#include "../inc/memlayout.h"
+
+#include "pmap.h"
+#include "trap.h"
+#include "env.h"
+#include "monitor.h"
+#include "syscall.h"
 
 static struct taskstate ts;
 
