@@ -21,8 +21,9 @@
 #define VMA_KVA (0xF0000000 + (4<<20))
 
 enum {
-    VMA_PERM_WRITE = 1,
-    // 1 << 2 for next
+    VMA_PERM_READ = 1,
+    VMA_PERM_WRITE = 1 << 1,
+    VMA_PERM_EXEC = 1 << 2
 };
 enum {
     VMA_UNUSED,
