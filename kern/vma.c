@@ -34,6 +34,10 @@ void vma_array_destroy(env_t* e) {
 }
 
 int vma_new(env_t *e, void *va, size_t len, int perm) {
+    /* Assert this VMA does not already exist */
+    assert(vma_lookup(e, va, len) == 0);
+    
+    
     
     return 0;
 }
@@ -43,8 +47,10 @@ int vma_unmap(env_t *e, void *va, size_t len) {
     return 0;
 }
 
-vma_t *vma_lookup(env_t *e, void *va) {
+vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
     /* iterate vma's till va is found to be inrange */
+    
+    uint32_t va = (uint32_t) _va;
     
     vma_arr_t * vml = e->vma_list;
     vma_t * vmr = e->vma_list->vmas;
@@ -53,27 +59,31 @@ vma_t *vma_lookup(env_t *e, void *va) {
     
     uint32_t i = vml->lowest_va_vma;
     
-    if (i == VMA_INVALID_POINTER)
+    /* If the entry pointer is invalid, there are no entries*/
+    if (i == VMA_INVALID_POINTER) {
+        //Assert there are no entries and return
+        assert(vml->occupied==0);
         return 0;
+    }
     
-    void *endva, * pva = 0;
-    pva = vmr[i].va;
-    
-    /* Loop while pva has not passed the va*/
-    while(va >= pva ) {
-        endva = pva + (void *) vmr[i].len;
+    uint32_t cendva,  cva = 0,  endva;
+    endva = va +  len;
         
-        /* If the endva has passed the va here, this is our vma entry*/
-        if (va <= endva)
+    /* Loop while pva has not passed the va*/
+    do {
+        cva = (uint32_t) vmr[i].va;
+        cendva = cva + vmr[i].len;
+        
+        /*If our current Va passes cva but does not pass cendva, we have our target*/
+        if (va >= cva && va < cendva)
             return &vmr[i];
         
-        /* If the next pointer is invalid, ow no... nothing found!*/
-        if (vmr[i].n_adj == VMA_INVALID_POINTER)
-            return 0;
+        /* Extra: if our endva passes cva, the given range spans atleast one vma*/
+        if (endva >= cva)
+            return &vmr[i];
         
-        /* Next address range in line */
-        i = vmr[i].n_adj;
-    }
+        /* if we passed cva with va but did not return, there is nothing anymore*/
+    }while(va <= cva);
     
     return 0;
 }

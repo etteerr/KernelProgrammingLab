@@ -20,7 +20,7 @@
 /* map above static 4m kernel mapping */
 #define VMA_KVA (0xF0000000 + (4<<20))
 
-#define VMA_INVALID_POINTER 0xFFFF
+#define VMA_INVALID_POINTER (uint8_t)0xFFFF
 
 /* VMA error codes */
 enum {
@@ -58,7 +58,7 @@ typedef struct vma_arr {
 /* VMA functions */
 int vma_new(env_t *e, void *va, size_t len, int perm);
 int vma_unmap(env_t *e, void *va, size_t len);
-vma_t *vma_lookup(env_t *e, void *va);
+vma_t *vma_lookup(env_t *e, void *va, size_t len);
 void vma_dump_all(env_t *e);
 /**
  * vma_array_init:
