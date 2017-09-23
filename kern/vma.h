@@ -8,7 +8,7 @@
 #ifndef VMA_H
 #define VMA_H
 
-#include <inc/env.h>
+#include <inc/types.h>
 
 /* VMA functions */
 
@@ -19,8 +19,6 @@
  * are filled-in from the ELF binary.
  */
 #define VMA_ARRAY_SIZE 128
-
-extern struct env;
 
 enum {
     VMA_PERM_WRITE = 1,
@@ -48,11 +46,6 @@ typedef struct vma_arr {
     
     struct vma vmas[VMA_ARRAY_SIZE];
 } vma_arr_t;
-
-int vma_new(struct env *e, void *va, size_t len, int perm);
-int vma_unmap(struct env *e, void *va, size_t len);
-vma_t *vma_lookup(struct env *e, void *va);
-void vma_dump_all(struct env *e);
 
 #endif /* VMA_H */
 
