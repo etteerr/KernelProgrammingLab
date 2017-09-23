@@ -16,6 +16,9 @@
  * are filled-in from the ELF binary.
  */
 #define VMA_ARRAY_SIZE 128
+#define VMA_UVA 0xE0000000
+/* map above static 4m kernel mapping */
+#define VMA_KVA (0xF0000000 + (4<<20))
 
 enum {
     VMA_PERM_WRITE = 1,
@@ -41,7 +44,7 @@ typedef struct vma_arr {
     uint8_t occupied;
     uint8_t lowest_va_vma;
     
-    struct vma vmas[VMA_ARRAY_SIZE];
+    vma_t vmas[VMA_ARRAY_SIZE];
 } vma_arr_t;
 
 
@@ -50,6 +53,23 @@ int vma_new(env_t *e, void *va, size_t len, int perm);
 int vma_unmap(env_t *e, void *va, size_t len);
 vma_t *vma_lookup(env_t *e, void *va);
 void vma_dump_all(env_t *e);
+/**
+ * vma_array_init:
+ *  - allocates and maps a page (set to zero)
+ *  - inits vma_arr_t metadata
+ * asserts enviroment vma pointer is zero.
+ * @param e target environment
+ */
+void vma_array_init(env_t *e);
+
+/**
+ * vma_array_destroy:
+ *  - destroys all current allocated vma's
+ *  - free's page
+ * if environment pointer is zero, returns without doing anything.
+ * @param e
+ */
+void vma_array_destroy(env_t *e);
 
 #endif /* VMA_H */
 
