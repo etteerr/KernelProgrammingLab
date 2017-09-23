@@ -20,6 +20,13 @@
 /* map above static 4m kernel mapping */
 #define VMA_KVA (0xF0000000 + (4<<20))
 
+#define VMA_INVALID_POINTER 0xFFFF
+
+/* VMA error codes */
+enum {
+    VMA_ERR_SUCCESS = 0,
+};
+
 enum {
     VMA_PERM_WRITE = 1,
     // 1 << 2 for next
@@ -43,7 +50,7 @@ typedef struct vma {
 typedef struct vma_arr {
     uint8_t occupied;
     uint8_t lowest_va_vma;
-    
+    uint8_t highest_va_vma;
     vma_t vmas[VMA_ARRAY_SIZE];
 } vma_arr_t;
 
