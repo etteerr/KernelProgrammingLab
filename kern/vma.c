@@ -16,5 +16,4 @@ vma_t *vma_lookup(struct env *e, void *va) {
 }
 
 void vma_dump_all(struct env *e) {
-
 }
