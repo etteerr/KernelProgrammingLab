@@ -82,6 +82,10 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
         if (endva >= cva)
             return &vmr[i];
         
+        /* Next index*/
+        if ((i=vmr[i].n_adj)==VMA_INVALID_POINTER)
+            return 0;
+        
         /* if we passed cva with va but did not return, there is nothing anymore*/
     }while(va <= cva);
     
