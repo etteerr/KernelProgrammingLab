@@ -58,4 +58,21 @@ struct env {
     pde_t *env_pgdir;           /* Kernel virtual address of page dir */
 };
 
+/* Anonymous VMAs are zero-initialized whereas binary VMAs
+ * are filled-in from the ELF binary.
+ */
+enum {
+    VMA_UNUSED,
+    VMA_ANON,
+    VMA_BINARY,
+};
+
+struct vma {
+    int type;
+    void *va;
+    size_t len;
+    int perm;
+    /* LAB 4: You may add more fields here, if required. */
+};
+
 #endif /* !JOS_INC_ENV_H */

@@ -41,7 +41,8 @@ void    sys_cputs(const char *string, size_t len);
 int sys_cgetc(void);
 envid_t sys_getenvid(void);
 int sys_env_destroy(envid_t);
-
+void *sys_vma_create(size_t size, int perm, int flags);
+int sys_vma_destroy(void *va, size_t size);
 
 
 /* File open modes */
@@ -54,5 +55,12 @@ int sys_env_destroy(envid_t);
 #define O_TRUNC     0x0200      /* truncate to zero length */
 #define O_EXCL      0x0400      /* error if already exists */
 #define O_MKDIR     0x0800      /* create directory, not regular file */
+
+/* Virtual Memory Area permissions */
+#define PERM_R	    0x0001
+#define PERM_W	    0x0002
+
+/* Virtual Memory Area flags */
+#define MAP_POPULATE    0x0001
 
 #endif  /* !JOS_INC_LIB_H */

@@ -297,11 +297,11 @@ static void region_alloc(struct env *e, void *va, size_t len)
      */
     //Set print header
     cprintf("region_alloc: %#08x to %#08x\n", va, va+len);
-    
+
     //Assertions
     assert(len>0);
     assert(e);
-    
+
     /* Bootstrap */
     //rounded down virtual address
     uint32_t rva = ((uint32_t) va ) & ~0xFFF; //bit mask lower bits to round down
@@ -309,17 +309,17 @@ static void region_alloc(struct env *e, void *va, size_t len)
     size_t rlen = ROUNDUP(len, PGSIZE);
     //number of physical pages to allocate
     uint32_t numpages = rlen/PGSIZE;
-    
+
     /* Allocate */
     //Allocated start page
     cprintf("\tAllocating... ");
     struct page_info * pp = alloc_consecutive_pages(numpages,  0);
     cprintf("Success!\n");
-    
+
     //TODO: try allocating separate pages if consecutive does not succeed
     //assert allocation successful
     assert(pp);
-    
+
     /* Page table determination */
     //Determine amount of page table entries required
     uint32_t pages4M, pages4K;
@@ -327,39 +327,39 @@ static void region_alloc(struct env *e, void *va, size_t len)
     pages4K = numpages;
     //Determine number of 4M pages in total
     pages4M = pages4K / 1024;
-    
+
     // --------------- Remove 4M support --------------- //
     pages4M = 0;
-    
+
     /* setup va tables */
-    cprintf("\tSetting up %u 4M and %u 4K pages at %#08x to %#08x... ", 
+    cprintf("\tSetting up %u 4M and %u 4K pages at %#08x to %#08x... ",
     pages4M, pages4K-pages4M*1024, rva, rva+rlen);
-    
+
     uint32_t i = 0;
     uint32_t res = 0;
-    for(; i<pages4M; i++) 
+    for(; i<pages4M; i++)
         res |= page_insert(
                 e->env_pgdir, //the env pgdir
                 pp+(i*1024), //origin address of pp + offset 4M pages
-                (void*)(rva + (i*1024*PGSIZE)), 
+                (void*)(rva + (i*1024*PGSIZE)),
                 PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_USER | PDE_BIT_PRESENT
                 );
     //Convert i * 4M pages to i * 4K pages
     i *= 1024;
-    
+
     //i == number of 4k pages mapped via 4M, iterate till all leftovers are done
     for(; i<pages4K; i++)
         res |= page_insert(
                     e->env_pgdir, //the env pgdir
                     pp+i, //origin address of pp + offset 4M pages
-                    (void*)(rva + (i*PGSIZE)), 
+                    (void*)(rva + (i*PGSIZE)),
                     PDE_BIT_RW | PDE_BIT_USER | PDE_BIT_PRESENT
                     );
-    
+
     //Check if there where any errors
     assert(res==0);
     cprintf("Success!\n");
-    
+
     /* Check virtual pages */
     cprintf("\tChecking access (R/W) to va range... ");
     //Load enviroment pagedir
@@ -367,7 +367,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
     //Create 32 bit sized bites (volatile hack to prevent optimizations)
     volatile uint32_t * data;
     //Print Check variables
-    
+
     //Check RW access to virtual memory
     for(data=(uint32_t*)va; data<(uint32_t*)(va+len); data++) {
         volatile uint32_t tmp = *data; //volatile prevents optimization
@@ -464,6 +464,11 @@ static void load_icode(struct env *e, uint8_t *binary)
     /* Add ELF entry to environment's instruction pointer */
     e->env_tf.tf_eip = elf_header->e_entry;
 
+    /* vmatest binary uses the following */
+    /* 1. Map one RO page of VMA for UTEMP at virtual address UTEMP.
+     * 2. Map one RW page of VMA for UTEMP+PGSIZE at virtual address UTEMP. */
+
+    /* LAB 4: Your code here. */
 }
 
 /*
@@ -476,7 +481,7 @@ static void load_icode(struct env *e, uint8_t *binary)
 void env_create(uint8_t *binary, enum env_type type)
 {
     /* LAB 3: Your code here. */
-    
+
     //Allocate environment
     struct env * e = 0;
     assert(env_alloc(&e, 0)==0);
@@ -486,7 +491,7 @@ void env_create(uint8_t *binary, enum env_type type)
 
     //Load code
     load_icode(e, binary); //also setups env registers (such SP and IP)
-    
+
 }
 
 /*
@@ -601,32 +606,32 @@ void env_run(struct env *e)
 
     /* LAB 3: Your code here. */
 
-    
+
     /* switch environment */
     if (curenv != e) {
-        
+
         //set a running env back to runnable
         if (curenv && curenv->env_status == ENV_RUNNING)
             curenv->env_status = ENV_RUNNABLE;
-        
+
         //switch curenv variable
         curenv = e;
-        
+
         //update new curenv status
         assert(curenv->env_status == ENV_RUNNABLE);
         curenv->env_status = ENV_RUNNING;
-        
+
         //inc runs
         curenv->env_runs++;
-        
+
         //set memory environment
         lcr3(PADDR(curenv->env_pgdir)); //convert KVA to PA
     }
-    
+
     //Check if everything is OK
     assert(curenv == e);
     assert(curenv->env_status = ENV_RUNNING);
-    
+
     /* restore env registers */
     env_pop_tf(&e->env_tf);
 }

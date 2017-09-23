@@ -65,6 +65,35 @@ static int sys_env_destroy(envid_t envid)
     return 0;
 }
 
+/*
+ * Creates a new anonymous mapping somewhere in the virtual address space.
+ *
+ * Supported flags: 
+ *     MAP_POPULATE
+ * 
+ * Returns the address to the start of the new mapping, on success,
+ * or -1 if request could not be satisfied.
+ */
+static void *sys_vma_create(size_t size, int perm, int flags)
+{
+   /* Virtual Memory Area allocation */
+
+   /* LAB 4: Your code here. */
+   return (void *)-1;
+}
+
+/*
+ * Unmaps the specified range of memory starting at 
+ * virtual address 'va', 'size' bytes long.
+ */
+static int sys_vma_destroy(void *va, size_t size)
+{
+   /* Virtual Memory Area deallocation */
+
+   /* LAB 4: Your code here. */
+   return -1;
+}
+
 /* Dispatches to the correct kernel function, passing the arguments. */
 int32_t syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3,
         uint32_t a4, uint32_t a5)
