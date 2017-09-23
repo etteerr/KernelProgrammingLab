@@ -11,6 +11,8 @@
 #include <kern/env.h>
 #include <kern/trap.h>
 
+#include "vma.h"
+
 
 void i386_init(void)
 {
@@ -27,6 +29,9 @@ void i386_init(void)
 
     /* Lab 1 and 2 memory management initialization functions. */
     mem_init();
+    
+    /* Assertions */
+    assert(sizeof(vma_arr)<= PGSIZE);
 
     /* Lab 3 user environment initialization functions. */
     env_init();
