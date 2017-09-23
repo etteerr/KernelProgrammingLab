@@ -10,6 +10,7 @@
 
 typedef int32_t envid_t;
 struct vma_arr;
+typedef struct vma_arr vma_arr_t;
 /*
  * An environment ID 'envid_t' has three parts:
  *
@@ -57,7 +58,7 @@ typedef struct env {
 
     /* Address space */
     pde_t *env_pgdir;           /* Kernel virtual address of page dir */
-    struct vma_arr* vma_list;
+    vma_arr_t *vma_list;
 } env_t;
 
 
