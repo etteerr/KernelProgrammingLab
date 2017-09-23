@@ -54,7 +54,6 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
     
     vma_arr_t * vml = e->vma_list;
     vma_t * vmr = e->vma_list->vmas;
-    vma_t * res = 0;
 
     
     uint32_t i = vml->lowest_va_vma;
