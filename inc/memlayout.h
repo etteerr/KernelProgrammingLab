@@ -187,7 +187,7 @@ typedef union _rpage_control {
  * You can map a struct page_info* to the corresponding physical address
  * with page2pa() in kern/pmap.h.
  */
-struct page_info {
+typedef struct page_info {
     /* Next page on the free list. */
     struct page_info *pp_link;
 
@@ -201,7 +201,7 @@ struct page_info {
      * boot_alloc do not have valid reference count fields. */
 
     uint16_t pp_ref;
-};
+} page_info_t;
 
 #endif /* !__ASSEMBLER__ */
 #endif /* !JOS_INC_MEMLAYOUT_H */

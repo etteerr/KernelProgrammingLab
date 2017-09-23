@@ -1,14 +1,19 @@
-#include <inc/mmu.h>
-#include <inc/x86.h>
-#include <inc/assert.h>
-
-#include <kern/pmap.h>
-#include <kern/trap.h>
-#include <kern/console.h>
-#include <kern/monitor.h>
-#include <kern/env.h>
-#include <kern/syscall.h>
+#include "../inc/env.h"
+#include "../inc/mmu.h"
+#include "../inc/x86.h"
+#include "../inc/stdio.h"
+#include "../inc/trap.h"
 #include "../inc/types.h"
+#include "../inc/assert.h"
+#include "../inc/memlayout.h"
+
+#include "env.h"
+#include "vma.h"
+#include "pmap.h"
+#include "trap.h"
+#include "monitor.h"
+#include "syscall.h"
+#include "../inc/error.h"
 
 static struct taskstate ts;
 
@@ -242,6 +247,12 @@ void trap(struct trapframe *tf)
     env_run(curenv);
 }
 
+void murder_env(env_t *env, uint32_t fault_va) {
+    cprintf("[%08x] user fault va %08x ip %08x\n",
+            env->env_id, fault_va, env->env_tf.tf_eip);
+    print_trapframe(&env->env_tf);
+    env_destroy(env);
+}
 
 void page_fault_handler(struct trapframe *tf)
 {
@@ -259,11 +270,40 @@ void page_fault_handler(struct trapframe *tf)
     /* We've already handled kernel-mode exceptions, so if we get here, the page
      * fault happened in user mode. */
 
-    /* Destroy the environment that caused the fault. */
-    cprintf("[%08x] user fault va %08x ip %08x\n",
-        curenv->env_id, fault_va, tf->tf_eip);
-    print_trapframe(tf);
-    env_destroy(curenv);
+    /* If user is requesting an address outside its addressable range, kill it */
+    if(fault_va < USTABDATA || fault_va >= UTOP) {
+        cprintf("Virtual address outside of user addressable range\n");
+        return murder_env(curenv, fault_va);
+    }
+
+    /* Check if user env has a VMA for given address */
+    vma_t *hit = vma_lookup(curenv, (void *)fault_va);
+    if(!hit) {
+        cprintf("Virtual address does not have VMA mapping\n");
+        return murder_env(curenv, fault_va);
+    }
+
+    /* Only allow dynamic allocation of pre-mapped VMA regions */
+    if(hit->type == VMA_UNUSED) {
+        cprintf("Virtual address in unused VMA\n");
+        return murder_env(curenv, fault_va);
+    }
+
+    int permissions = PTE_BIT_PRESENT | PTE_BIT_USER;
+    permissions |= (hit->perm & VMA_PERM_WRITE) ? PTE_BIT_RW : 0;
+    page_info_t *page = page_alloc(ALLOC_ZERO);
+    if(!page) {
+        cprintf("Unable to allocate dynamically requested memory\n");
+        return murder_env(curenv, fault_va);
+    }
+
+    int result = page_insert(curenv->env_pgdir, page, (void *)fault_va, permissions);
+    if(result == -E_NO_MEM) {
+        cprintf("Unable to allocate page table entry\n");
+        return murder_env(curenv, fault_va);
+    }
+
+    /* If we've reached this point, the memory fault should have been addressed properly */
 }
 
 void breakpoint_handler(struct trapframe *tf) {

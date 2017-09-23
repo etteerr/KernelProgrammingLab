@@ -1,21 +1,21 @@
 /* See COPYRIGHT for copyright information. */
 
-#include <inc/x86.h>
-#include <inc/mmu.h>
-#include <inc/error.h>
-#include <inc/string.h>
-#include <inc/assert.h>
-#include <inc/elf.h>
-
-#include <kern/env.h>
-#include <kern/pmap.h>
-#include <kern/trap.h>
-#include <kern/monitor.h>
+#include "../inc/x86.h"
 #include "../inc/env.h"
-#include "pmap.h"
-#include "../inc/memlayout.h"
-#include "../inc/trap.h"
 #include "../inc/elf.h"
+#include "../inc/mmu.h"
+#include "../inc/trap.h"
+#include "../inc/types.h"
+#include "../inc/error.h"
+#include "../inc/string.h"
+#include "../inc/assert.h"
+#include "../inc/memlayout.h"
+
+#include "env.h"
+#include "vma.h"
+#include "pmap.h"
+#include "trap.h"
+#include "monitor.h"
 
 struct env *envs = NULL;            /* All environments */
 struct env *curenv = NULL;          /* The current env */
@@ -362,8 +362,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
 
     /* Check virtual pages */
     cprintf("\tChecking access (R/W) to va range... ");
-    //Load enviroment pagedir
-    lcr3(PADDR(e->env_pgdir));
+
     //Create 32 bit sized bites (volatile hack to prevent optimizations)
     volatile uint32_t * data;
     //Print Check variables
@@ -375,8 +374,6 @@ static void region_alloc(struct env *e, void *va, size_t len)
     }
     //If no pagefault happend, check succes!
     cprintf("Successful!\n");
-    //Restore kernel pagedir
-    lcr3(PADDR(kern_pgdir));
 
     /* Invalidate TLB */
     //Legacy code if lcr3 changes, keep this line!
@@ -450,15 +447,12 @@ static void load_icode(struct env *e, uint8_t *binary)
     for (; ph < eph; ph++)
         if(ph->p_type == ELF_PROG_LOAD) {
             assert(ph->p_memsz >= ph->p_filesz);
-            region_alloc(e, (void *)ph->p_va, ph->p_memsz); //resets lcr3 to kern_pgdir
-            /* Switch to user environment page directory */
-            lcr3(PADDR(e->env_pgdir));
+            region_alloc(e, (void *)ph->p_va, ph->p_memsz);
+
             /* We can use virtual addresses because the uenv's pgdir has been loaded */
             memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
             /* Zero out remaining bytes */
             memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
-            /* Switch back to kernel page directory */
-            lcr3(PADDR(e->env_pgdir));
         }
 
     /* Add ELF entry to environment's instruction pointer */
@@ -466,9 +460,11 @@ static void load_icode(struct env *e, uint8_t *binary)
 
     /* vmatest binary uses the following */
     /* 1. Map one RO page of VMA for UTEMP at virtual address UTEMP.
-     * 2. Map one RW page of VMA for UTEMP+PGSIZE at virtual address UTEMP. */
+     * 2. Map one RW page of VMA for UTEMP+PGSIZE at virtual address UTEMP+PGSIZE. */
 
     /* LAB 4: Your code here. */
+    vma_new(e, UTEMP, PGSIZE, VMA_PERM_READ);
+    vma_new(e, UTEMP+PGSIZE, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE);
 }
 
 /*
@@ -480,16 +476,17 @@ static void load_icode(struct env *e, uint8_t *binary)
  */
 void env_create(uint8_t *binary, enum env_type type)
 {
-    /* LAB 3: Your code here. */
-
-    //Allocate environment
+    /* Allocate environment */
     struct env * e = 0;
     assert(env_alloc(&e, 0)==0);
 
-    //Setup env
+    /* Setup env */
     e->env_type = type;
 
-    //Load code
+    /* Switch to user environment page directory */
+    lcr3(PADDR(e->env_pgdir));
+
+    /* Load code */
     load_icode(e, binary); //also setups env registers (such SP and IP)
 
 }
