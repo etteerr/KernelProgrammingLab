@@ -10,9 +10,6 @@
 
 
 #include <kern/env.h>
-/* VMA functions */
-
-
 
 /*  VMA helpers */
 /* Anonymous VMAs are zero-initialized whereas binary VMAs
@@ -48,6 +45,7 @@ typedef struct vma_arr {
 } vma_arr_t;
 
 
+/* VMA functions */
 int vma_new(env_t *e, void *va, size_t len, int perm);
 int vma_unmap(env_t *e, void *va, size_t len);
 vma_t *vma_lookup(env_t *e, void *va);
