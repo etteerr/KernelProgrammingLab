@@ -1,6 +1,7 @@
-#include <kern/vma.h>
 #include <inc/assert.h>
-
+#include "../kern/vma.h"
+#include "../inc/env.h"
+#include "../inc/stdio.h"
 #include "pmap.h"
 
 void vma_array_init(env_t* e) {
@@ -11,14 +12,14 @@ void vma_array_init(env_t* e) {
     
     //user mapping
     uint32_t ret = 
-            page_insert(e->env_pgdir, pp, VMA_UVA, PTE_BIT_USER | PTE_BIT_PRESENT);
+            page_insert(e->env_pgdir, pp, (void*) VMA_UVA, PTE_BIT_USER | PTE_BIT_PRESENT);
     
     //Kernel mapping
-    ret |= page_insert(e->env_pgdir, pp, VMA_KVA, PTE_BIT_RW | PTE_BIT_PRESENT);
+    ret |= page_insert(e->env_pgdir, pp, (void*) VMA_KVA, PTE_BIT_RW | PTE_BIT_PRESENT);
     assert(ret==0);
     
     /* update env */
-    vma_arr_t * vma_arr = VMA_KVA;
+    vma_arr_t * vma_arr = (vma_arr_t*) VMA_KVA;
     e->vma_list = vma_arr;
 }
 
@@ -45,4 +46,10 @@ vma_t *vma_lookup(env_t *e, void *va) {
 }
 
 void vma_dump_all(env_t *e) {
+    vma_arr_t *list = e->vma_list;
+    vma_t *cur = &list->vmas[list->lowest_va_vma];
+
+    do {
+        cprintf("%08x - %08x", cur->va, cur->va + cur->len);
+    } while ((cur = &list->vmas[cur->n_adj]));
 }
