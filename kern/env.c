@@ -233,6 +233,9 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     if ((r = env_setup_vm(e)) < 0)
         return r;
 
+    /* Create VMA list for this environment */
+    vma_array_init(e);
+
     /* Generate an env_id for this environment. */
     generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);
     if (generation <= 0)    /* Don't create a negative env_id. */
