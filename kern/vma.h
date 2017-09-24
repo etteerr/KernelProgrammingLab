@@ -18,7 +18,7 @@
 #define VMA_ARRAY_SIZE 128
 #define VMA_UVA 0xE0000000
 /* map above static 4m kernel mapping */
-#define VMA_KVA (0xF0000000 + (4<<20))
+#define VMA_KVA (0xFF000000)
 
 #define VMA_INVALID_POINTER (uint8_t)0xFFFF
 
