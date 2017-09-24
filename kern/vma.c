@@ -32,6 +32,7 @@ void vma_array_destroy(env_t* e) {
         return;
     
     //TODO: interate full array, remove and unmap all regions
+    panic("Unimplemented");
 }
 
 inline int vma_is_empty(vma_t* vma) {
@@ -155,7 +156,7 @@ breaky:
 }
 
 int vma_unmap(env_t *e, void *va, size_t len) {
-
+    panic("Unimplemented");
     return 0;
 }
 
