@@ -466,8 +466,8 @@ static void load_icode(struct env *e, uint8_t *binary)
      * 2. Map one RW page of VMA for UTEMP+PGSIZE at virtual address UTEMP+PGSIZE. */
 
     /* LAB 4: Your code here. */
-    vma_new(e, UTEMP, PGSIZE, VMA_PERM_READ);
-    vma_new(e, UTEMP+PGSIZE, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE);
+    vma_new(e, UTEMP, PGSIZE, VMA_PERM_READ, VMA_ANON);
+    vma_new(e, UTEMP+PGSIZE, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON);
 }
 
 /*

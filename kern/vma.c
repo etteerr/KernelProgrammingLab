@@ -3,6 +3,7 @@
 #include "../inc/env.h"
 #include "../inc/stdio.h"
 #include "pmap.h"
+#include "inc/string.h"
 
 void vma_array_init(env_t* e) {
     assert(e->vma_list == 0);
@@ -22,7 +23,7 @@ void vma_array_init(env_t* e) {
     vma_arr_t * vma_arr = (vma_arr_t*) VMA_KVA;
     e->vma_list = vma_arr;
     
-    vma_arr->highest_va_vma = VMA_INVALID_POINTER;
+//    vma_arr->highest_va_vma = VMA_INVALID_POINTER;
     vma_arr->lowest_va_vma = VMA_INVALID_POINTER;
 }
 
@@ -33,12 +34,123 @@ void vma_array_destroy(env_t* e) {
     //TODO: interate full array, remove and unmap all regions
 }
 
-int vma_new(env_t *e, void *va, size_t len, int perm) {
-    /* Assert this VMA does not already exist */
-    assert(vma_lookup(e, va, len) == 0);
+inline int vma_is_empty(vma_t* vma) {
+    return vma->len == 0;
+}
+
+int vma_get_relative(vma_t * vma1, vma_t * vma2) {
+    uint32_t vlen1, vlen2, va1, va2;
     
+    //Bootstrap values
+    va1 = (uint32_t) vma1->va;
+    va2 = (uint32_t) vma2->va;
+    vlen1 = va1 + vma1->len;
+    vlen2 = va2 + vma2->len;
     
+    //Checks
     
+    /* Cases overlap */
+    if (va1 < va2 && vlen1 > va2)
+        return VMA_RELATIVE_OVERLAP; // ( vma1 | vma2 |   vma1 )
+    
+    if (va1 > va2 && vlen2 > va1)
+        return VMA_RELATIVE_OVERLAP; // ( vma2 | vma1 |   vma1 )
+    
+    /* Cases one before the other */
+    if (vlen1 < va2) //If end of vma1 is before va2 begin
+        return VMA_RELATIVE_BEFORE_NADJ; // | vma1 |   | vma2 |
+    
+    if (vlen2 < va1) //vma2 is before vma1
+        return VMA_RELATIVE_AFTER_NADJ; //  | vma2 |   | vma2 |
+    
+    /* cases one adjacent to the other */
+    if (vlen1 == va2) //If end of vma1 is before va2 begin
+        return VMA_RELATIVE_BEFORE_ADJ; // | vma1 | vma2 |
+    
+    if (vlen2 == va1) //vma2 is before vma1
+        return VMA_RELATIVE_AFTER_ADJ; //  | vma2 | vma2 |
+    
+    /* case: programmer fucked up */
+    panic("This function is faulty! (and I'm now salty)");
+}
+
+int vma_new(env_t *e, void *va, size_t len, int perm, int type) {
+    /* Create and map a empty vma and link in the va order */
+    uint32_t i;
+    vma_arr_t * vmar = e->vma_list;
+    vma_t * entry;
+    
+    /* Find a free spot in the array */
+    for(i = 0; i < VMA_ARRAY_SIZE; i++) {
+        entry = &vmar->vmas[i];
+        if (vma_is_empty(entry)) //if len is zero, we a sure its empty :) (or atleast useless)
+            goto breaky;
+    }
+    entry = 0;
+breaky:
+    assert(entry);
+
+    /* Fill entry values */
+    entry->va = va;
+    entry->len = len;
+    entry->perm = perm;
+    entry->type = type; 
+    
+    /* 
+     * Fit it inside linked indexes 
+     *  This checks if it will actually fit as well
+     */
+    //First entry case
+    if (vmar->lowest_va_vma == VMA_INVALID_POINTER) {
+        vmar->lowest_va_vma = i;
+        entry->n_adj = entry->p_adj = VMA_INVALID_POINTER;
+        return i;
+    }
+    
+    //All other cases
+    
+    //Bootstrap loop
+    uint8_t *pp, pi = VMA_INVALID_POINTER;
+    vma_t * cent = &vmar->vmas[vmar->lowest_va_vma]; //Select first in line
+    pp = &vmar->lowest_va_vma; //pointer to current index of prev entry
+    
+    do {
+        /* Check position of our entry vs the current iter */
+        int p = vma_get_relative(entry, cent);
+        
+        /* Check for overlap */
+        if (p==VMA_RELATIVE_OVERLAP) {
+            memset((void*)entry, 0, sizeof(vma_t));
+            return -1;
+        }
+        
+        /* Check if we can insert here */
+        if (p == VMA_RELATIVE_BEFORE_ADJ || p == VMA_RELATIVE_BEFORE_NADJ) {
+            /* If our entry is before cent, insert our entry */
+            //set our pointers
+            entry->n_adj = *pp;
+            entry->p_adj = pi;
+            //set other entry pointers
+            *pp = i; //set previous pointer to our position
+            cent->p_adj = i; //Set next entry back pointer to us
+            
+            //We be done here, take a break
+            return i;
+        }
+        
+        /* Check if we have reached the end */
+        if (cent->n_adj == VMA_INVALID_POINTER) {
+            /* Append our entry at the end of the linked list */
+            entry->n_adj = VMA_INVALID_POINTER;
+            entry->p_adj = *pp; //previous pointer points to current, we insert after current
+            //Update current
+            cent->n_adj = i;
+            return i;
+        }
+        
+    }while(1);
+            
+    panic("What are we doing here? This code should not be reached!");
     return 0;
 }
 

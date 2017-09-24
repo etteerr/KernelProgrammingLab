@@ -51,15 +51,41 @@ typedef struct vma {
 typedef struct vma_arr {
     uint8_t occupied;
     uint8_t lowest_va_vma;
-    uint8_t highest_va_vma;
+//    uint8_t highest_va_vma;
     vma_t vmas[VMA_ARRAY_SIZE];
 } vma_arr_t;
 
 
 /* VMA functions */
-int vma_new(env_t *e, void *va, size_t len, int perm);
+/**
+ * Asserts if vma is empty.
+ * @param vma
+ * @return 1 on true, 0 on false
+ */
+int vma_is_empty(vma_t * vma);
+/**
+ * Creates a new vma_entry in the vma table
+ * @param e THe enviroment to modify
+ * @param va The virtual address to map
+ * @param len the VA range to map
+ * @param perm THe requested VMA permissions
+ * @param type The requested type
+ * @return index to created vma, -1 on error
+ */
+int vma_new(env_t *e, void *va, size_t len, int perm, int type);
 int vma_unmap(env_t *e, void *va, size_t len);
+/**
+ * Looks up a vma table which is the first to be found in the range of va to va+len
+ * @param e
+ * @param va
+ * @param len
+ * @return 0 on not found, valid pointer on success
+ */
 vma_t *vma_lookup(env_t *e, void *va, size_t len);
+/**
+ * Prints vma_list entries in sorted VA order (low to high)
+ * @param e
+ */
 void vma_dump_all(env_t *e);
 /**
  * vma_array_init:
@@ -78,6 +104,25 @@ void vma_array_init(env_t *e);
  * @param e
  */
 void vma_array_destroy(env_t *e);
+
+/**
+ * VMA relative return values
+ */
+enum {
+    VMA_RELATIVE_BEFORE_NADJ = -2,
+    VMA_RELATIVE_BEFORE_ADJ = -1,
+    VMA_RELATIVE_OVERLAP = 0,
+    VMA_RELATIVE_AFTER_ADJ = 1,
+    VMA_RELATIVE_AFTER_NADJ = 2,
+};
+/**
+ * checks if vma1 and vma2 overlap or which one comes first and if they are adjacent
+ *  Return parameter in perspective of vma1 (eg: comes before means vma1 comes before vma2)
+ * @param vma1
+ * @param vma2
+ * @return A VMA_RELATIVE_* value
+ */
+int vma_get_relative(vma_t * vma1, vma_t * vma2);
 
 #endif /* VMA_H */
 
