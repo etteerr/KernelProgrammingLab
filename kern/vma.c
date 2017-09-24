@@ -3,6 +3,7 @@
 #include "../inc/env.h"
 #include "../inc/stdio.h"
 #include "pmap.h"
+#include "inc/string.h"
 
 void vma_array_init(env_t* e) {
     assert(e->vma_list == 0);
@@ -111,7 +112,7 @@ breaky:
     
     //Bootstrap loop
     uint8_t *pp, pi = VMA_INVALID_POINTER;
-    vma_t * cent = vmar->vmas[vmar->lowest_va_vma]; //Select first in line
+    vma_t * cent = &vmar->vmas[vmar->lowest_va_vma]; //Select first in line
     pp = &vmar->lowest_va_vma; //pointer to current index of prev entry
     
     do {
@@ -120,7 +121,7 @@ breaky:
         
         /* Check for overlap */
         if (p==VMA_RELATIVE_OVERLAP) {
-            memset(entry, 0, sizeof(vma_t));
+            memset((void*)entry, 0, sizeof(vma_t));
             return VMA_INVALID_POINTER;
         }
         

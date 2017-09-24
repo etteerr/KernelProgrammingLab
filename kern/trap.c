@@ -277,7 +277,7 @@ void page_fault_handler(struct trapframe *tf)
     }
 
     /* Check if user env has a VMA for given address */
-    vma_t *hit = vma_lookup(curenv, (void *)fault_va);
+    vma_t *hit = vma_lookup(curenv, (void *)fault_va, 0);
     if(!hit) {
         cprintf("Virtual address does not have VMA mapping\n");
         return murder_env(curenv, fault_va);

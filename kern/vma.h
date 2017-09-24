@@ -62,7 +62,7 @@ typedef struct vma_arr {
  * @param vma
  * @return 1 on true, 0 on false
  */
-inline int vma_is_empty(vma_t * vma);
+int vma_is_empty(vma_t * vma);
 int vma_new(env_t *e, void *va, size_t len, int perm);
 int vma_unmap(env_t *e, void *va, size_t len);
 vma_t *vma_lookup(env_t *e, void *va, size_t len);
@@ -99,7 +99,7 @@ enum {
  * @param vma2
  * @return A VMA_RELATIVE_* value
  */
-int vma_get_relative(vma_t * vma1, vma_t * vma2)
+int vma_get_relative(vma_t * vma1, vma_t * vma2);
 
 #endif /* VMA_H */
 
