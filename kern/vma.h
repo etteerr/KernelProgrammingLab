@@ -63,9 +63,29 @@ typedef struct vma_arr {
  * @return 1 on true, 0 on false
  */
 int vma_is_empty(vma_t * vma);
+/**
+ * Creates a new vma_entry in the vma table
+ * @param e THe enviroment to modify
+ * @param va The virtual address to map
+ * @param len the VA range to map
+ * @param perm THe requested VMA permissions
+ * @param type The requested type
+ * @return index to created vma, -1 on error
+ */
 int vma_new(env_t *e, void *va, size_t len, int perm, int type);
 int vma_unmap(env_t *e, void *va, size_t len);
+/**
+ * Looks up a vma table which is the first to be found in the range of va to va+len
+ * @param e
+ * @param va
+ * @param len
+ * @return 0 on not found, valid pointer on success
+ */
 vma_t *vma_lookup(env_t *e, void *va, size_t len);
+/**
+ * Prints vma_list entries in sorted VA order (low to high)
+ * @param e
+ */
 void vma_dump_all(env_t *e);
 /**
  * vma_array_init:
@@ -85,6 +105,9 @@ void vma_array_init(env_t *e);
  */
 void vma_array_destroy(env_t *e);
 
+/**
+ * VMA relative return values
+ */
 enum {
     VMA_RELATIVE_BEFORE_NADJ = -2,
     VMA_RELATIVE_BEFORE_ADJ = -1,

@@ -121,7 +121,7 @@ breaky:
         /* Check for overlap */
         if (p==VMA_RELATIVE_OVERLAP) {
             memset((void*)entry, 0, sizeof(vma_t));
-            return VMA_INVALID_POINTER;
+            return -1;
         }
         
         /* Check if we can insert here */
