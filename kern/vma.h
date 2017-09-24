@@ -51,12 +51,18 @@ typedef struct vma {
 typedef struct vma_arr {
     uint8_t occupied;
     uint8_t lowest_va_vma;
-    uint8_t highest_va_vma;
+//    uint8_t highest_va_vma;
     vma_t vmas[VMA_ARRAY_SIZE];
 } vma_arr_t;
 
 
 /* VMA functions */
+/**
+ * Asserts if vma is empty.
+ * @param vma
+ * @return 1 on true, 0 on false
+ */
+inline int vma_is_empty(vma_t * vma);
 int vma_new(env_t *e, void *va, size_t len, int perm);
 int vma_unmap(env_t *e, void *va, size_t len);
 vma_t *vma_lookup(env_t *e, void *va, size_t len);
@@ -78,6 +84,22 @@ void vma_array_init(env_t *e);
  * @param e
  */
 void vma_array_destroy(env_t *e);
+
+enum {
+    VMA_RELATIVE_BEFORE_NADJ = -2,
+    VMA_RELATIVE_BEFORE_ADJ = -1,
+    VMA_RELATIVE_OVERLAP = 0,
+    VMA_RELATIVE_AFTER_ADJ = 1,
+    VMA_RELATIVE_AFTER_NADJ = 2,
+};
+/**
+ * checks if vma1 and vma2 overlap or which one comes first and if they are adjacent
+ *  Return parameter in perspective of vma1 (eg: comes before means vma1 comes before vma2)
+ * @param vma1
+ * @param vma2
+ * @return A VMA_RELATIVE_* value
+ */
+int vma_get_relative(vma_t * vma1, vma_t * vma2)
 
 #endif /* VMA_H */
 
