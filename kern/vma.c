@@ -241,7 +241,7 @@ void vma_dump_all(env_t *e) {
         cprintf("\t%08x - %08x [", cur->va, cur->va + cur->len);
         (cur->perm & VMA_PERM_READ)  ?  cprintf("r") : cprintf("-");
         (cur->perm & VMA_PERM_WRITE) ?  cprintf("w") : cprintf("-");
-        (cur->perm & VMA_PERM_EXEC)  ?  cprintf("e") : cprintf("-");
+        (cur->perm & VMA_PERM_EXEC)  ?  cprintf("x") : cprintf("-");
         if (cur->type == VMA_ANON) cprintf(" anon");
         if (cur->type == VMA_BINARY) cprintf(" binary");
         if (cur->type == VMA_UNUSED) cprintf(" unused");
