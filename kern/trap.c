@@ -291,7 +291,7 @@ void page_fault_handler(struct trapframe *tf)
 
     /* Check if memory address is already mapped. If so, the page fault was triggered by lacking permissions. */
     pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)fault_va, 0);
-    if(*pte & PTE_BIT_PRESENT) {
+    if(pte && *pte & PTE_BIT_PRESENT) {
         cprintf("User page fault\n");
         return murder_env(curenv, fault_va);
     }
