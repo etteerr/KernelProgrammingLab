@@ -111,7 +111,9 @@ breaky:
     //All other cases
     
     //Bootstrap loop
-    uint8_t *pp, pi = VMA_INVALID_POINTER;
+    uint8_t *pp, 
+            //pi is the index to which entry->p_adj should point, we always insert before the cent
+            pi = VMA_INVALID_POINTER;
     vma_t * cent = &vmar->vmas[vmar->lowest_va_vma]; //Select first in line
     pp = &vmar->lowest_va_vma; //pointer to current index of prev entry
     
@@ -148,6 +150,11 @@ breaky:
             cent->n_adj = i;
             return i;
         }
+        
+        /* Pancake, do increase the iterators */
+        pp = &cent->n_adj; //previous link target pointer
+        cent = &vmar->vmas[cent->n_adj]; //new interator value
+        pi = cent->p_adj;
         
     }while(1);
             
