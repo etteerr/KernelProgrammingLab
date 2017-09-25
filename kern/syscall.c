@@ -98,7 +98,7 @@ static void *sys_vma_create(size_t size, int perm, int flags)
  */
 static int sys_vma_destroy(void *va, size_t size)
 {
-    if(size <= 0 || va < UTEMP || va > (void *)UTOP) {
+    if(size <= 0) {
         return -1;
     }
     return vma_unmap(curenv, va, size);
