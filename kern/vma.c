@@ -342,7 +342,7 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
             return &vmr[i];
         
         /* Extra: if our endva passes cva, the given range spans atleast one vma*/
-        if (va <= cva && endva >= cva)
+        if (va <= cva && endva > cva)
             return &vmr[i];
         
         /* Next index*/
