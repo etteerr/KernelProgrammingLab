@@ -208,7 +208,11 @@ breaky:
         }
     }
     
-            
+    vma_dump_all(e);
+    cprintf("To be inserted: ");
+    if (entry->va)
+        vma_dump(entry);
+    cprintf("\n");
     panic("What are we doing here? This code should not be reached!");
     return 0;
 }
