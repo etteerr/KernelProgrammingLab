@@ -1,8 +1,8 @@
 /* System call stubs. */
 
-#include <inc/syscall.h>
-#include <inc/lib.h>
-#include <inc/error.h>
+#include "../inc/lib.h"
+#include "../inc/error.h"
+#include "../inc/syscall.h"
 
 static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
         uint32_t a3, uint32_t a4, uint32_t a5)
@@ -114,14 +114,10 @@ envid_t sys_getenvid(void)
 
 void *sys_vma_create(size_t size, int perm, int flags)
 {
-    /* LAB 4: Your code here */
-
-    return NULL;
+    return (void *)syscall(SYS_vma_create, size, perm, flags, 0, 0, 0);
 }
 
 int sys_vma_destroy(void *va, size_t size)
 {
-    /* LAB 4: Your code here */
-
-    return -E_NO_SYS;
+    return syscall(SYS_vma_destroy, (uint32_t) va, size, 0, 0, 0, 0);
 }

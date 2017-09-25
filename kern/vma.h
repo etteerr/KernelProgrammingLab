@@ -21,6 +21,7 @@
 #define VMA_KVA (0xFFFFF000)
 
 #define VMA_INVALID_POINTER (uint8_t)0xFFFF
+#define VMA_INVALID_INDEX (uint8_t)0xFFFF
 
 /* VMA error codes */
 enum {
@@ -73,6 +74,7 @@ int vma_is_empty(vma_t * vma);
  * @return index to created vma, -1 on error
  */
 int vma_new(env_t *e, void *va, size_t len, int perm, int type);
+int vma_new_anon(env_t *e, size_t len, int perm, int type);
 int vma_unmap(env_t *e, void *va, size_t len);
 /**
  * Looks up a vma table which is the first to be found in the range of va to va+len
