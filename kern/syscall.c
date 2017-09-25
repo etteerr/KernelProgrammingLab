@@ -87,9 +87,7 @@ static void *sys_vma_create(size_t size, int perm, int flags)
         return (void *)-1;
     }
 
-    vma_arr_t *vma_list = ((vma_arr_t *)VMA_UVA);
-
-    return &vma_list->vmas[index];
+    return curenv->vma_list->vmas[index].va;
 }
 
 /*
