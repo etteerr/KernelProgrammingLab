@@ -216,7 +216,7 @@ breaky:
     return 0;
 }
 
-int vma_new_anon(env_t *e, size_t len, int perm, int type) {
+int vma_new_anon(env_t *e, size_t len, int perm) {
     vma_t *cur, *next;
     uint8_t next_index;
     void *insert_va;
@@ -234,13 +234,13 @@ int vma_new_anon(env_t *e, size_t len, int perm, int type) {
         /* If current VMA has no next, we assume we can insert after it */
         if(next_index == VMA_INVALID_INDEX) {
             insert_va = cur->va + cur->len;
-            return vma_new(e, insert_va, len, perm, type);
+            return vma_new(e, insert_va, len, perm, VMA_ANON);
         }
 
         next = &arr->vmas[next_index];
         if(next->va - (cur->va + cur->len) <= len) {
             insert_va = cur->va + cur->len;
-            return vma_new(e, insert_va, len, perm, type);
+            return vma_new(e, insert_va, len, perm, VMA_ANON);
         }
     }
     return -1;

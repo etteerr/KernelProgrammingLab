@@ -306,6 +306,7 @@ void page_fault_handler(struct trapframe *tf)
     }
 
     /* If we've reached this point, the memory fault should have been addressed properly */
+    cprintf("Page fault should be fixed\n");
 }
 
 void breakpoint_handler(struct trapframe *tf) {

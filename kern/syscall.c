@@ -1,6 +1,8 @@
 /* See COPYRIGHT for copyright information. */
 
 #include "../inc/x86.h"
+#include "../inc/env.h"
+#include "../inc/types.h"
 #include "../inc/error.h"
 #include "../inc/string.h"
 #include "../inc/assert.h"
@@ -79,9 +81,13 @@ static int sys_env_destroy(envid_t envid)
 static void *sys_vma_create(size_t size, int perm, int flags)
 {
     /* Virtual Memory Area allocation */
-    int index = vma_new_anon((env_t *)curenv, size, perm, flags);
+    int index = vma_new_anon((env_t *)curenv, size, perm);
 
-    return (void *)-1;
+    if(index < 0) {
+        return (void *)-1;
+    }
+
+    return &curenv->vma_list->vmas[index];
 }
 
 /*
