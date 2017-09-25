@@ -120,11 +120,11 @@ void *sys_vma_create(size_t size, int perm, int flags)
 {
     vma_t *vma = (vma_t *)syscall(SYS_vma_create, 0, size, perm, flags, 0, 0);
     void *addr;
-
+    register char access;
     if(flags & VMA_FLAG_POPULATE) {
         /* Trigger pagefaults to alloc pages */
         for(addr = vma->va; addr < vma->va + size; size += PGSIZE) {
-            char access = *((char *) addr);
+            access = *((char *) addr);
         }
     }
 
