@@ -99,7 +99,6 @@ int vma_get_relative(vma_t * vma1, vma_t * vma2) {
 int vma_new(env_t *e, void *va, size_t len, int perm, int type) {
     /* vma assertions */
     assert(len);
-    assert(vma_lookup(e, va, len)==0);
     
     /* Create and map a empty vma and link in the va order */
     uint32_t i;
@@ -121,6 +120,16 @@ breaky:
     entry->len = len;
     entry->perm = perm;
     entry->type = type; 
+    
+    
+   if (vma_lookup(e, va, len)!=0) {
+       vma_dump_all(e);
+        cprintf("To be inserted: ");
+        if (entry->va)
+            vma_dump(entry);
+        cprintf("\n");
+        panic("VMA already exists!");
+   }
     
     /* 
      * Fit it inside linked indexes 
@@ -352,6 +361,13 @@ void vma_dump_all(env_t *e) {
     vma_t *cur = &list->vmas[list->lowest_va_vma];
     /* print header */
     cprintf("VMA dump for env %d\n", e->env_id);
+    
+    /* Stop if there are no entries*/
+    if (list->lowest_va_vma == VMA_INVALID_INDEX) {
+        cprintf("\tNone.\n");
+        return;
+    }
+    
     /* print entries */
     do {
         cprintf("\t");
