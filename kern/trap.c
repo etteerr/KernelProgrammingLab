@@ -289,6 +289,13 @@ void page_fault_handler(struct trapframe *tf)
         return murder_env(curenv, fault_va);
     }
 
+    /* Check if memory address is already mapped. If so, the page fault was triggered by lacking permissions. */
+    pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)fault_va, 0);
+    if(pte) {
+        cprintf("User environment does not have correct permissions for virtual address");
+        return murder_env(curenv, fault_va);
+    }
+
     /*Try and allocate a new physical page*/
     page_info_t *page = page_alloc(ALLOC_ZERO);
     if(!page) {
@@ -306,6 +313,7 @@ void page_fault_handler(struct trapframe *tf)
     }
 
     /* If we've reached this point, the memory fault should have been addressed properly */
+    cprintf("Page fault should be fixed\n");
 }
 
 void breakpoint_handler(struct trapframe *tf) {

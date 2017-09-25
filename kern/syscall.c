@@ -1,15 +1,19 @@
 /* See COPYRIGHT for copyright information. */
 
-#include <inc/x86.h>
-#include <inc/error.h>
-#include <inc/string.h>
-#include <inc/assert.h>
+#include "../inc/x86.h"
+#include "../inc/env.h"
+#include "../inc/types.h"
+#include "../inc/error.h"
+#include "../inc/string.h"
+#include "../inc/assert.h"
+#include "../inc/syscall.h"
 
-#include <kern/env.h>
-#include <kern/pmap.h>
-#include <kern/trap.h>
-#include <kern/syscall.h>
-#include <kern/console.h>
+#include "env.h"
+#include "vma.h"
+#include "pmap.h"
+#include "trap.h"
+#include "syscall.h"
+#include "console.h"
 
 
 /*
@@ -76,10 +80,14 @@ static int sys_env_destroy(envid_t envid)
  */
 static void *sys_vma_create(size_t size, int perm, int flags)
 {
-   /* Virtual Memory Area allocation */
+    /* Virtual Memory Area allocation */
+    int index = vma_new_range((env_t *)curenv, size, perm, VMA_ANON);
 
-   /* LAB 4: Your code here. */
-   return (void *)-1;
+    if(index < 0) {
+        return (void *)-1;
+    }
+
+    return &curenv->vma_list->vmas[index];
 }
 
 /*
@@ -114,7 +122,11 @@ int32_t syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3,
         case SYS_getenvid:
             return sys_getenvid();
         case SYS_env_destroy:
-            return sys_env_destroy(a1);            
+            return sys_env_destroy(a1);
+        case SYS_vma_create:
+            return (uint32_t) sys_vma_create(a1, a2, a3);
+        case SYS_vma_destroy:
+            return sys_vma_destroy((void *)a1, a2);
         default:
             return -E_NO_SYS;
     }

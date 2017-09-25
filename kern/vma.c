@@ -23,8 +23,8 @@ void vma_array_init(env_t* e) {
     vma_arr_t * vma_arr = (vma_arr_t*) VMA_KVA;
     e->vma_list = vma_arr;
     
-//    vma_arr->highest_va_vma = VMA_INVALID_POINTER;
-    vma_arr->lowest_va_vma = VMA_INVALID_POINTER;
+//    vma_arr->highest_va_vma = VMA_INVALID_INDEX;
+    vma_arr->lowest_va_vma = VMA_INVALID_INDEX;
 }
 
 void vma_array_destroy(env_t* e) {
@@ -127,9 +127,9 @@ breaky:
      *  This checks if it will actually fit as well
      */
     //First entry case
-    if (vmar->lowest_va_vma == VMA_INVALID_POINTER) {
+    if (vmar->lowest_va_vma == VMA_INVALID_INDEX) {
         vmar->lowest_va_vma = i;
-        entry->n_adj = entry->p_adj = VMA_INVALID_POINTER;
+        entry->n_adj = entry->p_adj = VMA_INVALID_INDEX;
         return i;
     }
     
@@ -213,6 +213,36 @@ breaky:
     return 0;
 }
 
+int vma_new_range(env_t *e, size_t len, int perm, int type) {
+    vma_t *cur, *next;
+    uint8_t next_index;
+    void *insert_va;
+    vma_arr_t *arr = e->vma_list;
+
+    if (arr->lowest_va_vma == VMA_INVALID_INDEX) {
+        cprintf("VMA list is not populated, can't create new anonymous VMA.");
+        return -1;
+    }
+
+    /* Find a gap that fits our len */
+    for(cur = &arr->vmas[arr->lowest_va_vma]; cur; cur = &arr->vmas[next_index]) {
+        next_index = cur->n_adj;
+
+        /* If current VMA has no next, we assume we can insert after it */
+        if(next_index == VMA_INVALID_INDEX) {
+            insert_va = cur->va + cur->len;
+            return vma_new(e, insert_va, len, perm, type);
+        }
+
+        next = &arr->vmas[next_index];
+        if(next->va - (cur->va + cur->len) <= len) {
+            insert_va = cur->va + cur->len;
+            return vma_new(e, insert_va, len, perm, type);
+        }
+    }
+    return -1;
+}
+
 int vma_unmap(env_t *e, void *va, size_t len) {
     /* assertions */
     assert(len);
@@ -270,7 +300,7 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
     uint32_t i = vml->lowest_va_vma;
     
     /* If the entry pointer is invalid, there are no entries*/
-    if (i == VMA_INVALID_POINTER) {
+    if (i == VMA_INVALID_INDEX) {
         //Assert there are no entries and return
         assert(vml->occupied==0);
         return 0;
@@ -293,7 +323,7 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
             return &vmr[i];
         
         /* Next index*/
-        if ((i=vmr[i].n_adj)==VMA_INVALID_POINTER)
+        if ((i=vmr[i].n_adj)==VMA_INVALID_INDEX)
             return 0;
         
         /* if we passed cva with va but did not return, there is nothing anymore*/
@@ -323,7 +353,7 @@ void vma_dump_all(env_t *e) {
         cprintf("\t");
         vma_dump(cur);
         cprintf("\n");
-        if (cur->n_adj == VMA_INVALID_POINTER)
+        if (cur->n_adj == VMA_INVALID_INDEX)
             break;
     } while ((cur = &list->vmas[cur->n_adj]));
 }
