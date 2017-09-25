@@ -327,7 +327,7 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
             return 0;
         
         /* if we passed cva with va but did not return, there is nothing anymore*/
-    }while(va <= cva);
+    }while(va >= cva);
     
     return 0;
 }
