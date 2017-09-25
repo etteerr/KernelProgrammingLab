@@ -266,6 +266,19 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
     return -1;
 }
 
+void __dealloc_range(env_t *e, void *va, size_t len) {
+    uint32_t i = (uint32_t) va & 0xFFFFF000; //round down to pgsize
+    uint32_t end = (uint32_t) va + len;
+    
+    for(; i<end; i+= PGSIZE) {
+        pte_t * pte = pgdir_walk(e->env_pgdir, (void*)i, 0);
+        struct page_info * pp = pa2page(PTE_GET_PHYS_ADDRESS(*pte));
+        page_free(pp);
+        *pte = 0;
+        tlb_invalidate(e->env_pgdir, (void*)i);
+    }
+}
+
 int vma_unmap(env_t *e, void *va, size_t len) {
     /* assertions */
     assert(len);
@@ -285,10 +298,14 @@ int vma_unmap(env_t *e, void *va, size_t len) {
         /* beginning is equal or after this entry's begin */
         if (va >= entry->va) {
             /* unmap, and keep beginning if va > entry->va */
-            if (va > entry->va)
+            if (va > entry->va) {
                 entry->len = (uint32_t)(va - entry->va);
-            else
+                __dealloc_range(e, va, tmp1.len - entry->len);
+            }
+            else {
                 vma_remove(e, entry);
+                __dealloc_range(e, entry->va, entry->len);
+            }
 
             /* remap remainder if there is a remainder */
             if (vlen < i_vlen) {
@@ -302,10 +319,14 @@ int vma_unmap(env_t *e, void *va, size_t len) {
         /* Tail overlaps with entry */
         if (vlen > (uint32_t) entry->va) {
             /* If overlap is complete, remove */
-            if (vlen >= i_vlen)
+            if (vlen >= i_vlen) {
                 vma_remove(e, entry);
-            else //Else, shrink entry
+                __dealloc_range(e, entry->va, entry->len);
+            }
+            else {//Else, shrink entry
                 entry->va =  (void*)vlen;
+                __dealloc_range(e, tmp1.va, vlen - (uint32_t)tmp1.va);
+            }
         }
     }
     return 0;
