@@ -208,7 +208,11 @@ breaky:
         }
     }
     
-            
+    vma_dump_all(e);
+    cprintf("To be inserted: ");
+    if (entry->va)
+        vma_dump(entry);
+    cprintf("\n");
     panic("What are we doing here? This code should not be reached!");
     return 0;
 }
@@ -327,7 +331,7 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
             return 0;
         
         /* if we passed cva with va but did not return, there is nothing anymore*/
-    }while(va <= cva);
+    }while(va >= cva);
     
     return 0;
 }
