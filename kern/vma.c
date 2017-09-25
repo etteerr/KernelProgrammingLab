@@ -76,6 +76,9 @@ int vma_get_relative(vma_t * vma1, vma_t * vma2) {
 }
 
 int vma_new(env_t *e, void *va, size_t len, int perm, int type) {
+    /* vma assertions */
+    assert(len);
+    
     /* Create and map a empty vma and link in the va order */
     uint32_t i;
     vma_arr_t * vmar = e->vma_list;
