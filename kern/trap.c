@@ -289,14 +289,16 @@ void page_fault_handler(struct trapframe *tf)
         return murder_env(curenv, fault_va);
     }
 
-    int permissions = PTE_BIT_PRESENT | PTE_BIT_USER;
-    permissions |= (hit->perm & VMA_PERM_WRITE) ? PTE_BIT_RW : 0;
+    /*Try and allocate a new physical page*/
     page_info_t *page = page_alloc(ALLOC_ZERO);
     if(!page) {
         cprintf("Unable to allocate dynamically requested memory\n");
         return murder_env(curenv, fault_va);
     }
-
+    
+    /* Set permissions and insert page into the page table (pgdir/pgtable) */
+    int permissions = PTE_BIT_PRESENT | PTE_BIT_USER;
+    permissions |= (hit->perm & VMA_PERM_WRITE) ? PTE_BIT_RW : 0;
     int result = page_insert(curenv->env_pgdir, page, (void *)fault_va, permissions);
     if(result == -E_NO_MEM) {
         cprintf("Unable to allocate page table entry\n");
