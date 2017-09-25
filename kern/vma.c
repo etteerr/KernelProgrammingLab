@@ -258,5 +258,7 @@ void vma_dump_all(env_t *e) {
         cprintf("\t");
         vma_dump(cur);
         cprintf("\n");
+        if (cur->n_adj == VMA_INVALID_POINTER)
+            break;
     } while ((cur = &list->vmas[cur->n_adj]));
 }
