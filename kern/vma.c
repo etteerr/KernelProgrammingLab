@@ -1,9 +1,14 @@
-#include <inc/assert.h>
-#include "../kern/vma.h"
-#include "../inc/env.h"
-#include "../inc/stdio.h"
 #include "pmap.h"
-#include "inc/string.h"
+
+#include "../kern/vma.h"
+
+#include "../inc/env.h"
+#include "../inc/mmu.h"
+#include "../inc/types.h"
+#include "../inc/stdio.h"
+#include "../inc/assert.h"
+#include "../inc/string.h"
+#include "../inc/memlayout.h"
 
 void vma_array_init(env_t* e) {
     assert(e->vma_list == 0);
@@ -246,6 +251,9 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
         /* If current VMA has no next, we assume we can insert after it */
         if(next_index == VMA_INVALID_INDEX) {
             insert_va = cur->va + cur->len;
+            if((uint32_t)(insert_va + len) >= UTOP)
+                return -1;
+            
             return vma_new(e, insert_va, len, perm, type);
         }
 
