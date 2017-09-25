@@ -274,7 +274,7 @@ void __dealloc_range(env_t *e, void *va, size_t len) {
         pte_t * pte = pgdir_walk(e->env_pgdir, (void*)i, 0);
         struct page_info * pp = pa2page(PTE_GET_PHYS_ADDRESS(*pte));
         if (pp) {
-            page_free(pp);
+            page_decref(pp);
             *pte = 0;
             tlb_invalidate(e->env_pgdir, (void*)i);
         }
