@@ -123,6 +123,7 @@ breaky:
     
     
    if (vma_lookup(e, va, len)!=0) {
+       cprintf("Assertion failed in vma_new!\n");
        vma_dump_all(e);
         cprintf("To be inserted: ");
         if (entry->va)
