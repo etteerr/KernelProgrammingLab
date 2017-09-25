@@ -41,6 +41,7 @@ inline int vma_is_empty(vma_t* vma) {
 
 const uint8_t vma_get_index(vma_t* vma) {
     uint32_t begin = (uint32_t)(vma) & 0xFFFFF000;
+    begin += sizeof(uint8_t) * 2;
     uint32_t offset = (uint32_t)(vma) - begin;
     return offset/sizeof(vma_t);
 }
