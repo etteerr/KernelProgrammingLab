@@ -31,7 +31,7 @@ void vma_remove(env_t *e, vma_t * vma);
  * @param vma
  * @return uint16_t index
  */
-uint8_t vma_get_index(vma_t * vma);
+const uint8_t vma_get_index(vma_t * vma);
 /**
  * Asserts if vma is empty.
  * @param vma
@@ -48,7 +48,7 @@ int vma_is_empty(vma_t * vma);
  * @return index to created vma, -1 on error
  */
 int vma_new(env_t *e, void *va, size_t len, int perm, int type);
-int vma_new_anon(env_t *e, size_t len, int perm);
+int vma_new_range(env_t *e, size_t len, int perm, int type);
 int vma_unmap(env_t *e, void *va, size_t len);
 /**
  * Looks up a vma table which is the first to be found in the range of va to va+len

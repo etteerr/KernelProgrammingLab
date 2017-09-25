@@ -81,7 +81,7 @@ static int sys_env_destroy(envid_t envid)
 static void *sys_vma_create(size_t size, int perm, int flags)
 {
     /* Virtual Memory Area allocation */
-    int index = vma_new_anon((env_t *)curenv, size, perm);
+    int index = vma_new_range((env_t *)curenv, size, perm, VMA_ANON);
 
     if(index < 0) {
         return (void *)-1;

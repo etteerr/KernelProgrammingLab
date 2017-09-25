@@ -39,7 +39,7 @@ inline int vma_is_empty(vma_t* vma) {
     return vma->len == 0;
 }
 
-uint8_t vma_get_index(vma_t* vma) {
+const uint8_t vma_get_index(vma_t* vma) {
     uint32_t begin = (uint32_t)(vma) & 0xFFFFF000;
     uint32_t offset = (uint32_t)(vma) - begin;
     return offset/sizeof(vma_t);
@@ -99,6 +99,7 @@ int vma_get_relative(vma_t * vma1, vma_t * vma2) {
 int vma_new(env_t *e, void *va, size_t len, int perm, int type) {
     /* vma assertions */
     assert(len);
+    assert(vma_lookup(e, va, len)==0);
     
     /* Create and map a empty vma and link in the va order */
     uint32_t i;
@@ -132,91 +133,87 @@ breaky:
         return i;
     }
     
-    //All other cases
     
-    //Bootstrap loop
-    uint8_t *pp, 
-            //pi is the index to which entry->p_adj should point, we always insert before the cent
-            pi = VMA_INVALID_INDEX;
-    vma_t * cent = &vmar->vmas[vmar->lowest_va_vma]; //Select first in line
-    pp = &vmar->lowest_va_vma; //pointer to current index of prev entry
+    /* Loop over all entries to find a comfortable spot */
+    //Current, previous and next entry
+    vma_t *centry, *pentry, *nentry;
     
-    do {
-        /* Check position of our entry vs the current iter */
-        int p = vma_get_relative(entry, cent);
+    //bootstrap
+    centry = pentry = 0;
+    nentry = &vmar->vmas[vmar->lowest_va_vma];
+    
+    //Loop while next != 0 (nentry)
+    while(nentry) {
+        //Shift and create pointers
+        pentry = centry;
+        centry = nentry;
+        nentry = centry->n_adj == VMA_INVALID_POINTER ? 0 : &vmar->vmas[centry->n_adj];
         
-        /* Check for overlap */
-        if (p==VMA_RELATIVE_OVERLAP) {
-            memset((void*)entry, 0, sizeof(vma_t));
-            return -1;
-        }
-        
-        /* Check if we can insert here */
-        if (p == VMA_RELATIVE_BEFORE_ADJ || p == VMA_RELATIVE_BEFORE_NADJ || p == VMA_RELATIVE_AFTER_ADJ) {
-            /* Handle a possible merge case 1*/
-            if (entry->perm == cent->perm && entry->type == cent->type) {
-                //Identical permissions and type
-                if (p == VMA_RELATIVE_BEFORE_ADJ || p == VMA_RELATIVE_AFTER_ADJ) {
-                    /* Our new entry is continues with cent, with entry being before cent */
-                    cprintf("VMA_new: Insertion merge for ");
-                    vma_dump(entry);
-                    cprintf(" and ");
-                    vma_dump(cent);
-                    cprintf(".\n");
+        /* Quick and dirty position determination */
+        int check = centry->va < va;
+        check &= nentry ? nentry->va > va : 1;
+        if (check) { 
+            /* Insertion splot reached: insert between centry & nentry */
+            
+            //Our positional relation vs the current entry
+            int pos_c = vma_get_relative(entry, centry);
+            //Our positional relation vs the next entry
+            int pos_n = nentry ? vma_get_relative(entry, nentry) : 0;
+            
+            
+            /* Check merge conditions */
+            
+            //If we are adjacent to the current ( [current][us] )
+            if (pos_c == VMA_RELATIVE_AFTER_ADJ) {
+                /* merge with centry if permissions match */
+                if (entry->perm == centry->perm && entry->type == centry->type) {
+                    centry->len += entry->len;
                     
-                    //Merge entries
-                    cent->len += entry->len;
-                    if (VMA_RELATIVE_BEFORE_ADJ) cent->va = entry->va; //if our entry is before cent, we use our entries va
-                    
-                    //Remove entry
+                    /* Clear our allocated entry */
                     memset((void*)entry, 0, sizeof(vma_t));
                     
-                    //return index of cent
-                    return *pp;                    
+                    /* return index */
+                    return vma_get_index(centry);
                 }
             }
             
-            //Insert before cent (THus not if entry is after cent)
-            if (p != VMA_RELATIVE_AFTER_ADJ) {
-                /* If our entry is before cent, insert our entry */
-                //set our pointers
-                entry->n_adj = *pp;
-                entry->p_adj = pi;
-
-                //set other entry pointers
-                *pp = i; //set previous pointer to our position
-                cent->p_adj = i; //Set next entry back pointer to us
-                
-                //inc vma counter
-                vmar->occupied++;
-
-                //We be done here, take a break
-                return i;
+            //If we are adjacent to the next entry ( [us][next] )
+            if (pos_n == VMA_RELATIVE_BEFORE_ADJ) {
+                /* merge with centry if permissions match */
+                if (entry->perm == nentry->perm && entry->type == nentry->type) {
+                    pentry->va = entry->va;
+                    
+                    /* Clear our allocated entry */
+                    memset((void*)entry, 0, sizeof(vma_t));
+                    
+                    /* return index */
+                    return vma_get_index(pentry);
+                }
             }
-        }
-        
-        /* Check if we have reached the end */
-        if (cent->n_adj == VMA_INVALID_INDEX) {
-            /* Append our entry at the end of the linked list */
-            entry->n_adj = VMA_INVALID_INDEX;
-            entry->p_adj = *pp; //previous pointer points to current, we insert after current
-            //Update current
-            cent->n_adj = i;
+            
+            /* Insert entry */
+            if (va > centry->va) {
+                entry->n_adj = nentry ? vma_get_index(nentry) : VMA_INVALID_POINTER;
+                entry->p_adj = vma_get_index(centry);
+                centry->n_adj = i;
+                if (nentry) nentry->p_adj = i;
+            }else {
+                entry->n_adj = vma_get_index(centry);
+                entry->p_adj = pentry ? vma_get_index(pentry) : VMA_INVALID_POINTER;
+                centry->p_adj = i;
+                if (pentry) pentry->n_adj = i;
+            }
+            
             return i;
         }
-        
-        /* Pancake, do increase the iterators */
-        pp = &cent->n_adj; //previous link target pointer
-        cent = &vmar->vmas[cent->n_adj]; //new interator value
-        pi = cent->p_adj;
-        
-    }while(1);
+    }
+    
             
     panic("What are we doing here? This code should not be reached!");
     return 0;
 }
 
-int vma_new_anon(env_t *e, size_t len, int perm) {
+int vma_new_range(env_t *e, size_t len, int perm, int type) {
     vma_t *cur, *next;
     uint8_t next_index;
     void *insert_va;
@@ -234,13 +231,13 @@ int vma_new_anon(env_t *e, size_t len, int perm) {
         /* If current VMA has no next, we assume we can insert after it */
         if(next_index == VMA_INVALID_INDEX) {
             insert_va = cur->va + cur->len;
-            return vma_new(e, insert_va, len, perm, VMA_ANON);
+            return vma_new(e, insert_va, len, perm, type);
         }
 
         next = &arr->vmas[next_index];
         if(next->va - (cur->va + cur->len) <= len) {
             insert_va = cur->va + cur->len;
-            return vma_new(e, insert_va, len, perm, VMA_ANON);
+            return vma_new(e, insert_va, len, perm, type);
         }
     }
     return -1;
@@ -322,7 +319,7 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
             return &vmr[i];
         
         /* Extra: if our endva passes cva, the given range spans atleast one vma*/
-        if (endva >= cva)
+        if (va <= cva && endva >= cva)
             return &vmr[i];
         
         /* Next index*/
