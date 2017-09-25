@@ -152,11 +152,10 @@ breaky:
             //set our pointers
             entry->n_adj = *pp;
             entry->p_adj = pi;
+            
             //set other entry pointers
             *pp = i; //set previous pointer to our position
             cent->p_adj = i; //Set next entry back pointer to us
-            
-            cprintf("Env VMA inserted as %d.\n", p);
             
             //We be done here, take a break
             return i;
@@ -235,8 +234,17 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
 void vma_dump_all(env_t *e) {
     vma_arr_t *list = e->vma_list;
     vma_t *cur = &list->vmas[list->lowest_va_vma];
-
+    /* print header */
+    cprintf("VMA dump for env %d\n", e->env_id);
+    /* print entries */
     do {
-        cprintf("%08x - %08x", cur->va, cur->va + cur->len);
+        cprintf("\t%08x - %08x [", cur->va, cur->va + cur->len);
+        (cur->perm & VMA_PERM_READ)  ?  cprintf("r") : cprintf("-");
+        (cur->perm & VMA_PERM_WRITE) ?  cprintf("w") : cprintf("-");
+        (cur->perm & VMA_PERM_EXEC)  ?  cprintf("e") : cprintf("-");
+        if (cur->type == VMA_ANON) cprintf(" anon");
+        if (cur->type == VMA_BINARY) cprintf(" binary");
+        if (cur->type == VMA_UNUSED) cprintf(" unused");
+        cprintf("]\n");
     } while ((cur = &list->vmas[cur->n_adj]));
 }

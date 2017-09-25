@@ -479,6 +479,8 @@ static void load_icode(struct env *e, uint8_t *binary)
     vma_new(e, (void*)(USTACKTOP-PGSIZE), PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //stack
     //TODO: HEAP
 //    vma_new(e, 0, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //heap
+    
+    vma_dump_all(e);
 }
 
 /*
