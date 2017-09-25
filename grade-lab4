@@ -152,7 +152,7 @@ def test_mapunmap():
             'Incoming TRAP frame at 0xefffffbc',
             'TRAP frame at 0xf.......',
             '  trap 0x0000000e Page Fault',
-            '  err  0x00000007.*',
+            '  err  0x00000006.*',
             '.00001000. free env 0000100')
 
 @test(5)
