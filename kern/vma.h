@@ -59,6 +59,26 @@ typedef struct vma_arr {
 
 /* VMA functions */
 /**
+ * Splits the given vma into two at va
+ * @param vma the vma to split
+ * @param va the address at which to split
+ * @return the newly formed second half
+ */
+vma_t * vma_split(vma_t * vma, void * va);
+
+/**
+ * Removes specifed vma if it exists
+ * @param vma
+ */
+void vma_remove(env_t *e, vma_t * vma);
+
+/**
+ * Gets the index of the specified vma
+ * @param vma
+ * @return uint16_t index
+ */
+uint8_t vma_get_index(vma_t * vma);
+/**
  * Asserts if vma is empty.
  * @param vma
  * @return 1 on true, 0 on false

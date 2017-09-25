@@ -450,6 +450,7 @@ static void load_icode(struct env *e, uint8_t *binary)
     for (; ph < eph; ph++)
         if(ph->p_type == ELF_PROG_LOAD) {
             assert(ph->p_memsz >= ph->p_filesz);
+            assert(ph->p_va + ph->p_memsz <= UTOP);
             
             /* VMA mapping */
             vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
