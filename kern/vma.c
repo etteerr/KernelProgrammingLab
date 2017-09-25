@@ -150,7 +150,9 @@ breaky:
         nentry = centry->n_adj == VMA_INVALID_POINTER ? 0 : &vmar->vmas[centry->n_adj];
         
         /* Quick and dirty position determination */
-        if (!(va < centry->va)) { //when va is not smaller anymore than our current entry
+        int check = centry->va < va;
+        check &= nentry ? nentry->va > va : 1;
+        if (check) { 
             /* Insertion splot reached: insert between centry & nentry */
             
             //Our positional relation vs the current entry
@@ -190,10 +192,17 @@ breaky:
             }
             
             /* Insert entry */
-            pentry ? entry->p_adj = vma_get_index(pentry) : VMA_INVALID_POINTER;
-            entry->n_adj = centry->n_adj; //centry always exists
-            if (nentry) nentry->p_adj = i;
-            centry->n_adj = i;
+            if (va > centry->va) {
+                entry->n_adj = nentry ? vma_get_index(nentry) : VMA_INVALID_POINTER;
+                entry->p_adj = vma_get_index(centry);
+                centry->n_adj = i;
+                if (nentry) nentry->p_adj = i;
+            }else {
+                entry->n_adj = vma_get_index(centry);
+                entry->p_adj = pentry ? vma_get_index(pentry) : VMA_INVALID_POINTER;
+                centry->p_adj = i;
+                if (pentry) pentry->n_adj = i;
+            }
             
             return i;
         }
