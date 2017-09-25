@@ -128,18 +128,21 @@ breaky:
         }
         
         /* Check if we can insert here */
-        if (p == VMA_RELATIVE_BEFORE_ADJ || p == VMA_RELATIVE_BEFORE_NADJ) {
-            /* Handle a possible merge case*/
-            if (p == VMA_RELATIVE_BEFORE_ADJ) {
-                if (entry->perm == cent->perm && entry->type == cent->type) {
-                    //Identical permissions and type
-                    cprintf("VMA_new: Insertion merge for %#08x - %#08x and %#08x - %#08x.\n", 
-                            (uint32_t)entry->va,(uint32_t)entry->va + entry->len,
-                            (uint32_t)cent->va,(uint32_t)cent->va + cent->len);
+        if (p == VMA_RELATIVE_BEFORE_ADJ || p == VMA_RELATIVE_BEFORE_NADJ || p == VMA_RELATIVE_AFTER_ADJ) {
+            /* Handle a possible merge case 1*/
+            if (entry->perm == cent->perm && entry->type == cent->type) {
+                //Identical permissions and type
+                if (p == VMA_RELATIVE_BEFORE_ADJ || p == VMA_RELATIVE_AFTER_ADJ) {
+                    /* Our new entry is continues with cent, with entry being before cent */
+                    cprintf("VMA_new: Insertion merge for ");
+                    vma_dump(entry);
+                    cprintf(" and ");
+                    vma_dump(cent);
+                    cprintf(".\n");
                     
                     //Merge entries
                     cent->len += entry->len;
-                    cent->va = entry->va;
+                    if (VMA_RELATIVE_BEFORE_ADJ) cent->va = entry->va; //if our entry is before cent, we use our entries va
                     
                     //Remove entry
                     memset((void*)entry, 0, sizeof(vma_t));
@@ -148,17 +151,20 @@ breaky:
                     return *pp;                    
                 }
             }
-            /* If our entry is before cent, insert our entry */
-            //set our pointers
-            entry->n_adj = *pp;
-            entry->p_adj = pi;
             
-            //set other entry pointers
-            *pp = i; //set previous pointer to our position
-            cent->p_adj = i; //Set next entry back pointer to us
-            
-            //We be done here, take a break
-            return i;
+            if (p != VMA_RELATIVE_AFTER_ADJ) {
+                /* If our entry is before cent, insert our entry */
+                //set our pointers
+                entry->n_adj = *pp;
+                entry->p_adj = pi;
+
+                //set other entry pointers
+                *pp = i; //set previous pointer to our position
+                cent->p_adj = i; //Set next entry back pointer to us
+
+                //We be done here, take a break
+                return i;
+            }
         }
         
         /* Check if we have reached the end */
@@ -231,6 +237,17 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
     return 0;
 }
 
+void vma_dump(vma_t * vma) {
+    cprintf("%08x - %08x [", vma->va, vma->va + vma->len);
+    (vma->perm & VMA_PERM_READ)  ?  cprintf("r") : cprintf("-");
+    (vma->perm & VMA_PERM_WRITE) ?  cprintf("w") : cprintf("-");
+    (vma->perm & VMA_PERM_EXEC)  ?  cprintf("x") : cprintf("-");
+    if (vma->type == VMA_ANON) cprintf(" anon");
+    if (vma->type == VMA_BINARY) cprintf(" binary");
+    if (vma->type == VMA_UNUSED) cprintf(" unused");
+    cprintf("]");
+}
+
 void vma_dump_all(env_t *e) {
     vma_arr_t *list = e->vma_list;
     vma_t *cur = &list->vmas[list->lowest_va_vma];
@@ -238,13 +255,8 @@ void vma_dump_all(env_t *e) {
     cprintf("VMA dump for env %d\n", e->env_id);
     /* print entries */
     do {
-        cprintf("\t%08x - %08x [", cur->va, cur->va + cur->len);
-        (cur->perm & VMA_PERM_READ)  ?  cprintf("r") : cprintf("-");
-        (cur->perm & VMA_PERM_WRITE) ?  cprintf("w") : cprintf("-");
-        (cur->perm & VMA_PERM_EXEC)  ?  cprintf("x") : cprintf("-");
-        if (cur->type == VMA_ANON) cprintf(" anon");
-        if (cur->type == VMA_BINARY) cprintf(" binary");
-        if (cur->type == VMA_UNUSED) cprintf(" unused");
-        cprintf("]\n");
+        cprintf("\t");
+        vma_dump(cur);
+        cprintf("\n");
     } while ((cur = &list->vmas[cur->n_adj]));
 }

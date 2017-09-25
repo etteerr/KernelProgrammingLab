@@ -87,6 +87,7 @@ vma_t *vma_lookup(env_t *e, void *va, size_t len);
  * @param e
  */
 void vma_dump_all(env_t *e);
+void vma_dump(vma_t*);
 /**
  * vma_array_init:
  *  - allocates and maps a page (set to zero)
