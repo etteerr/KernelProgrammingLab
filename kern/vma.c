@@ -249,7 +249,7 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
         }
 
         next = &arr->vmas[next_index];
-        if(next->va - (cur->va + cur->len) <= len) {
+        if(next->va - (cur->va + cur->len) >= len) {
             insert_va = cur->va + cur->len;
             return vma_new(e, insert_va, len, perm, type);
         }
