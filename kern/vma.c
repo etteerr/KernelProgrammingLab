@@ -10,6 +10,26 @@
 #include "../inc/string.h"
 #include "../inc/memlayout.h"
 
+void __dealloc_range(env_t *e, void *va, size_t len) {
+    uint32_t i = (uint32_t) va & 0xFFFFF000; //round down to pgsize
+    uint32_t end = (uint32_t) va + len;
+
+    for(; i<end; i+= PGSIZE) {
+        pte_t * pte = pgdir_walk(e->env_pgdir, (void*)i, 0);
+        if (pte) {
+            uint32_t pa = PTE_GET_PHYS_ADDRESS(*pte);
+            if (pa) {
+                struct page_info * pp = pa2page(pa);
+                if (pp) {
+                    page_decref(pp);
+                    *pte = 0;
+                    tlb_invalidate(e->env_pgdir, (void*)i);
+                }
+            }
+        }
+    }
+}
+
 void vma_array_init(env_t* e) {
     assert(e->vma_list == 0);
     
@@ -36,8 +56,19 @@ void vma_array_destroy(env_t* e) {
     if (e->vma_list == 0)
         return;
     
-    //TODO: interate full array, remove and unmap all regions
-    panic("Unimplemented");
+    vma_arr_t *vma_arr = e->vma_list;
+    uint32_t i;
+    vma_t *cur;
+
+    for(i = 0; i < VMA_ARRAY_SIZE; i++) {
+        cur = &vma_arr->vmas[i];
+        if(cur->va) {
+            __dealloc_range(e, cur->va, cur->len);
+        }
+    }
+
+    /* Free vma_arr_t struct, which reserves an entire page */
+    __dealloc_range(e, (vma_arr_t*) VMA_KVA, PGSIZE);
 }
 
 inline int vma_is_empty(vma_t* vma) {
@@ -264,26 +295,6 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
         }
     }
     return -1;
-}
-
-void __dealloc_range(env_t *e, void *va, size_t len) {
-    uint32_t i = (uint32_t) va & 0xFFFFF000; //round down to pgsize
-    uint32_t end = (uint32_t) va + len;
-    
-    for(; i<end; i+= PGSIZE) {
-        pte_t * pte = pgdir_walk(e->env_pgdir, (void*)i, 0);
-        if (pte) {
-            uint32_t pa = PTE_GET_PHYS_ADDRESS(*pte);
-            if (pa) {
-                struct page_info * pp = pa2page(pa);
-                if (pp) {
-                    page_decref(pp);
-                    *pte = 0;
-                    tlb_invalidate(e->env_pgdir, (void*)i);
-                }
-            }
-        }
-    }
 }
 
 int vma_unmap(env_t *e, void *va, size_t len) {

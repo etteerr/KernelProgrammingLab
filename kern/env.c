@@ -472,7 +472,6 @@ static void load_icode(struct env *e, uint8_t *binary)
     /* 1. Map one RO page of VMA for UTEMP at virtual address UTEMP.
      * 2. Map one RW page of VMA for UTEMP+PGSIZE at virtual address UTEMP+PGSIZE. */
 
-    /* LAB 4: Your code here. */
     vma_new(e, UTEMP, PGSIZE, VMA_PERM_READ, VMA_ANON);
     vma_new(e, UTEMP+PGSIZE, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON);
     
@@ -565,6 +564,7 @@ void env_free(struct env *e)
  */
 void env_destroy(struct env *e)
 {
+    vma_array_destroy(e);
     env_free(e);
 
     cprintf("Destroyed the only environment - nothing more to do!\n");
