@@ -133,5 +133,5 @@ void *sys_vma_create(size_t size, int perm, int flags)
 
 int sys_vma_destroy(void *va, size_t size)
 {
-    return syscall(SYS_vma_destroy, (uint32_t) va, 0, size, 0, 0, 0);
+    return syscall(SYS_vma_destroy, 0, (uint32_t) va, size, 0, 0, 0);
 }
