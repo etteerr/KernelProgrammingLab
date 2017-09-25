@@ -129,7 +129,7 @@ breaky:
         if (entry->va)
             vma_dump(entry);
         cprintf("\n");
-        panic("VMA already exists!");
+        return VMA_ERR_VMA_EXISTS;
    }
     
     /* 
