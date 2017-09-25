@@ -1,7 +1,8 @@
 /* System call stubs. */
 
+#include "../inc/env.h"
 #include "../inc/lib.h"
-#include "../inc/error.h"
+#include "../inc/types.h"
 #include "../inc/syscall.h"
 
 static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
