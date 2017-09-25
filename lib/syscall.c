@@ -118,7 +118,7 @@ envid_t sys_getenvid(void)
 
 void *sys_vma_create(size_t size, int perm, int flags)
 {
-    vma_t *vma = (vma_t *)syscall(SYS_vma_create, size, perm, flags, 0, 0, 0);
+    vma_t *vma = (vma_t *)syscall(SYS_vma_create, 0, size, perm, flags, 0, 0);
     void *addr;
 
     if(flags & VMA_FLAG_POPULATE) {
@@ -133,5 +133,5 @@ void *sys_vma_create(size_t size, int perm, int flags)
 
 int sys_vma_destroy(void *va, size_t size)
 {
-    return syscall(SYS_vma_destroy, (uint32_t) va, size, 0, 0, 0, 0);
+    return syscall(SYS_vma_destroy, (uint32_t) va, 0, size, 0, 0, 0);
 }
