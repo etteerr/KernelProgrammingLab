@@ -3,8 +3,10 @@
 #include "../inc/env.h"
 #include "../inc/lib.h"
 #include "../inc/vma.h"
+#include "../inc/mmu.h"
 #include "../inc/types.h"
 #include "../inc/syscall.h"
+#include "../inc/assert.h"
 
 static inline int32_t syscall(int num, int check, uint32_t a1, uint32_t a2,
         uint32_t a3, uint32_t a4, uint32_t a5)
@@ -117,10 +119,13 @@ envid_t sys_getenvid(void)
 void *sys_vma_create(size_t size, int perm, int flags)
 {
     vma_t *vma = (vma_t *)syscall(SYS_vma_create, size, perm, flags, 0, 0, 0);
+    void *addr;
 
     if(flags & VMA_FLAG_POPULATE) {
-        /* Trigger pagefault to alloc page */
-        char access = *((char*)vma->va);
+        /* Trigger pagefaults to alloc pages */
+        for(addr = vma->va; addr < vma->va + size; size += PGSIZE) {
+            char access = *((char *) addr);
+        }
     }
 
     return vma;
