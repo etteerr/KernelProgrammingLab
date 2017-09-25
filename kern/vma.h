@@ -76,7 +76,7 @@ void vma_remove(env_t *e, vma_t * vma);
  * @param vma
  * @return uint16_t index
  */
-uint8_t vma_get_index(vma_t * vma);
+const uint8_t vma_get_index(vma_t * vma);
 /**
  * Asserts if vma is empty.
  * @param vma
