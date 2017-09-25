@@ -22,6 +22,7 @@
 /* VMA error codes */
 enum {
     VMA_ERR_SUCCESS = 0,
+    VMA_ERR_VMA_EXISTS = -1,
 };
 
 enum {
