@@ -292,7 +292,20 @@ void page_fault_handler(struct trapframe *tf)
     /* Check if memory address is already mapped. If so, the page fault was triggered by lacking permissions. */
     pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)fault_va, 0);
     if(pte) {
-        cprintf("User environment does not have correct permissions for virtual address");
+        switch(tf->tf_err) {
+            case PTE_BIT_PRESENT:
+                cprintf("User pagefault: non-present page\n");
+                break;
+            case PTE_BIT_RW:
+                cprintf("User pagefault: no write permission\n");
+                break;
+            case PTE_BIT_USER:
+                cprintf("User pagefault: no user read permission\n");
+                break;
+            default:
+                cprintf("User pagefault: reserved bit write or instruction fetch fault\n");
+                break;
+        }
         return murder_env(curenv, fault_va);
     }
 
