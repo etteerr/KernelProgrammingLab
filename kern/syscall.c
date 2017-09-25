@@ -14,6 +14,8 @@
 #include "trap.h"
 #include "syscall.h"
 #include "console.h"
+#include "../inc/memlayout.h"
+#include "../inc/mmu.h"
 
 
 /*
@@ -96,10 +98,10 @@ static void *sys_vma_create(size_t size, int perm, int flags)
  */
 static int sys_vma_destroy(void *va, size_t size)
 {
-   /* Virtual Memory Area deallocation */
-
-   /* LAB 4: Your code here. */
-   return -1;
+    if(size <= 0 || va < UTEMP || va > (void *)UTOP) {
+        return -1;
+    }
+    return vma_unmap(curenv, va, size);
 }
 
 /* Dispatches to the correct kernel function, passing the arguments. */
