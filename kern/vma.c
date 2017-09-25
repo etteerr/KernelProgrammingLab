@@ -129,6 +129,25 @@ breaky:
         
         /* Check if we can insert here */
         if (p == VMA_RELATIVE_BEFORE_ADJ || p == VMA_RELATIVE_BEFORE_NADJ) {
+            /* Handle a possible merge case*/
+            if (p == VMA_RELATIVE_BEFORE_ADJ) {
+                if (entry->perm == cent->perm && entry->type == cent->type) {
+                    //Identical permissions and type
+                    cprintf("VMA_new: Insertion merge for %#08x - %#08x and %#08x - %#08x.\n", 
+                            (uint32_t)entry->va,(uint32_t)entry->va + entry->len,
+                            (uint32_t)cent->va,(uint32_t)cent->va + cent->len);
+                    
+                    //Merge entries
+                    cent->len += entry->len;
+                    cent->va = entry->va;
+                    
+                    //Remove entry
+                    memset((void*)entry, 0, sizeof(vma_t));
+                    
+                    //return index of cent
+                    return *pp;                    
+                }
+            }
             /* If our entry is before cent, insert our entry */
             //set our pointers
             entry->n_adj = *pp;
@@ -136,6 +155,8 @@ breaky:
             //set other entry pointers
             *pp = i; //set previous pointer to our position
             cent->p_adj = i; //Set next entry back pointer to us
+            
+            cprintf("Env VMA inserted as %d.\n", p);
             
             //We be done here, take a break
             return i;
