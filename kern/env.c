@@ -450,10 +450,16 @@ static void load_icode(struct env *e, uint8_t *binary)
     for (; ph < eph; ph++)
         if(ph->p_type == ELF_PROG_LOAD) {
             assert(ph->p_memsz >= ph->p_filesz);
+            
+            /* VMA mapping */
+            vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
+            
+            /* Allocate region (prevents fault OD allocations) */
             region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 
             /* We can use virtual addresses because the uenv's pgdir has been loaded */
             memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+            
             /* Zero out remaining bytes */
             memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
         }
@@ -468,6 +474,11 @@ static void load_icode(struct env *e, uint8_t *binary)
     /* LAB 4: Your code here. */
     vma_new(e, UTEMP, PGSIZE, VMA_PERM_READ, VMA_ANON);
     vma_new(e, UTEMP+PGSIZE, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON);
+    
+    /* General (anon) mappings */
+    vma_new(e, (void*)(USTACKTOP-PGSIZE), PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //stack
+    //TODO: HEAP
+//    vma_new(e, 0, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //heap
 }
 
 /*
