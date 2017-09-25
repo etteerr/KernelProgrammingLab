@@ -39,6 +39,27 @@ inline int vma_is_empty(vma_t* vma) {
     return vma->len == 0;
 }
 
+uint8_t vma_get_index(vma_t* vma) {
+    uint32_t begin = (uint32_t)(vma) & 0xFFFFF000;
+    uint32_t offset = (uint32_t)(vma) - begin;
+    return offset/sizeof(vma_t);
+}
+
+void vma_remove(env_t *e, vma_t * vma) {
+    uint8_t idx = vma_get_index(vma);
+    
+    vma_t *p, *n;
+    p = vma->p_adj == VMA_INVALID_POINTER ? 0 : &e->vma_list->vmas[vma->p_adj];
+    n = vma->n_adj == VMA_INVALID_POINTER ? 0 : &e->vma_list->vmas[vma->n_adj];
+    
+    /* Make p->n && p<-n*/
+    p->n_adj = vma->n_adj;
+    n->p_adj = vma->p_adj;
+    
+    /* empty region */
+    memset((void*)vma, 0, sizeof(vma_t));
+}
+
 int vma_get_relative(vma_t * vma1, vma_t * vma2) {
     uint32_t vlen1, vlen2, va1, va2;
     
@@ -196,7 +217,47 @@ breaky:
 }
 
 int vma_unmap(env_t *e, void *va, size_t len) {
-    panic("Unimplemented");
+    /* assertions */
+    assert(len);
+    
+    /* Helper variables */
+    uint32_t vlen = (uint32_t) va + len;
+    
+    /* Determine vma entry */
+    vma_t * entry, tmp1;
+    while((entry=vma_lookup(e, va, len))) {
+        /* This entry lies in range of va-va+len */
+        uint32_t i_vlen = (uint32_t) entry->va + entry->len;
+        
+        /* Save entry */
+        tmp1 = *entry;
+        
+        /* beginning is equal or after this entry's begin */
+        if (va >= entry->va) {
+            /* unmap, and keep beginning if va > entry->va */
+            if (va > entry->va)
+                entry->len = (uint32_t)(va - entry->va);
+            else
+                vma_remove(e, entry);
+
+            /* remap remainder if there is a remainder */
+            if (vlen < i_vlen) {
+                vma_new(e,(void*)vlen, i_vlen - vlen, tmp1.perm, tmp1.type);
+            }
+            
+            /* Rest this case */
+            continue;
+        }
+        
+        /* Tail overlaps with entry */
+        if (vlen > (uint32_t) entry->va) {
+            /* If overlap is complete, remove */
+            if (vlen >= i_vlen)
+                vma_remove(e, entry);
+            else //Else, shrink entry
+                entry->va =  (void*)vlen;
+        }
+    }
     return 0;
 }
 
