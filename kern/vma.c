@@ -152,6 +152,7 @@ breaky:
                 }
             }
             
+            //Insert before cent (THus not if entry is after cent)
             if (p != VMA_RELATIVE_AFTER_ADJ) {
                 /* If our entry is before cent, insert our entry */
                 //set our pointers
@@ -161,6 +162,9 @@ breaky:
                 //set other entry pointers
                 *pp = i; //set previous pointer to our position
                 cent->p_adj = i; //Set next entry back pointer to us
+                
+                //inc vma counter
+                vmar->occupied++;
 
                 //We be done here, take a break
                 return i;
@@ -238,7 +242,7 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
 }
 
 void vma_dump(vma_t * vma) {
-    cprintf("%08x - %08x [", vma->va, vma->va + vma->len);
+    cprintf("%#08x - %#08x [", vma->va, vma->va + vma->len);
     (vma->perm & VMA_PERM_READ)  ?  cprintf("r") : cprintf("-");
     (vma->perm & VMA_PERM_WRITE) ?  cprintf("w") : cprintf("-");
     (vma->perm & VMA_PERM_EXEC)  ?  cprintf("x") : cprintf("-");
