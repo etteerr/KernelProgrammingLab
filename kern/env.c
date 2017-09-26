@@ -439,11 +439,14 @@ static void load_icode(struct env *e, uint8_t *binary)
 
     /* Now map one page for the program's initial stack at virtual address
      * USTACKTOP - PGSIZE. */
-    region_alloc(e, (void*)(USTACKTOP - PGSIZE), PGSIZE);
+//    region_alloc(e, (void*)(USTACKTOP - PGSIZE), PGSIZE);
 
     /* LAB 3: Your code here. */
     struct elf *elf_header = (struct elf *)binary;
     assert(elf_header->e_magic == ELF_MAGIC);
+    
+    /* Get end of code space variable*/
+    uint32_t eoc_mem = 0;
 
     struct elf_proghdr *ph = (struct elf_proghdr *) ((uint8_t *) elf_header + elf_header->e_phoff);
     struct elf_proghdr *eph = ph + elf_header->e_phnum;
@@ -454,6 +457,10 @@ static void load_icode(struct env *e, uint8_t *binary)
             
             /* VMA mapping */
             vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
+            
+            /* set end of code space variable*/
+            if (ph->p_va+ph->p_memsz > eoc_mem)
+                eoc_mem = ph->p_va+ph->p_memsz;
             
             /* Allocate region (prevents fault OD allocations) */
             region_alloc(e, (void *)ph->p_va, ph->p_memsz);
@@ -477,8 +484,8 @@ static void load_icode(struct env *e, uint8_t *binary)
     
     /* General (anon) mappings */
     vma_new(e, (void*)(USTACKTOP-PGSIZE), PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //stack
-    //TODO: HEAP
-//    vma_new(e, 0, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //heap
+    /* Map end of code to stack as heap. Stack and heap get merged */
+    vma_new(e, (void*)(eoc_mem + PGSIZE), (USTACKTOP-PGSIZE)-(eoc_mem + PGSIZE), VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //heap
     
     vma_dump_all(e);
 }
