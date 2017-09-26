@@ -163,9 +163,10 @@ breaky:
        cprintf("Assertion failed in vma_new!\n");
        vma_dump_all(e);
         cprintf("To be inserted: ");
-        if (entry->va)
+        if (entry)
             vma_dump(entry);
         cprintf("\n");
+        memset((void*)entry, 0, sizeof(vma_t));
         return VMA_ERR_VMA_EXISTS;
    }
     
@@ -228,7 +229,8 @@ breaky:
             if (pos_n == VMA_RELATIVE_BEFORE_ADJ) {
                 /* merge with centry if permissions match */
                 if (entry->perm == nentry->perm && entry->type == nentry->type) {
-                    pentry->va = entry->va;
+                    nentry->len += (uint32_t)(nentry->va - entry->va);
+                    nentry->va = entry->va;
                     
                     /* Clear our allocated entry */
                     memset((void*)entry, 0, sizeof(vma_t));
