@@ -305,7 +305,11 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
         /* We're back at start somehow */
         if (i==0)
             break;
-
+        
+        /* We're above USTACKTOP */
+        if (i>= USTACKTOP)
+            break;
+        
         /* Check if vma_lookup found something */
         if (res==0) {
             /* Free space for us! */
