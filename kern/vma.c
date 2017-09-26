@@ -284,6 +284,11 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
     uint8_t next_index;
     void *insert_va;
     vma_arr_t *arr = e->vma_list;
+    
+    if (len == 0) {
+        cprintf("vma_new_range: len 0 will not be served\n");
+        return -1;
+    }
 
     if (arr->lowest_va_vma == VMA_INVALID_INDEX) {
         cprintf("VMA list is not populated, can't create new anonymous VMA.");
@@ -291,20 +296,24 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
     }
 
     /* Find a gap that fits our len */
-    uint64_t i = 0;
+    uint64_t i = USTABDATA;
     uint64_t max = 0xFFFFFFFF - len;
     for(; i<max;) {
         /* Check if free */
         vma_t* res = vma_lookup(e, (void*)((uint32_t)i), len);
         
+        /* We're back at start somehow */
+        if (i==0)
+            break;
+
+        /* Check if vma_lookup found something */
         if (res==0) {
             /* Free space for us! */
-            cprintf("Found %#16x to %#16x\n", i, i+len);
             return vma_new(e, (void*)((uint32_t)i), len, perm ,type);
         }
         
         /* Is in use by vma res */
-        i = (uint64_t)((uint32_t)res->va) + res->len;
+        i = (uint64_t)((uint32_t)res->va) + (uint64_t)res->len;
     }
     
     cprintf("vma_new_range: Did not find space with len %#08x\n", len);
@@ -386,8 +395,10 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
     uint32_t va = (uint32_t) _va;
     endva = va +  len;
     
-    if (va > endva)
+    if (va > endva) {
+        cprintf("vma_lookup: Invalid length for start va!\n");
         return 0;
+    }
         
     /* Loop while pva has not passed the va*/
     do {
