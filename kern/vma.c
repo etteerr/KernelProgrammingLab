@@ -278,24 +278,25 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
     }
 
     /* Find a gap that fits our len */
-    for(cur = &arr->vmas[arr->lowest_va_vma]; cur; cur = &arr->vmas[next_index]) {
-        next_index = cur->n_adj;
-
-        /* If current VMA has no next, we assume we can insert after it */
-        if(next_index == VMA_INVALID_INDEX) {
-            insert_va = cur->va + cur->len;
-            if((uint32_t)(insert_va + len) >= UTOP)
-                return -1;
-            
-            return vma_new(e, insert_va, len, perm, type);
+    uint64_t i = 0;
+    uint64_t max = 0xFFFFFFFF - len;
+    for(; i<max;) {
+        /* Check if free */
+        vma_t* res = vma_lookup(e, (void*)((uint32_t)i), len);
+        
+        if (res==0) {
+            /* Free space for us! */
+            cprintf("Found %#16x to %#16x\n", i, i+len);
+            return vma_new(e, (void*)((uint32_t)i), len, perm ,type);
         }
-
-        next = &arr->vmas[next_index];
-        if(next->va - (cur->va + cur->len) >= len) {
-            insert_va = cur->va + cur->len;
-            return vma_new(e, insert_va, len, perm, type);
-        }
+        
+        /* Is in use by vma res */
+        i = (uint64_t)((uint32_t)res->va) + res->len;
     }
+    
+    cprintf("vma_new_range: Did not find space with len %#08x\n", len);
+
+    
     return -1;
 }
 
@@ -355,8 +356,6 @@ int vma_unmap(env_t *e, void *va, size_t len) {
 vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
     /* iterate vma's till va is found to be inrange */
     
-    uint32_t va = (uint32_t) _va;
-    
     vma_arr_t * vml = e->vma_list;
     vma_t * vmr = e->vma_list->vmas;
 
@@ -371,12 +370,17 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
     }
     
     uint32_t cendva,  cva = 0,  endva;
+    uint32_t va = (uint32_t) _va;
     endva = va +  len;
+    
+    if (va > endva)
+        return 0;
         
     /* Loop while pva has not passed the va*/
     do {
         cva = (uint32_t) vmr[i].va;
         cendva = cva + vmr[i].len;
+        assert(cva < cendva);
         
         /*If our current Va passes cva but does not pass cendva, we have our target*/
         if (va >= cva && va < cendva)
@@ -392,7 +396,7 @@ vma_t *vma_lookup(env_t *e, void *_va, size_t len) {
         
         /* if we passed cva with va but did not return, there is nothing anymore*/
     }while(va >= cva);
-    
+        
     return 0;
 }
 
