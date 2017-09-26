@@ -444,6 +444,11 @@ static void load_icode(struct env *e, uint8_t *binary)
     /* LAB 3: Your code here. */
     struct elf *elf_header = (struct elf *)binary;
     assert(elf_header->e_magic == ELF_MAGIC);
+
+    /* Save curenv, so we can temporarily use this env's VMA in trap.c,
+     * even though env_run() hasn't been called yet. */
+    env_t *prev_curenv = curenv;
+    curenv = e;
     
     /* Get end of code space variable*/
     uint32_t eoc_mem = 0;
@@ -488,6 +493,9 @@ static void load_icode(struct env *e, uint8_t *binary)
     vma_new(e, (void*)(eoc_mem + PGSIZE), (USTACKTOP-PGSIZE)-(eoc_mem + PGSIZE), VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //heap
     
     vma_dump_all(e);
+
+    /* Restore curenv */
+    curenv = prev_curenv;
 }
 
 /*
