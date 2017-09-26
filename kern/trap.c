@@ -279,6 +279,7 @@ void page_fault_handler(struct trapframe *tf)
     vma_t *hit = vma_lookup(curenv, (void *)fault_va, 0);
     if(!hit) {
         cprintf("Virtual address does not have VMA mapping\n");
+        vma_dump_all(curenv);
         return murder_env(curenv, fault_va);
     }
 
