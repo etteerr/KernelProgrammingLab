@@ -248,6 +248,13 @@ void trap(struct trapframe *tf)
 }
 
 void murder_env(env_t *env, uint32_t fault_va) {
+    bool is_kernel = ((env->env_tf.tf_cs & 3) != 3);
+    /* Handle kernel-mode page faults. */
+    if (is_kernel) {
+        cprintf("Kernel fault va %08x ip %08x\n", fault_va, env->env_tf.tf_eip);
+        panic("Exiting due to kernel page fault");
+    }
+
     cprintf("[%08x] user fault va %08x ip %08x\n",
             env->env_id, fault_va, env->env_tf.tf_eip);
     print_trapframe(&env->env_tf);
@@ -257,21 +264,13 @@ void murder_env(env_t *env, uint32_t fault_va) {
 void page_fault_handler(struct trapframe *tf)
 {
     uint32_t fault_va, cs;
+    bool is_kernel = ((tf->tf_cs & 3) != 3);
 
     /* Read processor's CR2 register to find the faulting address */
     fault_va = rcr2();
 
-    /* Handle kernel-mode page faults. */
-    if ((tf->tf_cs & 3) != 3) {
-        cprintf("Kernel fault va %08x ip %08x\n", fault_va, tf->tf_eip);
-        panic("Exiting due to kernel page fault");
-    }
-
-    /* We've already handled kernel-mode exceptions, so if we get here, the page
-     * fault happened in user mode. */
-
     /* If user is requesting an address outside its addressable range, kill it */
-    if(fault_va < USTABDATA || fault_va >= UTOP) {
+    if(!is_kernel && (fault_va < USTABDATA || fault_va >= UTOP)) {
         cprintf("Virtual address outside of user addressable range\n");
         return murder_env(curenv, fault_va);
     }
