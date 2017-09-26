@@ -190,6 +190,19 @@ breaky:
     centry = pentry = 0;
     nentry = &vmar->vmas[vmar->lowest_va_vma];
     
+    /* Check if we map in the first area */
+    int bmap =  vma_get_relative(entry, nentry);
+    
+    /* Case: we map before the first vma, TODO: merge*/
+    if (bmap == VMA_RELATIVE_BEFORE_NADJ || bmap == VMA_RELATIVE_AFTER_ADJ) {
+        //Insert before first entry
+        entry->n_adj = vmar->lowest_va_vma;
+        entry->p_adj = VMA_INVALID_INDEX;
+        vmar->lowest_va_vma = i;
+        nentry->p_adj = i;
+        return i;
+    }
+    
     //Loop while next != 0 (nentry)
     while(nentry) {
         //Shift and create pointers
