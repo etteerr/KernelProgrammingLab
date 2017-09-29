@@ -1035,11 +1035,6 @@ void page_remove(pde_t *pgdir, void *va) {
  * edited are the ones currently in use by the processor.
  */
 void tlb_invalidate(pde_t *pgdir, void *va) {
-    /* Flush the entry only if we're modifying the current address space.
-     * For now, there is only one address space, so always invalidate. */
-    invlpg(va);
-void tlb_invalidate(pde_t *pgdir, void *va)
-{
     /* Flush the entry only if we're modifying the current address space. */
     if (!curenv || curenv->env_pgdir == pgdir)
         invlpg(va);
