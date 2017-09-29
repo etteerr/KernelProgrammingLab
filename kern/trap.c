@@ -1,19 +1,26 @@
 #include "../inc/env.h"
 #include "../inc/mmu.h"
 #include "../inc/x86.h"
-#include "../inc/stdio.h"
 #include "../inc/trap.h"
+#include "../inc/error.h"
+#include "../inc/stdio.h"
+#include "../inc/string.h"
 #include "../inc/types.h"
 #include "../inc/assert.h"
 #include "../inc/memlayout.h"
 
+#include "cpu.h"
 #include "env.h"
 #include "vma.h"
 #include "pmap.h"
 #include "trap.h"
+#include "sched.h"
+#include "kclock.h"
+#include "picirq.h"
+#include "console.h"
 #include "monitor.h"
 #include "syscall.h"
-#include "../inc/error.h"
+#include "spinlock.h"
 
 static struct taskstate ts;
 
@@ -63,6 +70,8 @@ static const char *trapname(int trapno)
         return excnames[trapno];
     if (trapno == T_SYSCALL)
         return "System call";
+    if (trapno >= IRQ_OFFSET && trapno < IRQ_OFFSET + 16)
+        return "Hardware Interrupt";
     return "(unknown trap)";
 }
 
@@ -127,7 +136,7 @@ void trap_init_percpu(void)
 
 void print_trapframe(struct trapframe *tf)
 {
-    cprintf("TRAP frame at %p\n", tf);
+    cprintf("TRAP frame at %p from CPU %d\n", tf, cpunum());
     print_regs(&tf->tf_regs);
     cprintf("  es   0x----%04x\n", tf->tf_es);
     cprintf("  ds   0x----%04x\n", tf->tf_ds);
@@ -198,6 +207,20 @@ static void trap_dispatch(struct trapframe *tf)
         case T_BRKPT:
             breakpoint_handler(tf);
             break;
+        case IRQ_OFFSET + IRQ_SPURIOUS:
+            /*
+             * Handle spurious interrupts
+             * The hardware sometimes raises these because of noise on the
+             * IRQ line or other reasons. We don't care.
+            */
+            cprintf("Spurious interrupt on irq 7\n");
+            print_trapframe(tf);
+            return;
+        /*
+         * TODO: Handle clock interrupts. Don't forget to acknowledge the interrupt using
+         * lapic_eoi() before calling the scheduler!
+         * LAB 5: Your code here.
+         */
         default:
             /* Unexpected trap: The user process or the kernel has a bug. */
             print_trapframe(tf);
@@ -216,6 +239,15 @@ void trap(struct trapframe *tf)
      * clear. */
     asm volatile("cld" ::: "cc");
 
+    /* Halt the CPU if some other CPU has called panic(). */
+    extern char *panicstr;
+    if (panicstr)
+        asm volatile("hlt");
+
+    /* Re-acqurie the big kernel lock if we were halted in sched_yield(). */
+    if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
+        lock_kernel();
+
     /* Check that interrupts are disabled.
      * If this assertion fails, DO NOT be tempted to fix it by inserting a "cli"
      * in the interrupt path. */
@@ -225,7 +257,17 @@ void trap(struct trapframe *tf)
 
     if ((tf->tf_cs & 3) == 3) {
         /* Trapped from user mode. */
+        /* Acquire the big kernel lock before doing any serious kernel work.
+         * LAB 5: Your code here. */
+
         assert(curenv);
+
+        /* Garbage collect if current enviroment is a zombie. */
+        if (curenv->env_status == ENV_DYING) {
+            env_free(curenv);
+            curenv = NULL;
+            sched_yield();
+        }
 
         /* Copy trap frame (which is currently on the stack) into
          * 'curenv->env_tf', so that running the environment will restart at the
@@ -242,9 +284,12 @@ void trap(struct trapframe *tf)
     /* Dispatch based on what type of trap occurred */
     trap_dispatch(tf);
 
-    /* Return to the current environment, which should be running. */
-    assert(curenv && curenv->env_status == ENV_RUNNING);
-    env_run(curenv);
+    /* If we made it to this point, then no other environment was scheduled, so
+     * we should return to the current environment if doing so makes sense. */
+    if (curenv && curenv->env_status == ENV_RUNNING)
+        env_run(curenv);
+    else
+        sched_yield();
 }
 
 void murder_env(env_t *env, uint32_t fault_va) {
@@ -302,7 +347,7 @@ void page_fault_handler(struct trapframe *tf)
         cprintf("Unable to allocate dynamically requested memory\n");
         return murder_env(curenv, fault_va);
     }
-    
+
     /* Set permissions and insert page into the page table (pgdir/pgtable) */
     int permissions = PTE_BIT_PRESENT | PTE_BIT_USER;
     permissions |= (hit->perm & VMA_PERM_WRITE) ? PTE_BIT_RW : 0;
@@ -320,10 +365,10 @@ void breakpoint_handler(struct trapframe *tf) {
     monitor(tf);
 }
 
-void trap_sysenter() {    
+void trap_sysenter() {
     /* Prepre all variables*/
     uint32_t p_esp;
-    
+
     /* int num, int check, uint32_t a1, uint32_t a2,
         uint32_t a3, uint32_t a4, uint32_t a5
      * */
@@ -336,7 +381,7 @@ void trap_sysenter() {
     :
     :  "eax"//Do not specify ebp & esp as we do not want them saved (ASM hack)
     );
-    
+
     struct _caller_stack {
         uint32_t basepointer;
         uint32_t syscall_return;
@@ -347,13 +392,13 @@ void trap_sysenter() {
         int check;
         uint32_t a1;
         uint32_t a2;
-        uint32_t a3; 
-        uint32_t a4; 
+        uint32_t a3;
+        uint32_t a4;
         uint32_t a5;
     };
-    
+
      struct _caller_stack* caller_stack = (struct _caller_stack*) p_esp;
-     
+
      uint32_t a1,a2,a3,a4,a5,callnum,ret;
      //setup params
     callnum = caller_stack->num;
@@ -365,7 +410,7 @@ void trap_sysenter() {
     //Do systemcall
     ret = syscall(callnum, a1,a2,a3,a4,a5);
     asm volatile("push %eax");
-    
+
     asm volatile("mov %0, %%edx\n":: "r" (caller_stack->syscall_return));
     asm volatile("mov %0, %%ecx\n":: "r" (caller_stack->basepointer));
     asm volatile("pop %eax");

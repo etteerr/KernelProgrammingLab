@@ -13,12 +13,14 @@
 
 #include "env.h"
 #include "vma.h"
+#include "cpu.h"
 #include "pmap.h"
 #include "trap.h"
+#include "sched.h"
 #include "monitor.h"
+#include "spinlock.h"
 
 struct env *envs = NULL;            /* All environments */
-struct env *curenv = NULL;          /* The current env */
 static struct env *env_free_list;   /* Free environment list */
                                     /* (linked by env->env_link) */
 
@@ -40,7 +42,7 @@ static struct env *env_free_list;   /* Free environment list */
  * definition of gdt specifies the Descriptor Privilege Level (DPL)
  * of that descriptor: 0 for kernel and 3 for user.
  */
-struct segdesc gdt[] =
+struct segdesc gdt[NCPU + 5] =
 {
     /* 0x0 - unused (always faults -- for trapping NULL far pointers) */
     SEG_NULL,
@@ -57,7 +59,8 @@ struct segdesc gdt[] =
     /* 0x20 - user data segment */
     [GD_UD >> 3] = SEG(STA_W, 0x0, 0xffffffff, 3),
 
-    /* 0x28 - tss, initialized in trap_init_percpu() */
+    /* 0x28 - Per-CPU TSS descriptors (starting from GD_TSS0) are initialized
+     *        in trap_init_percpu() */
     [GD_TSS0 >> 3] = SEG_NULL
 };
 
@@ -272,6 +275,10 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     e->env_tf.tf_cs = GD_UT | 3;
     /* You will set e->env_tf.tf_eip later. */
 
+    /* Enable interrupts while in user mode.
+     * LAB 5: Your code here. */
+
+
     /* commit the allocation */
     env_free_list = e->env_link;
     *newenv_store = e;
@@ -449,7 +456,7 @@ static void load_icode(struct env *e, uint8_t *binary)
      * even though env_run() hasn't been called yet. */
     env_t *prev_curenv = curenv;
     curenv = e;
-    
+
     /* Get end of code space variable*/
     uint32_t eoc_mem = 0;
 
@@ -459,20 +466,20 @@ static void load_icode(struct env *e, uint8_t *binary)
         if(ph->p_type == ELF_PROG_LOAD) {
             assert(ph->p_memsz >= ph->p_filesz);
             assert(ph->p_va + ph->p_memsz <= UTOP);
-            
+
             /* VMA mapping */
             vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
-            
+
             /* set end of code space variable*/
             if (ph->p_va+ph->p_memsz > eoc_mem)
                 eoc_mem = ph->p_va+ph->p_memsz;
-            
+
             /* Allocate region (prevents fault OD allocations) */
             region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 
             /* We can use virtual addresses because the uenv's pgdir has been loaded */
             memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
-            
+
             /* Zero out remaining bytes */
             memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
         }
@@ -486,12 +493,12 @@ static void load_icode(struct env *e, uint8_t *binary)
 
     vma_new(e, UTEMP, PGSIZE, VMA_PERM_READ, VMA_ANON);
     vma_new(e, UTEMP+PGSIZE, PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON);
-    
+
     /* General (anon) mappings */
     vma_new(e, (void*)(USTACKTOP-PGSIZE), PGSIZE, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //stack
     /* Map end of code to stack as heap. Stack and heap get merged */
 //    vma_new(e, (void*)(eoc_mem + PGSIZE), 4<<20, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //heap
-    
+
     vma_dump_all(e);
 
     /* Restore curenv */
@@ -568,6 +575,11 @@ void env_free(struct env *e)
     e->env_pgdir = 0;
     page_decref(pa2page(pa));
 
+    /* Free VMA list. */
+    pa = PADDR(e->env_vmas);
+    e->env_vmas = 0;
+    page_decref(pa2page(pa));
+
     /* return the environment to the free list */
     e->env_status = ENV_FREE;
     e->env_link = env_free_list;
@@ -576,17 +588,27 @@ void env_free(struct env *e)
 
 /*
  * Frees environment e.
+ * If e was the current env, then runs a new environment (and does not return
+ * to the caller).
  */
 void env_destroy(struct env *e)
 {
+    /* If e is currently running on other CPUs, we change its state to
+     * ENV_DYING. A zombie environment will be freed the next time
+     * it traps to the kernel. */
+    if (e->env_status == ENV_RUNNING && curenv != e) {
+        e->env_status = ENV_DYING;
+        return;
+    }
+
     vma_array_destroy(e);
     env_free(e);
 
-    cprintf("Destroyed the only environment - nothing more to do!\n");
-    while (1)
-        monitor(NULL);
+    if (curenv == e) {
+        curenv = NULL;
+        sched_yield();
+    }
 }
-
 
 /*
  * Restores the register values in the trapframe with the 'iret' instruction.
@@ -596,6 +618,9 @@ void env_destroy(struct env *e)
  */
 void env_pop_tf(struct trapframe *tf)
 {
+    /* Record the CPU we are running on for user-space debugging */
+    curenv->env_cpunum = cpunum();
+
     __asm __volatile("movl %0,%%esp\n"
         "\tpopal\n"
         "\tpopl %%es\n"

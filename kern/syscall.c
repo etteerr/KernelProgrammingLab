@@ -12,6 +12,7 @@
 #include "vma.h"
 #include "pmap.h"
 #include "trap.h"
+#include "sched.h"
 #include "syscall.h"
 #include "console.h"
 #include "../inc/memlayout.h"
@@ -102,6 +103,27 @@ static int sys_vma_destroy(void *va, size_t size)
         return -1;
     }
     return vma_unmap(curenv, va, size);
+}
+
+/*
+ * Deschedule current environment and pick a different one to run.
+ */
+static void sys_yield(void)
+{
+    sched_yield();
+}
+
+static int sys_wait(envid_t envid)
+{
+    /* LAB 5: Your code here */
+    return -1;
+}
+
+static int sys_fork(void)
+{
+    /* fork() that follows COW semantics */
+    /* LAB 5: Your code here */
+    return -1;
 }
 
 /* Dispatches to the correct kernel function, passing the arguments. */

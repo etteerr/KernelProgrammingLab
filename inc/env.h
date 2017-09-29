@@ -55,10 +55,14 @@ typedef struct env {
     enum env_type env_type;     /* Indicates special system environments */
     unsigned env_status;        /* Status of the environment */
     uint32_t env_runs;          /* Number of times environment has run */
+    int env_cpunum;             /* The CPU that the env is running on */
 
     /* Address space */
     pde_t *env_pgdir;           /* Kernel virtual address of page dir */
     vma_arr_t *vma_list;
+
+    /* TODO: set by upstream merge, seems identical to vma_list */
+    struct vma *env_vmas;       /* Virtual memory areas of this env. */
 } env_t;
 
 
