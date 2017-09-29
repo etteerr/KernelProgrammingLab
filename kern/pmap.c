@@ -1,15 +1,16 @@
 /* See COPYRIGHT for copyright information. */
 
-#include <inc/x86.h>
-#include <inc/mmu.h>
-#include <inc/error.h>
-#include <inc/string.h>
-#include <inc/assert.h>
-
-#include <kern/pmap.h>
-#include <kern/kclock.h>
-#include <kern/env.h>
+#include "../inc/x86.h"
+#include "../inc/mmu.h"
+#include "../inc/types.h"
+#include "../inc/error.h"
+#include "../inc/string.h"
+#include "../inc/assert.h"
 #include "../inc/memlayout.h"
+
+#include "pmap.h"
+#include "kclock.h"
+#include "env.h"
 #include "buddydef.h"
 
 /* These variables are set by i386_detect_memory() */
