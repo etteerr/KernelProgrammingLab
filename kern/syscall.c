@@ -138,6 +138,11 @@ int32_t syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3,
 
 
     switch (syscallno) {
+        case SYS_yield:
+            sys_yield();
+            return 0;
+        case SYS_wait:
+            return sys_wait(a1);
         case SYS_cputs:
             sys_cputs((char *)a1,a2);
             return 0;
