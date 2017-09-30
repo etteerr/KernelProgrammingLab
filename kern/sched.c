@@ -38,15 +38,17 @@ void sched_yield(void)
 
     lock_kernel();
 
+    env_t *cur = (env_t *)curenv;
+
     if(curenv) {
-        curenv_i = (curenv - envs) / sizeof(struct env);
+        curenv_i = (cur - envs);
     }
 
     /* Iterates over envs, starting at curenv's index, wrapping
      * around NENVS to 0, and from there up to curenv's index. */
     for(i = 0; i < NENV; i++) {
         env_i = (curenv_i + i) % NENV;
-        idle = &envs[i];
+        idle = &envs[env_i];
 
         if(idle && idle->env_status == ENV_RUNNABLE) {
             unlock_kernel();
