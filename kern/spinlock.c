@@ -110,8 +110,8 @@ void spin_unlock(struct spinlock *lk)
         panic("spin_unlock");
     }
 
-//    lk->pcs[0] = 0;
-//    lk->cpu = 0;
+    lk->pcs[0] = 0;
+    lk->cpu = 0;
 #endif
 
     /* The xchg serializes, so that reads before release are

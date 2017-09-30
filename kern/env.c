@@ -601,6 +601,7 @@ void env_destroy(struct env *e)
 
     if (curenv == e) {
         curenv = NULL;
+        unlock_kernel();
         sched_yield();
     }
 }
