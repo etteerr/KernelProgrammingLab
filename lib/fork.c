@@ -6,5 +6,5 @@
 envid_t fork(void)
 {
     /* LAB 5: Your code here. */
-    panic("fork not implemented");
+    return sys_fork();
 }
