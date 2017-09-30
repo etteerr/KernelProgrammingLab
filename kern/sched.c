@@ -34,8 +34,6 @@ void sched_yield(void)
      * If there are
      * no runnable environments, simply drop through to the code
      * below to halt the cpu.
-     *
-     * LAB 5: Your code here.
      */
 
     lock_kernel();
@@ -51,12 +49,14 @@ void sched_yield(void)
         idle = &envs[i];
 
         if(idle && idle->env_status == ENV_RUNNABLE) {
+            unlock_kernel();
             return env_run(idle);
         }
     }
 
     /* If no eligible envs found above, we can continue running curenv if it is still marked as running */
     if(curenv && curenv->env_status == ENV_RUNNING) {
+        unlock_kernel();
         return env_run(curenv);
     }
 
