@@ -679,9 +679,6 @@ void env_run(struct env *e)
     assert(curenv == e);
     assert(curenv->env_status = ENV_RUNNING);
 
-    /* Unlock kernel spinlock because we're moving back to ring 3 */
-    unlock_kernel();
-
     /* restore env registers */
     env_pop_tf(&e->env_tf);
 }
