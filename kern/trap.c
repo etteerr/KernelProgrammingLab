@@ -262,7 +262,7 @@ void trap(struct trapframe *tf)
 
         assert(curenv);
 
-        /* Garbage collect if current enviroment is a zombie. */
+        /* Garbage collect if current environment is a zombie. */
         if (curenv->env_status == ENV_DYING) {
             env_free(curenv);
             curenv = NULL;
@@ -313,6 +313,10 @@ void page_fault_handler(struct trapframe *tf)
 
     /* Read processor's CR2 register to find the faulting address */
     fault_va = rcr2();
+
+    if(!curenv) {
+        panic("No curenv set");
+    }
 
     /* If user is requesting an address outside its addressable range, kill it */
     if(!is_kernel && (fault_va < USTABDATA || fault_va >= UTOP)) {

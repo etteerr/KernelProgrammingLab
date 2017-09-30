@@ -1,9 +1,12 @@
-#include <inc/assert.h>
-#include <inc/x86.h>
-#include <kern/spinlock.h>
-#include <kern/env.h>
-#include <kern/pmap.h>
-#include <kern/monitor.h>
+#include "../inc/env.h"
+#include "../inc/x86.h"
+#include "../inc/stdio.h"
+#include "../inc/assert.h"
+#include "cpu.h"
+#include "env.h"
+#include "pmap.h"
+#include "monitor.h"
+#include "spinlock.h"
 
 void sched_halt(void);
 
@@ -13,6 +16,7 @@ void sched_halt(void);
 void sched_yield(void)
 {
     struct env *idle;
+    int curenv_i = 0, env_i, i;
 
     /*
      * Implement simple round-robin scheduling.
@@ -33,6 +37,28 @@ void sched_yield(void)
      *
      * LAB 5: Your code here.
      */
+
+    lock_kernel();
+
+    if(curenv) {
+        curenv_i = (curenv - envs) / sizeof(struct env);
+    }
+
+    /* Iterates over envs, starting at curenv's index, wrapping
+     * around NENVS to 0, and from there up to curenv's index. */
+    for(i = 0; i < NENV; i++) {
+        env_i = (curenv_i + i) % NENV;
+        idle = &envs[i];
+
+        if(idle && idle->env_status == ENV_RUNNABLE) {
+            return env_run(idle);
+        }
+    }
+
+    /* If no eligible envs found above, we can continue running curenv if it is still marked as running */
+    if(curenv && curenv->env_status == ENV_RUNNING) {
+        return env_run(curenv);
+    }
 
     /* sched_halt never returns */
     sched_halt();

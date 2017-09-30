@@ -3,9 +3,9 @@
 #ifndef JOS_INC_ENV_H
 #define JOS_INC_ENV_H
 
-#include <inc/types.h>
-#include <inc/trap.h>
-#include <inc/memlayout.h>
+#include "../inc/trap.h"
+#include "../inc/types.h"
+#include "../inc/memlayout.h"
 
 
 typedef int32_t envid_t;
@@ -60,9 +60,6 @@ typedef struct env {
     /* Address space */
     pde_t *env_pgdir;           /* Kernel virtual address of page dir */
     vma_arr_t *vma_list;
-
-    /* TODO: set by upstream merge, seems identical to vma_list */
-    struct vma *env_vmas;       /* Virtual memory areas of this env. */
 } env_t;
 
 

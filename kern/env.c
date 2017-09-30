@@ -575,11 +575,6 @@ void env_free(struct env *e)
     e->env_pgdir = 0;
     page_decref(pa2page(pa));
 
-    /* Free VMA list. */
-    pa = PADDR(e->env_vmas);
-    e->env_vmas = 0;
-    page_decref(pa2page(pa));
-
     /* return the environment to the free list */
     e->env_status = ENV_FREE;
     e->env_link = env_free_list;
@@ -658,8 +653,6 @@ void env_run(struct env *e)
      *  e->env_tf to sensible values.
      */
 
-    /* LAB 3: Your code here. */
-
 
     /* switch environment */
     if (curenv != e) {
@@ -685,6 +678,9 @@ void env_run(struct env *e)
     //Check if everything is OK
     assert(curenv == e);
     assert(curenv->env_status = ENV_RUNNING);
+
+    /* Unlock kernel spinlock because we're moving back to ring 3 */
+    unlock_kernel();
 
     /* restore env registers */
     env_pop_tf(&e->env_tf);
