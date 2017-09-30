@@ -36,6 +36,14 @@ enum {
     VMA_BINARY,
 };
 
+typedef union {
+    uint8_t reg;
+    struct {
+        unsigned COW:1;
+        unsigned :7;
+    }bit;
+} vma_flags_t;
+
 typedef struct vma {
     int type;
     void *va;
@@ -43,6 +51,7 @@ typedef struct vma {
     int perm;
     uint8_t p_adj;
     uint8_t n_adj;
+    vma_flags_t flags;
     /* LAB 4: You may add more fields here, if required. */
 } vma_t;
 
