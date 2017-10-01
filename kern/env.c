@@ -250,6 +250,7 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     e->env_type = ENV_TYPE_USER;
     e->env_status = ENV_RUNNABLE;
     e->env_runs = 0;
+    e->remain_cpu_time = MAX_TIME_SLICE;
 
     /*
      * Clear out all the saved register state, to prevent the register values of
@@ -273,6 +274,7 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     e->env_tf.tf_ss = GD_UD | 3;
     e->env_tf.tf_esp = USTACKTOP;
     e->env_tf.tf_cs = GD_UT | 3;
+    e->env_tf.tf_eflags |= FL_IF;
     /* You will set e->env_tf.tf_eip later. */
 
     /* Enable interrupts while in user mode.
@@ -588,6 +590,17 @@ void env_free(struct env *e)
  */
 void env_destroy(struct env *e)
 {
+    size_t i;
+    
+    /* Mark all envs waiting for this env as runnable again */
+    for(i = 0; i < NENV; i++) {
+        env_t *env = &envs[i];
+        if(env && env->env_status == ENV_WAITING && env->waiting_for == e->env_id) {
+            env->env_status = ENV_RUNNABLE;
+            env->waiting_for = 0;
+        }
+    }
+
     /* If e is currently running on other CPUs, we change its state to
      * ENV_DYING. A zombie environment will be freed the next time
      * it traps to the kernel. */
@@ -601,7 +614,6 @@ void env_destroy(struct env *e)
 
     if (curenv == e) {
         curenv = NULL;
-        unlock_kernel();
         sched_yield();
     }
 }

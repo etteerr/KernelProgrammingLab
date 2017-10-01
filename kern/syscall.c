@@ -116,7 +116,21 @@ static void sys_yield(void)
 static int sys_wait(envid_t envid)
 {
     /* LAB 5: Your code here */
-    return -1;
+    if(envid > NENV) {
+        return -1;
+    }
+
+    env_t *env = &envs[envid];
+    env_t *cur = (env_t *)curenv; /* IDE's macro unfolding is broken */
+
+    if(!env || !cur) {
+        return -1;
+    }
+
+    cur->env_status = ENV_WAITING;
+    cur->waiting_for = envid;
+
+    return 0;
 }
 
 void fork_vma_makecow(env_t* newenv, uint32_t range_start, uint32_t range_end){
@@ -238,6 +252,11 @@ int32_t syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3,
 
 
     switch (syscallno) {
+        case SYS_yield:
+            sys_yield();
+            return 0;
+        case SYS_wait:
+            return sys_wait(a1);
         case SYS_cputs:
             sys_cputs((char *)a1,a2);
             return 0;

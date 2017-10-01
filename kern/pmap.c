@@ -1056,17 +1056,6 @@ void *mmio_map_region(physaddr_t pa, size_t size)
      */
     static uintptr_t base = MMIOBASE;
 
-    if(base + size > MMIOLIM) {
-        panic("Tried to map mmio region larger than MMIOLIM");
-    }
-
-    /* Calculate how many pages to increment base with after mapping.
-     * If size is not a direct multiple of PGSIZE, round up to the next page. */
-    size_t reserved_size = (size / PGSIZE) * PGSIZE;
-    if(reserved_size < size) {
-        reserved_size += PGSIZE;
-    }
-
     /*
      * Reserve size bytes of virtual memory starting at base and map physical
      * pages [pa,pa+size) to virtual addresses [base,base+size).  Since this is
@@ -1085,9 +1074,20 @@ void *mmio_map_region(physaddr_t pa, size_t size)
      *
      * LAB 5: Your code here:
      */
+
+    if(ROUNDDOWN(pa, PGSIZE) != pa) {
+        panic("Mmio physaddr not page-aligned");
+    }
+
+    size = ROUNDUP(size, PGSIZE);
+
+    if(base + size > MMIOLIM) {
+        panic("Tried to map mmio region larger than MMIOLIM");
+    }
+
     boot_map_region(kern_pgdir, base, size, pa, PTE_BIT_RW | PTE_BIT_PRESENT | PTE_BIT_WRITETHROUGH | PTE_BIT_DISABLECACHE);
-    base += reserved_size;
-    return (void*)base - reserved_size;
+    base += size;
+    return (void*)base - size;
 }
 
 static uintptr_t user_mem_check_addr;
