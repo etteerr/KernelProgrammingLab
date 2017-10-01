@@ -4,9 +4,12 @@
 #include "../inc/assert.h"
 #include "cpu.h"
 #include "env.h"
+#include "sched.h"
 #include "pmap.h"
 #include "monitor.h"
 #include "spinlock.h"
+
+static uint64_t last_ran = 0;
 
 void sched_halt(void);
 
@@ -38,10 +41,21 @@ void sched_yield(void)
 
     lock_kernel();
 
-    env_t *cur = (env_t *)curenv;
+    env_t *cur = (env_t *)curenv; /* For IDE autocompletion, macro unfolding is b0rked */
+    uint64_t since_last_yield = read_tsc() - last_ran;
+    last_ran = read_tsc();
 
     if(curenv) {
         curenv_i = (cur - envs);
+
+        /* If current env has CPU time left in its slice, run it again */
+        if(cur->remain_cpu_time - since_last_yield < MAX_TIME_SLICE) {
+            cur->remain_cpu_time -= since_last_yield;
+            unlock_kernel();
+            env_run(cur);
+        } else {
+            cur->remain_cpu_time = MAX_TIME_SLICE;
+        }
     }
 
     /* Iterates over envs, starting at curenv's index, wrapping
@@ -52,18 +66,21 @@ void sched_yield(void)
 
         if(idle && idle->env_status == ENV_RUNNABLE) {
             unlock_kernel();
-            return env_run(idle);
+            env_run(idle);
         }
     }
 
     /* If no eligible envs found above, we can continue running curenv if it is still marked as running */
     if(curenv && curenv->env_status == ENV_RUNNING) {
         unlock_kernel();
-        return env_run(curenv);
+        env_run(curenv);
     }
 
     /* sched_halt never returns */
     sched_halt();
+
+    /* Here to please the compiler, given sched_yield() is marked as non-returning */
+    panic("sched_halt() should never return");
 }
 
 /*
