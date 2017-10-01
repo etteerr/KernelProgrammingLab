@@ -116,7 +116,21 @@ static void sys_yield(void)
 static int sys_wait(envid_t envid)
 {
     /* LAB 5: Your code here */
-    return -1;
+    if(envid > NENV) {
+        return -1;
+    }
+
+    env_t *env = &envs[envid];
+    env_t *cur = (env_t *)curenv; /* IDE's macro unfolding is broken */
+
+    if(!env || !cur) {
+        return -1;
+    }
+
+    cur->env_status = ENV_WAITING;
+    cur->waiting_for = envid;
+
+    return 0;
 }
 
 static int sys_fork(void)

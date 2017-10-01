@@ -39,6 +39,7 @@ enum {
     ENV_DYING,
     ENV_RUNNABLE,
     ENV_RUNNING,
+    ENV_WAITING,
     ENV_NOT_RUNNABLE
 };
 
@@ -57,6 +58,7 @@ typedef struct env {
     uint32_t env_runs;          /* Number of times environment has run */
     int env_cpunum;             /* The CPU that the env is running on */
     uint32_t remain_cpu_time;
+    envid_t waiting_for;
 
     /* Address space */
     pde_t *env_pgdir;           /* Kernel virtual address of page dir */

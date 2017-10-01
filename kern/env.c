@@ -590,6 +590,17 @@ void env_free(struct env *e)
  */
 void env_destroy(struct env *e)
 {
+    size_t i;
+    
+    /* Mark all envs waiting for this env as runnable again */
+    for(i = 0; i < NENV; i++) {
+        env_t *env = &envs[i];
+        if(env && env->env_status == ENV_WAITING && env->waiting_for == e->env_id) {
+            env->env_status = ENV_RUNNABLE;
+            env->waiting_for = 0;
+        }
+    }
+
     /* If e is currently running on other CPUs, we change its state to
      * ENV_DYING. A zombie environment will be freed the next time
      * it traps to the kernel. */
