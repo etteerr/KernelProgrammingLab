@@ -339,10 +339,13 @@ void page_fault_handler(struct trapframe *tf)
     }
 
     /* Check if memory address is already mapped. If so, the page fault was triggered by lacking permissions. */
+    /*  */
     pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)fault_va, 0);
+    
     if(pte && *pte & PTE_BIT_PRESENT) {
         cprintf("User page fault\n");
-        return murder_env(curenv, fault_va);
+        if(!hit->flags.bit.COW) //if this pagefault is not copy on write, kill it
+            return murder_env(curenv, fault_va);
     }
 
     /*Try and allocate a new physical page*/
@@ -360,6 +363,8 @@ void page_fault_handler(struct trapframe *tf)
         cprintf("Unable to allocate page table entry\n");
         return murder_env(curenv, fault_va);
     }
+    
+    /* Handle copy on write copy */
 
     /* If we've reached this point, the memory fault should have been addressed properly */
     cprintf("Page fault should be fixed\n");
