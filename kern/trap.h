@@ -47,6 +47,26 @@ void trap_simderr();
 void trap_syscall();
 void trap_default();
 
+void trap_irq_timer();
+void trap_irq_spur();
+
+void trap_irq_timer();
+void trap_irq_kbd();
+void trap_irq_3();
+void trap_irq_serial();
+void trap_irq_5();
+void trap_irq_6();
+void trap_irq_spur();
+void trap_irq_8();
+void trap_irq_9();
+void trap_irq_10();
+void trap_irq_11();
+void trap_irq_12();
+void trap_irq_13();
+void trap_irq_ide();
+void trap_irq_15();
+void trap_irq_err();
+
 /* Special trap to host the sysenter opcode's call */
 void trap_sysenter();
 

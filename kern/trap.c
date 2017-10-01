@@ -101,6 +101,23 @@ void trap_init(void)
     SETGATE(idt[T_SYSCALL], 0, GD_KT, (uint32_t)&trap_syscall, 3);
     SETGATE(idt[T_DEFAULT], 0, GD_KT, (uint32_t)&trap_default, 0);
 
+    SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, (uint32_t)&trap_irq_timer, 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, (uint32_t)&trap_irq_kbd, 0);
+    SETGATE(idt[IRQ_OFFSET + 3], 0, GD_KT, (uint32_t)&trap_irq_3, 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, (uint32_t)&trap_irq_serial, 0);
+    SETGATE(idt[IRQ_OFFSET + 5], 0, GD_KT, (uint32_t)&trap_irq_5, 0);
+    SETGATE(idt[IRQ_OFFSET + 6], 0, GD_KT, (uint32_t)&trap_irq_6, 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, (uint32_t)&trap_irq_spur, 0);
+    SETGATE(idt[IRQ_OFFSET + 8], 0, GD_KT, (uint32_t)&trap_irq_8, 0);
+    SETGATE(idt[IRQ_OFFSET + 9], 0, GD_KT, (uint32_t)&trap_irq_9, 0);
+    SETGATE(idt[IRQ_OFFSET + 10], 0, GD_KT, (uint32_t)&trap_irq_10, 0);
+    SETGATE(idt[IRQ_OFFSET + 11], 0, GD_KT, (uint32_t)&trap_irq_11, 0);
+    SETGATE(idt[IRQ_OFFSET + 12], 0, GD_KT, (uint32_t)&trap_irq_12, 0);
+    SETGATE(idt[IRQ_OFFSET + 13], 0, GD_KT, (uint32_t)&trap_irq_13, 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_IDE], 0, GD_KT, (uint32_t)&trap_irq_ide, 0);
+    SETGATE(idt[IRQ_OFFSET + 15], 0, GD_KT, (uint32_t)&trap_irq_15, 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_ERROR], 0, GD_KT, (uint32_t)&trap_irq_err, 0);
+
     /* Per-CPU setup */
     trap_init_percpu();
 #ifdef BONUS_LAB3
@@ -217,10 +234,14 @@ static void trap_dispatch(struct trapframe *tf)
             print_trapframe(tf);
             return;
         /*
-         * TODO: Handle clock interrupts. Don't forget to acknowledge the interrupt using
+         * Handle clock interrupts. Don't forget to acknowledge the interrupt using
          * lapic_eoi() before calling the scheduler!
          * LAB 5: Your code here.
          */
+        case IRQ_OFFSET + IRQ_TIMER:
+            lapic_eoi();
+            sched_yield();
+            break;
         default:
             /* Unexpected trap: The user process or the kernel has a bug. */
             print_trapframe(tf);
