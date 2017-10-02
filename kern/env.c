@@ -548,6 +548,9 @@ void env_free(struct env *e)
 
     /* Note the environment's demise. */
     cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+    
+    /* Clean vmas */
+    vma_array_destroy(e);
 
     /* Flush all mapped pages in the user portion of the address space */
     static_assert(UTOP % PTSIZE == 0);
@@ -609,7 +612,6 @@ void env_destroy(struct env *e)
         return;
     }
 
-    vma_array_destroy(e);
     env_free(e);
 
     if (curenv == e) {
