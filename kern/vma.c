@@ -101,6 +101,12 @@ void vma_remove(env_t *e, vma_t * vma) {
     memset((void*)vma, 0, sizeof(vma_t));
 }
 
+void vma_set_backing(env_t* e, int vma_index, void * addr, uint32_t len) {
+        vma_t * vma = &e->vma_list->vmas[vma_index];
+        vma->backed_addr = addr;
+        vma->backsize = len;
+}
+
 int vma_get_relative(vma_t * vma1, vma_t * vma2) {
     uint32_t vlen1, vlen2, va1, va2;
     
@@ -158,9 +164,11 @@ breaky:
 
     /* Fill entry values */
     entry->va = va;
-    entry->len = len;
+    entry->len = ROUNDUP(len, PGSIZE);
     entry->perm = perm;
     entry->type = type; 
+    entry->backed_addr = 0;
+    entry->backsize = 0;
     
     
    if (vma_lookup(e, va, len)!=0) {

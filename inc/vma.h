@@ -52,6 +52,8 @@ typedef struct vma {
     uint8_t p_adj;
     uint8_t n_adj;
     vma_flags_t flags;
+    void * backed_addr;
+    uint32_t backsize;
     /* LAB 4: You may add more fields here, if required. */
 } vma_t;
 
