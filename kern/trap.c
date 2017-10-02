@@ -447,7 +447,7 @@ void page_fault_handler(struct trapframe *tf)
 
     /* Only allow dynamic allocation of pre-mapped VMA regions */
     if(hit->type == VMA_UNUSED) {
-        cprintf("Virtual address in unused VMA\n");
+        cprintf("Virtual address (%#08x) in unused VMA\n", fault_va);
         return murder_env(curenv, fault_va);
     }
 
@@ -456,7 +456,7 @@ void page_fault_handler(struct trapframe *tf)
     pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)fault_va, 0);
     pte_t pte_original = 0;
     if(pte && *pte & PTE_BIT_PRESENT) {
-        cprintf("User page fault\n");
+        cprintf("User page fault (%#08x)\n", fault_va);
         if(!hit->flags.bit.COW) //if this pagefault is not copy on write, kill it
             return murder_env(curenv, fault_va);
         else {
@@ -488,7 +488,7 @@ void page_fault_handler(struct trapframe *tf)
     trap_handle_cow(hit, &pte, pte_original, page);
     
     /* If we've reached this point, the memory fault should have been addressed properly */
-    cprintf("Page fault should be fixed\n");
+    cprintf("Page fault at (%#08x) should be fixed\n", fault_va);
 }
 
 void breakpoint_handler(struct trapframe *tf) {
