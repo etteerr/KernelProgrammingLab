@@ -68,7 +68,7 @@ void vma_array_destroy(env_t* e) {
     }
 
     /* Free vma_arr_t struct, which reserves an entire page */
-    __dealloc_range(e, (vma_arr_t*) VMA_KVA, PGSIZE);
+    __dealloc_range(e, vma_arr, PGSIZE);
 }
 
 inline int vma_is_empty(vma_t* vma) {
