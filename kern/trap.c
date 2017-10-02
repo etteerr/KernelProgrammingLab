@@ -334,6 +334,64 @@ void murder_env(env_t *env, uint32_t fault_va) {
     env_destroy(env);
 }
 
+void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_entry, page_info_t* page){
+    if (hit->flags.bit.COW && !(pte_entry & PDE_BIT_HUGE)) {
+        /* Extract original page address, copy this to our new page */
+        page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_entry));
+        
+        void *src = (void*) page2kva(cow_page);
+        void *dst = (void*) page2kva(page);
+        
+        memcpy(src,dst, PGSIZE);
+        
+        /* Make a final assertion, cow should only trigger on writes */
+        assert(hit->perm & PTE_BIT_RW);
+        assert(hit->perm & VMA_PERM_WRITE);
+    }else
+        if (hit->flags.bit.COW) {
+            /* Hit on huge page */
+            /* Revert allocated page and delete entry */
+            page_decref(page);
+            *(*pte) = 0;
+            
+            /* Make some assertions */
+            assert(pte_entry & PDE_BIT_HUGE); //Should always be true due to if statement
+            assert(hit->perm & VMA_PERM_WRITE);
+            assert(pte_entry * PDE_BIT_RW);
+            
+            /* Now create 4M entry and handle cow */
+            page_info_t *new_page = page_alloc(ALLOC_HUGE);
+            page_info_t *cow_page = pa2page(PDE_GET_ADDRESS(pte_entry));
+            
+            page_insert(curenv->env_pgdir, new_page, (void*) page2pa(new_page), 
+                    PDE_BIT_PRESENT | PDE_BIT_RW | PDE_BIT_HUGE | PDE_BIT_USER
+                    );
+            
+            void *src = (void*) page2kva(cow_page);
+            void *dst = (void*) page2kva(new_page);
+            
+            memcpy(src, dst, PGSIZE*1024);
+            
+        }
+}
+
+void trap_handle_backed_memory(uint32_t fault_va, vma_t* hit, page_info_t* page){
+    if (hit->backed_addr && hit->len) {
+        /* Our vma is backed! */
+        uint32_t inter_vma_offset = fault_va -  (uint32_t) hit->va;
+        uint32_t mem_backed_overflow = 
+                inter_vma_offset + PGSIZE > hit->backsize ? 
+                    inter_vma_offset + PGSIZE - hit->backsize : 0;
+        
+        void *src = (void*) ((uint32_t) hit->backed_addr + inter_vma_offset);
+        void *dst = page2kva(page);
+        
+        /* Copy backing to page, if it exceeds backing, leave non-backed part to 0 */
+        if (PGSIZE > mem_backed_overflow)
+            memcpy(dst,src, PGSIZE - mem_backed_overflow);
+    }
+}
+
 void page_fault_handler(struct trapframe *tf)
 {
     uint32_t fault_va, cs;
@@ -396,45 +454,11 @@ void page_fault_handler(struct trapframe *tf)
         return murder_env(curenv, fault_va);
     }
     
-    /* Handle copy on write copy  (non 4m)*/
-    if (hit->flags.bit.COW && !(pte_entry & PDE_BIT_HUGE)) {
-        /* Extract original page address, copy this to our new page */
-        page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_entry));
-        
-        void *src = (void*) page2kva(cow_page);
-        void *dst = (void*) page2kva(page);
-        
-        memcpy(src,dst, PGSIZE);
-        
-        /* Make a final assertion, cow should only trigger on writes */
-        assert(hit->perm & PTE_BIT_RW);
-        assert(hit->perm & VMA_PERM_WRITE);
-    }else
-        if (hit->flags.bit.COW) {
-            /* Hit on huge page */
-            /* Revert allocated page and delete entry */
-            page_decref(page);
-            *pte = 0;
-            
-            /* Make some assertions */
-            assert(pte_entry & PDE_BIT_HUGE); //Should always be true due to if statement
-            assert(hit->perm & VMA_PERM_WRITE);
-            assert(pte_entry * PDE_BIT_RW);
-            
-            /* Now create 4M entry and handle cow */
-            page_info_t *new_page = page_alloc(ALLOC_HUGE);
-            page_info_t *cow_page = pa2page(PDE_GET_ADDRESS(pte_entry));
-            
-            page_insert(curenv->env_pgdir, new_page, (void*) page2pa(new_page), 
-                    PDE_BIT_PRESENT | PDE_BIT_RW | PDE_BIT_HUGE | PDE_BIT_USER
-                    );
-            
-            void *src = (void*) page2kva(cow_page);
-            void *dst = (void*) page2kva(new_page);
-            
-            memcpy(src, dst, PGSIZE*1024);
-            
-        }
+    /* Handle 'file' backed memory*/
+    trap_handle_backed_memory(fault_va, hit, page);
+    
+    /* Handle copy on write copy */
+    trap_handle_cow(hit, &pte, pte_entry, page);
     
     /* If we've reached this point, the memory fault should have been addressed properly */
     cprintf("Page fault should be fixed\n");
