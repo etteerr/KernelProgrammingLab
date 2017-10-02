@@ -21,6 +21,7 @@
 #include "monitor.h"
 #include "syscall.h"
 #include "spinlock.h"
+#include "kdebug.h"
 
 static struct taskstate ts;
 
@@ -275,7 +276,14 @@ void trap(struct trapframe *tf)
     assert(!(read_eflags() & FL_IF));
 
     cprintf("Incoming TRAP frame at %p\n", tf);
+    
+    { //Debug trap origin
+        struct eip_debuginfo info;
+        debuginfo_eip(tf->tf_eip, &info);
 
+        cprintf("\tTrap from %s:%d in %s\n", info.eip_file, info.eip_line, info.eip_fn_name);
+    }
+    
     if ((tf->tf_cs & 3) == 3) {
         /* Trapped from user mode. */
         /* Acquire the big kernel lock before doing any serious kernel work.

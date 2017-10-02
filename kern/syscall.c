@@ -137,6 +137,12 @@ void fork_vma_makecow(env_t* newenv, uint32_t range_start, uint32_t range_end){
     uint32_t len = range_end - range_start;
     vma_t *vma = vma_lookup(newenv, (void*)range_start, len);
     
+    if (!vma) {
+        vma_dump_all(newenv);
+        cprintf("---------Error in vma range %#08x-%#08x---------\n", range_start, range_end);
+        panic("No existing vma in range!");
+    }
+    
     if (vma->len == len){
         vma->flags.bit.COW = 1;
     }else {
@@ -157,14 +163,16 @@ void fork_vma_makecow(env_t* newenv, uint32_t range_start, uint32_t range_end){
 void fork_pgdir_copy_and_cow(env_t* newenv){
     /* Setup permission check register */
     uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
-    uint32_t pte_check = PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
+    uint32_t pte_small_check = PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
     
     /* vma range tracker: Keeps track of continues COWified pages */
     uint32_t range_start = 0;
+    
     /* For all user RW pages, make COW entry (read only) */
     for(uint32_t di = 0; di<KERNBASE/(PGSIZE*1024); di++) {
         register pde_t pde = newenv->env_pgdir[di];
         
+        /* Huge PAGE*/
         if (pde & PDE_BIT_HUGE) {
             if ((pde & pde_huge_check) == pde_huge_check) {
                 /* Huge page with user rw permissions, COW canidate */
@@ -183,7 +191,8 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
             }
             
         }
-        if ((pde & pte_check) == pte_check){
+        /* PAGE TABLE */
+        if ((pde & pte_small_check) == pte_small_check){
             /* Page table exits and is user rw, may contain COW canidates */
             /* Get page table entry */
             pte_t * pgtable = KADDR(PDE_GET_ADDRESS(pde));
@@ -192,7 +201,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
                 //page table entry register
                 register pte_t pte = pgtable[ti];
                 /* Check if pte is COW canidate */
-                if ((pte & pte_check) == pte) {
+                if ((pte & pte_small_check) == pte) {
                     if (~range_start)
                         range_start = di * (PGSIZE*1024) + ti * PGSIZE;
                     
