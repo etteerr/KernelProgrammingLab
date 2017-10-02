@@ -245,7 +245,7 @@ breaky:
             //If we are adjacent to the current ( [current][us] )
             if (pos_c == VMA_RELATIVE_AFTER_ADJ) {
                 /* merge with centry if permissions match */
-                if (entry->perm == centry->perm && entry->type == centry->type) {
+                if (entry->perm == centry->perm && entry->type == centry->type && centry->backsize == 0) {
                     centry->len += entry->len;
                     
                     /* Clear our allocated entry */
@@ -259,7 +259,7 @@ breaky:
             //If we are adjacent to the next entry ( [us][next] )
             if (pos_n == VMA_RELATIVE_BEFORE_ADJ) {
                 /* merge with centry if permissions match */
-                if (entry->perm == nentry->perm && entry->type == nentry->type) {
+                if (entry->perm == nentry->perm && entry->type == nentry->type && nentry->backsize == 0) {
                     nentry->len += (uint32_t)(nentry->va - entry->va);
                     nentry->va = entry->va;
                     
