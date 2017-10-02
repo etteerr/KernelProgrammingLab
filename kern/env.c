@@ -470,7 +470,11 @@ static void load_icode(struct env *e, uint8_t *binary)
             assert(ph->p_va + ph->p_memsz <= UTOP);
 
             /* VMA mapping */
-            int vma_index = vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
+            int perm = 0;
+            perm |= ph->p_flags & ELF_PROG_FLAG_EXEC  ? VMA_PERM_EXEC  : 0;
+            perm |= ph->p_flags & ELF_PROG_FLAG_WRITE ? VMA_PERM_WRITE : 0;
+            perm |= ph->p_flags & ELF_PROG_FLAG_READ  ? VMA_PERM_READ  : 0;
+            int vma_index = vma_new(e, (void*)ph->p_va, ph->p_memsz, perm, VMA_BINARY); //elf binary
             
             /* Set vma backing */
             vma_set_backing(e, vma_index, binary + ph->p_offset, ph->p_filesz);
