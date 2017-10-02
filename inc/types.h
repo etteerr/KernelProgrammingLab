@@ -9,6 +9,10 @@
 typedef _Bool bool;
 enum { false, true };
 
+#define UINT32_MAX 0xFFFFFFFF;
+#define UINT16_MAX 0xFFFF;
+#define UINT8_MAX 0xFF;
+
 /* Explicitly-sized versions of integer types */
 typedef __signed char int8_t;
 typedef unsigned char uint8_t;
