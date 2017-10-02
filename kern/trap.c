@@ -414,6 +414,12 @@ void trap_handle_backed_memory(uint32_t fault_va, vma_t* vma, page_info_t* page)
             cpy_len -= overflow;
         }
         
+        /* Set correct src and dst offset in pages */
+        uint32_t pages_offset = fault_va - (uint32_t)vma->va;
+        pages_offset /= PGSIZE;
+        dst += pages_offset * PGSIZE;
+        src += pages_offset * PGSIZE;
+        
         /* Do memcpy */
         memcpy((void*) dst, (void*) src, cpy_len);
     }
