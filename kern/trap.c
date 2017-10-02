@@ -277,12 +277,12 @@ void trap(struct trapframe *tf)
 
     cprintf("Incoming TRAP frame at %p\n", tf);
     
-    { //Debug trap origin
-        struct eip_debuginfo info;
-        debuginfo_eip(tf->tf_eip, &info);
-
-        cprintf("\tTrap from %s:%d in %s\n", info.eip_file, info.eip_line, info.eip_fn_name);
-    }
+//    { //Debug trap origin
+//        struct eip_debuginfo info;
+//        debuginfo_eip(tf->tf_eip, &info);
+//
+//        cprintf("\tTrap from %s:%d in %s\n", info.eip_file, info.eip_line, info.eip_fn_name);
+//    }
     if ((tf->tf_cs & 3) == 3) {
         /* Trapped from user mode. */
         /* Acquire the big kernel lock before doing any serious kernel work.
@@ -375,8 +375,8 @@ void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_entry, page_info_t* page
         }
 }
 
-void trap_handle_backed_memory(uint32_t fault_va, vma_t* hit, page_info_t* page){
-    if (hit->backed_addr && hit->len) {
+void trap_handle_backed_memory(uint32_t fault_va, vma_t* vma, page_info_t* page){
+    if (vma->backed_addr && vma->len) {
         /* Our vma is backed! */
         
         /* Set the inter vma offset of the file backing
@@ -387,33 +387,35 @@ void trap_handle_backed_memory(uint32_t fault_va, vma_t* hit, page_info_t* page)
          *  offset will be 0x20
          *  as filebacking starts from requested vma addr
          */
-        uint32_t src_addr_offset;
-        uint32_t src_addr_base = (uint32_t) hit->backed_addr;
-        void *dst = page2kva(page);
-        uint32_t backing_start_addr = ((uint32_t) hit->va + (uint32_t)hit->backed_start_offset);
-        uint32_t dst_shift = 0;
-
-        if (fault_va <  backing_start_addr) {
-            /* start addres is within backed offset
-             *  everything before dst will be in the offset zone
-             *  and will be 0
-             */
-            dst_shift = (backing_start_addr - fault_va);
-            dst = (void*) (dst_shift + (uint32_t)dst);
-            src_addr_offset = 0;
-        }else {
-            src_addr_offset = fault_va -  ((uint32_t) hit->va + (uint32_t)hit->backed_start_offset);
+        uint32_t page_va = fault_va & 0xFFFFF000;
+        
+        /* Set copy parameters */
+        uint32_t src = (uint32_t)vma->backed_addr;
+        uint32_t dst = (uint32_t)page2kva(page);
+        uint32_t cpy_len = PGSIZE;
+        
+        /* determine if dst_base is within page backed offset (null zone) */
+        /* page alligned -> [null zone | requested vma | null zone ] */
+        /* This is the case when it is the first page in the vma */
+        if ((page_va == (uint32_t)vma->va) && vma->backed_start_offset) {
+            /* We have a backed offset and this is the first page */
+            dst += vma->backed_start_offset;
+            assert(vma->backed_start_offset <= PGSIZE);
+            cpy_len -= vma->backed_start_offset;
         }
         
-        uint32_t mem_backed_overflow = 
-                src_addr_offset + PGSIZE > hit->backsize ? 
-                    src_addr_offset + PGSIZE - hit->backsize : 0;
+        /* Check if we do not exceed our backed length */
+        uint32_t ivma_offset = fault_va - (uint32_t)vma->va;
+        if (ivma_offset > vma->backsize) {
+            uint32_t overflow = ivma_offset - vma->backsize;
+            if (overflow >= cpy_len)
+                return; //nothing to copy, we are in null region
+            
+            cpy_len -= overflow;
+        }
         
-        void *src = (void*) (src_addr_base + src_addr_offset);
-        
-        /* Copy backing to page, if it exceeds backing, leave non-backed part to 0 */
-        if (PGSIZE > mem_backed_overflow)
-            memcpy(dst,src, PGSIZE - (mem_backed_overflow + dst_shift));
+        /* Do memcpy */
+        memcpy((void*) dst, (void*) src, cpy_len);
     }
 }
 
@@ -431,7 +433,7 @@ void page_fault_handler(struct trapframe *tf)
 
     /* If user is requesting an address outside its addressable range, kill it */
     if(!is_kernel && (fault_va < USTABDATA || fault_va >= UTOP)) {
-        cprintf("Virtual address outside of user addressable range\n");
+        cprintf("Virtual address (%#08x) outside of user addressable range\n", fault_va);
         return murder_env(curenv, fault_va);
     }
 
@@ -452,13 +454,13 @@ void page_fault_handler(struct trapframe *tf)
     /* Check if memory address is already mapped. If so, the page fault was triggered by lacking permissions. */
     /*  */
     pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)fault_va, 0);
-    pte_t pte_entry = 0;
+    pte_t pte_original = 0;
     if(pte && *pte & PTE_BIT_PRESENT) {
         cprintf("User page fault\n");
         if(!hit->flags.bit.COW) //if this pagefault is not copy on write, kill it
             return murder_env(curenv, fault_va);
         else {
-            pte_entry = *pte;
+            pte_original = *pte;
             *pte = 0;
         }
     }
@@ -483,7 +485,7 @@ void page_fault_handler(struct trapframe *tf)
     trap_handle_backed_memory(fault_va, hit, page);
     
     /* Handle copy on write copy */
-    trap_handle_cow(hit, &pte, pte_entry, page);
+    trap_handle_cow(hit, &pte, pte_original, page);
     
     /* If we've reached this point, the memory fault should have been addressed properly */
     cprintf("Page fault should be fixed\n");
