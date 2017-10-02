@@ -243,7 +243,7 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
         
         if (page_table == (pde & page_table)) {
             /* Page table, allocate page and copy */
-            page_info_t *pp = page_alloc();
+            page_info_t *pp = page_alloc(0);
             void *dst = page2kva(pp);
             void *src = page2kva(pa2page(PDE_GET_ADDRESS(pde)));
             memcpy(dst, src, PGSIZE);
