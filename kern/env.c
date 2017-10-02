@@ -565,9 +565,13 @@ void env_free(struct env *e)
         pt = (pte_t*) KADDR(pa);
 
         /* Unmap all PTEs in this page table */
-        for (pteno = 0; pteno <= PTX(~0); pteno++) {
-            if (pt[pteno] & PTE_P)
-                page_remove(e->env_pgdir, PGADDR(pdeno, pteno, 0));
+        if (e->env_pgdir[pdeno] & PDE_BIT_HUGE) {
+            page_remove(e->env_pgdir, PGADDR(pdeno, 0, 0));
+        }else{
+            for (pteno = 0; pteno <= PTX(~0); pteno++) {
+                if (pt[pteno] & PTE_P)
+                    page_remove(e->env_pgdir, PGADDR(pdeno, pteno, 0));
+            }
         }
 
         /* Free the page table itself */
