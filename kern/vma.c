@@ -103,8 +103,7 @@ void vma_remove(env_t *e, vma_t * vma) {
 
 void vma_set_backing(env_t* e, int vma_index, void * addr, uint32_t len) {
         vma_t * vma = &e->vma_list->vmas[vma_index];
-        cprintf("Set backing on %#08x-%#08x to %#08x for %#08x\n", vma->va, (uint32_t)vma->va+vma->len, addr, len);
-
+        assert(vma->backed_addr == 0);
         vma->backed_addr = addr;
         vma->backsize = len;
 }
