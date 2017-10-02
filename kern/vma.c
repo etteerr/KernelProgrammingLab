@@ -52,6 +52,10 @@ void vma_array_init(env_t* e) {
     vma_arr->lowest_va_vma = VMA_INVALID_INDEX;
 }
 
+/**
+ * Cleans the vma array and all its associated pgdir entries
+ * @param e
+ */
 void vma_array_destroy(env_t* e) {
     if (e->vma_list == 0)
         return;
@@ -68,7 +72,7 @@ void vma_array_destroy(env_t* e) {
     }
 
     /* Free vma_arr_t struct, which reserves an entire page */
-    __dealloc_range(e, vma_arr, PGSIZE);
+    __dealloc_range(e, (void*)VMA_UVA, PGSIZE);
 }
 
 inline int vma_is_empty(vma_t* vma) {
