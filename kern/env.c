@@ -473,7 +473,7 @@ static void load_icode(struct env *e, uint8_t *binary)
             int vma_index = vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
             
             /* Set vma backing */
-            vma_set_backing(e, vma_index, binary + ph->p_offset, ph->p_memsz);
+            vma_set_backing(e, vma_index, binary + ph->p_offset, ph->p_filesz);
             
             
             /* set end of code space variable*/
