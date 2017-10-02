@@ -200,9 +200,10 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
                 //page table entry register
                 register pte_t pte = pgtable[ti];
                 /* Check if pte is COW canidate */
-                if ((pte & pte_small_check) == pte) {
+                if ((pte & pte_small_check) == pte_small_check) {
                     if (~range_start)
                         range_start = di * (PGSIZE*1024) + ti * PGSIZE;
+                    
                     pte ^= PTE_BIT_RW; //Make readonly pte entry
                     pgtable[ti] = pte;
                     
