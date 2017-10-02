@@ -27,11 +27,35 @@ void spin_unlock(struct spinlock *lk);
 
 extern struct spinlock kernel_lock;
 
+/*
+ * 🔒
+ * Kernel lock and unlock debug functions
+ */
+#ifdef DEBUG_SPINLOCK
+#define lock_kernel() lock_kernel_(__FILE__, __LINE__)
+#define unlock_kernel() unlock_kernel_(__FILE__, __LINE__)
+#endif
+
+#ifdef lock_kernel
+static inline void lock_kernel_(const char * file, const int line) {
+    cprintf("[kern lock] Kernel lock at %s:%d\n", file, line);
+    spin_lock(&kernel_lock);
+}
+#else
 static inline void lock_kernel(void)
 {
     spin_lock(&kernel_lock);
 }
+#endif
 
+#ifdef unlock_kernel
+static inline void unlock_kernel_(const char * file, const int line)
+{
+    cprintf("[kern lock] Kernel unlock at %s:%d\n", file, line);
+    spin_unlock(&kernel_lock);
+    asm volatile("pause");
+}
+#else
 static inline void unlock_kernel(void)
 {
     spin_unlock(&kernel_lock);
@@ -44,5 +68,6 @@ static inline void unlock_kernel(void)
      */
     asm volatile("pause");
 }
+#endif
 
 #endif
