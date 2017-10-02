@@ -230,7 +230,11 @@ static int sys_fork(void)
     env_t *newenv;
     
     /* Allocate env  & duplicate shared info */
-    env_alloc(&newenv, curenv->env_id);
+    if (env_alloc(&newenv, curenv->env_id)) {
+        cprintf("Failed to fork new child process!\n");
+        return -1;
+    }
+    
     //VMA
     memcpy(&newenv->vma_list, &curenv->vma_list, sizeof(vma_arr_t));
     //registers

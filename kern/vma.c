@@ -41,11 +41,11 @@ void vma_array_init(env_t* e) {
             page_insert(e->env_pgdir, pp, (void*) VMA_UVA, PTE_BIT_USER | PTE_BIT_PRESENT);
     
     //Kernel mapping
-    ret |= page_insert(e->env_pgdir, pp, (void*) VMA_KVA, PTE_BIT_RW | PTE_BIT_PRESENT);
-    assert(ret==0);
+//    ret |= page_insert(e->env_pgdir, pp, (void*) VMA_KVA, PTE_BIT_RW | PTE_BIT_PRESENT);
+//    assert(ret==0);
         
     /* update env & set initial values */
-    vma_arr_t * vma_arr = (vma_arr_t*) VMA_KVA;
+    vma_arr_t * vma_arr = (vma_arr_t*) page2kva(pp);
     e->vma_list = vma_arr;
     
 //    vma_arr->highest_va_vma = VMA_INVALID_INDEX;

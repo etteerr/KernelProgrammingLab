@@ -283,7 +283,6 @@ void trap(struct trapframe *tf)
 
         cprintf("\tTrap from %s:%d in %s\n", info.eip_file, info.eip_line, info.eip_fn_name);
     }
-    
     if ((tf->tf_cs & 3) == 3) {
         /* Trapped from user mode. */
         /* Acquire the big kernel lock before doing any serious kernel work.
