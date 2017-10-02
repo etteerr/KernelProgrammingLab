@@ -223,6 +223,38 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
     }
 }
 
+/**
+ * Make a deep copy of cpgdir to npgdir
+ *  Leaves all permissions intact.
+ * @param curpg the current pgdir
+ * @param newpg the new pgdir
+ */
+void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
+    uint32_t page_huge = PDE_BIT_HUGE | PDE_BIT_PRESENT;
+    uint32_t page_table = PDE_BIT_PRESENT;
+    for(uint32_t pgi = 0; pgi < 1024; pgi++) {
+        pde_t pde = curpg[pgi];
+        
+        if (page_huge == (page_huge & pde)) {
+            /* Huge page, copy entry */
+            newpg[pgi] = pde;
+            continue;
+        }
+        
+        if (page_table == (pde & page_table)) {
+            /* Page table, allocate page and copy */
+            page_info_t *pp = page_alloc();
+            void *dst = page2kva(pp);
+            void *src = page2kva(pa2page(PDE_GET_ADDRESS(pde)));
+            memcpy(dst, src, PGSIZE);
+            /* Set new entry in pagetable */
+            pde &= 0xFFF; //keep old permissions
+            pde |= page2pa(pp);
+            newpg[pgi] = pde;
+        }
+    }
+}
+
 static int sys_fork(void)
 {
     /* fork() that follows COW semantics */
@@ -239,6 +271,10 @@ static int sys_fork(void)
     memcpy(&newenv->vma_list, &curenv->vma_list, sizeof(vma_arr_t));
     //registers
     newenv->env_tf= curenv->env_tf;
+    
+    /* Make a deep copy of the page dir */
+    pgdir_deepcopy(newenv->env_pgdir,curenv->env_pgdir);
+    
     //Etc
     newenv->env_status = curenv->env_status;
     newenv->env_type = curenv->env_type;
