@@ -453,7 +453,10 @@ void vma_dump(vma_t * vma) {
     if (vma->type == VMA_ANON) cprintf(" anon");
     if (vma->type == VMA_BINARY) cprintf(" binary");
     if (vma->type == VMA_UNUSED) cprintf(" unused");
-    cprintf("]");
+    cprintf("] ");
+    if (vma->backed_addr) {
+        cprintf("Backed by: %#08x - %#08x", vma->backed_addr, vma->backed_addr + vma->backed_start_offset);
+    }
 }
 
 void vma_dump_all(env_t *e) {
