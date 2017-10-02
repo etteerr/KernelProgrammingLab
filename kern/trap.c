@@ -378,17 +378,42 @@ void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_entry, page_info_t* page
 void trap_handle_backed_memory(uint32_t fault_va, vma_t* hit, page_info_t* page){
     if (hit->backed_addr && hit->len) {
         /* Our vma is backed! */
-        uint32_t inter_vma_offset = fault_va -  (uint32_t) hit->va;
-        uint32_t mem_backed_overflow = 
-                inter_vma_offset + PGSIZE > hit->backsize ? 
-                    inter_vma_offset + PGSIZE - hit->backsize : 0;
         
-        void *src = (void*) ((uint32_t) hit->backed_addr + inter_vma_offset);
+        /* Set the inter vma offset of the file backing
+         * Take into account the intitial offset provided as non-allignment of the vma
+         * example:
+         *  vma_new(addr=0x0200020)
+         *  start addres will be 0x0200020
+         *  offset will be 0x20
+         *  as filebacking starts from requested vma addr
+         */
+        uint32_t src_addr_offset;
+        uint32_t src_addr_base = (uint32_t) hit->backed_addr;
         void *dst = page2kva(page);
+        uint32_t backing_start_addr = ((uint32_t) hit->va + (uint32_t)hit->backed_start_offset);
+        uint32_t dst_shift = 0;
+
+        if (fault_va <  backing_start_addr) {
+            /* start addres is within backed offset
+             *  everything before dst will be in the offset zone
+             *  and will be 0
+             */
+            dst_shift = (backing_start_addr - fault_va);
+            dst = (void*) (dst_shift + (uint32_t)dst);
+            src_addr_offset = 0;
+        }else {
+            src_addr_offset = fault_va -  ((uint32_t) hit->va + (uint32_t)hit->backed_start_offset);
+        }
+        
+        uint32_t mem_backed_overflow = 
+                src_addr_offset + PGSIZE > hit->backsize ? 
+                    src_addr_offset + PGSIZE - hit->backsize : 0;
+        
+        void *src = (void*) (src_addr_base + src_addr_offset);
         
         /* Copy backing to page, if it exceeds backing, leave non-backed part to 0 */
         if (PGSIZE > mem_backed_overflow)
-            memcpy(dst,src, PGSIZE - mem_backed_overflow);
+            memcpy(dst,src, PGSIZE - (mem_backed_overflow + dst_shift));
     }
 }
 
