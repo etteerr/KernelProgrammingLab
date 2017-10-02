@@ -163,7 +163,7 @@ void fork_vma_makecow(env_t* newenv, uint32_t va_range_start, uint32_t va_range_
 void fork_pgdir_copy_and_cow(env_t* newenv){
     /* Setup permission check register */
     uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
-    uint32_t pte_small_check = PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
+    uint32_t pte_small_check = PTE_BIT_RW | PTE_BIT_PRESENT | PTE_BIT_USER;
     
     /* vma range tracker: Keeps track of continues COWified pages */
     uint32_t range_start = 0;
@@ -189,7 +189,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
                 /* Reset range */
                 range_start = 0;
             }
-            
+            continue;
         }
         /* PAGE TABLE */
         if ((pde & pte_small_check) == pte_small_check){
@@ -203,7 +203,8 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
                 if ((pte & pte_small_check) == pte_small_check) {
                     if (~range_start)
                         range_start = di * (PGSIZE*1024) + ti * PGSIZE;
-                    
+                    cprintf("Va: %#08x from di:%d ti:%d pte:%#08x perm:%#08x true?:%d\n", di * (PGSIZE*1024) + ti * PGSIZE, di, ti, pte,pte_small_check, (pde & pte_small_check) == pte_small_check);
+
                     pte ^= PTE_BIT_RW; //Make readonly pte entry
                     pgtable[ti] = pte;
                     
