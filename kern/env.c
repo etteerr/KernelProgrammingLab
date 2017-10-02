@@ -470,20 +470,25 @@ static void load_icode(struct env *e, uint8_t *binary)
             assert(ph->p_va + ph->p_memsz <= UTOP);
 
             /* VMA mapping */
-            vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
-
+            int vma_index = vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
+            
+            /* Set vma backing */
+            vma_set_backing(e, vma_index, binary + ph->p_offset, ph->p_memsz);
+            
+            
             /* set end of code space variable*/
             if (ph->p_va+ph->p_memsz > eoc_mem)
                 eoc_mem = ph->p_va+ph->p_memsz;
 
             /* Allocate region (prevents fault OD allocations) */
-            region_alloc(e, (void *)ph->p_va, ph->p_memsz);
+            /* We may not allocate code region like this, it implies write permissions */
+//            region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 
             /* We can use virtual addresses because the uenv's pgdir has been loaded */
-            memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+//            memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
 
             /* Zero out remaining bytes */
-            memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
+//            memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
         }
 
     /* Add ELF entry to environment's instruction pointer */
