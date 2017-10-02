@@ -133,13 +133,13 @@ static int sys_wait(envid_t envid)
     return 0;
 }
 
-void fork_vma_makecow(env_t* newenv, uint32_t range_start, uint32_t range_end){
-    uint32_t len = range_end - range_start;
-    vma_t *vma = vma_lookup(newenv, (void*)range_start, len);
+void fork_vma_makecow(env_t* newenv, uint32_t va_range_start, uint32_t va_range_end){
+    uint32_t len = va_range_end - va_range_start;
+    vma_t *vma = vma_lookup(newenv, (void*)va_range_start, len);
     
     if (!vma) {
         vma_dump_all(newenv);
-        cprintf("---------Error in vma range %#08x-%#08x---------\n", range_start, range_end);
+        cprintf("---------Error in vma range %#08x-%#08x---------\n", va_range_start, va_range_end);
         panic("No existing vma in range!");
     }
     
@@ -149,8 +149,8 @@ void fork_vma_makecow(env_t* newenv, uint32_t range_start, uint32_t range_end){
         /* remap required */
         /* Copy original vma for future reference*/
         vma_t pvals = *vma;
-        vma_unmap(newenv, (void*) range_start, len);
-        int vma_index = vma_new(newenv, (void*) range_start, len, pvals.perm, pvals.type);
+        vma_unmap(newenv, (void*) va_range_start, len);
+        int vma_index = vma_new(newenv, (void*) va_range_start, len, pvals.perm, pvals.type);
         vma = &newenv->vma_list->vmas[vma_index];
         vma->flags.bit.COW = 1;
         /* Check if everything permissions in vma where correct as well */
@@ -196,7 +196,6 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
             /* Page table exits and is user rw, may contain COW canidates */
             /* Get page table entry */
             pte_t * pgtable = KADDR(PDE_GET_ADDRESS(pde));
-            
             for(uint32_t ti = 0; ti < 1024; ti++) {
                 //page table entry register
                 register pte_t pte = pgtable[ti];
@@ -204,7 +203,6 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
                 if ((pte & pte_small_check) == pte) {
                     if (~range_start)
                         range_start = di * (PGSIZE*1024) + ti * PGSIZE;
-                    
                     pte ^= PTE_BIT_RW; //Make readonly pte entry
                     pgtable[ti] = pte;
                     
