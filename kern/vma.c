@@ -147,6 +147,9 @@ int vma_new(env_t *e, void *va, size_t len, int perm, int type) {
     /* vma assertions */
     assert(len);
     
+    /* pg allign */
+    len = ROUNDUP(len, PGSIZE);
+    
     /* Create and map a empty vma and link in the va order */
     uint32_t i;
     vma_arr_t * vmar = e->vma_list;
@@ -163,8 +166,9 @@ breaky:
     assert(entry);
 
     /* Fill entry values */
-    entry->va = va;
-    entry->len = ROUNDUP(len, PGSIZE);
+    entry->va = (void*)((uint32_t)va & 0xFFFFF000);
+    entry->backed_start_offset = (uint16_t)((uint32_t)va & 0xFFF);
+    entry->len = len;
     entry->perm = perm;
     entry->type = type; 
     entry->backed_addr = 0;
