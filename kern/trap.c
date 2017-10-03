@@ -359,6 +359,7 @@ int trap_handle_cow(uint32_t fault_va){
                 (pte_original & 0x1F) | PTE_BIT_RW))
         {
             cprintf("[COW] Page insertion failed!\n");
+            page_decref(new_page);
             return -1;
         }
         
@@ -434,6 +435,7 @@ int trap_handle_backed_memory(uint32_t fault_va){
         
         if (page_insert(curenv->env_pgdir, page, (void*)(fault_va & 0xFFFFF000), perm)) {
             cprintf("[filebacked memory] Page insertion failed!\n");
+            page_decref(page);
             return -1;
         }
         /* Set the inter vma offset of the file backing
