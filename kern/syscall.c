@@ -241,7 +241,7 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
             newpg[pgi] = pde;
             
             /* inc ref to page */
-            if ((pde & PDE_BIT_PRESENT) && pde & PDE_BIT_USER)
+            if ((pde & PDE_BIT_PRESENT) && (pde & PDE_BIT_USER))
                 pa2page(PDE_GET_ADDRESS(pde))->pp_ref++;
                 
             continue;
@@ -256,7 +256,7 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
                 dst[it] = src[it];
                 
                 /* Increase ref on all pages */
-                if ((src[it] & PTE_BIT_PRESENT) && src[it] & PTE_BIT_USER) {
+                if ((src[it] & PTE_BIT_PRESENT) && (src[it] & PTE_BIT_USER)) {
                     uint32_t phy_addr = PTE_GET_PHYS_ADDRESS(src[it]);
                     page_info_t * ptmp = pa2page(phy_addr);
                     ptmp->pp_ref++;
