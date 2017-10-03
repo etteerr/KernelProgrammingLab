@@ -126,10 +126,10 @@ static int sys_wait(envid_t envid)
     if(!env || !cur) {
         return -1;
     }
-
+    
     cur->env_status = ENV_WAITING;
     cur->waiting_for = envid;
-
+    
     return 0;
 }
 
@@ -268,7 +268,7 @@ static int sys_fork(void)
     }
     
     //VMA
-    memcpy(&newenv->vma_list, &curenv->vma_list, sizeof(vma_arr_t));
+    memcpy(newenv->vma_list, curenv->vma_list, sizeof(vma_arr_t));
     //registers
     newenv->env_tf = curenv->env_tf;
     
