@@ -182,6 +182,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
                 /* Huge page with user rw permissions, COW canidate */
                 pde ^= PDE_BIT_RW; //Set rw permissions to RO
                 newenv->env_pgdir[di] = pde; //save changes
+                curenv->env_pgdir[di] = pde;
                 
                 //Next index (Otherwise we would edit vma already)
                 continue;
@@ -200,6 +201,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
             /* Page table exits and is user rw, may contain COW canidates */
             /* Get page table entry */
             pte_t * pgtable = KADDR(PDE_GET_ADDRESS(pde));
+            pte_t * curpgtable = KADDR(PDE_GET_ADDRESS(curenv->env_pgdir[di]));
             for(uint32_t ti = 0; ti < 1024; ti++) {
                 //page table entry register
                 register pte_t pte = pgtable[ti];
@@ -211,6 +213,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
 
                     pte ^= PTE_BIT_RW; //Make readonly pte entry
                     pgtable[ti] = pte;
+                    curpgtable[ti] = pte;
                     
                     continue;
                 }
@@ -290,8 +293,6 @@ static int sys_fork(void)
         return -1;
     }
     
-    //VMA
-    memcpy(newenv->vma_list, curenv->vma_list, sizeof(vma_arr_t));
     //registers
     newenv->env_tf = curenv->env_tf;
     
@@ -302,8 +303,13 @@ static int sys_fork(void)
     newenv->env_status = ENV_RUNNABLE;
     newenv->env_type = curenv->env_type;
     
-    /* Copy pgdir, changing permissions to COW where applicable */
-    fork_pgdir_copy_and_cow(newenv);
+    /* Copy pgdir, changing permissions to COW where applicable 
+     * for both the parent and the child
+     */
+    fork_pgdir_copy_and_cow(curenv);
+    
+    /* Child now inherits the COW thingies */
+    memcpy(newenv->vma_list, curenv->vma_list, sizeof(vma_arr_t));
     
     /* make eax (return value) 0, such that it knows it is new */
     newenv->env_tf.tf_regs.reg_eax = 0;
