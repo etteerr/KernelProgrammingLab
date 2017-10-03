@@ -329,6 +329,10 @@ void murder_env(env_t *env, uint32_t fault_va) {
 }
 
 void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_original, page_info_t* page){
+    //No original page?
+    if (!pte_original)
+        return;
+    
     if (hit->flags.bit.COW && !(pte_original & PDE_BIT_HUGE)) {
         /* Extract original page address, copy this to our new page */
         page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
