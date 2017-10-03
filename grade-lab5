@@ -108,8 +108,7 @@ def test_hello():
             'hello, world',
             'i am environment 00001000',
             '.00001000. exiting gracefully',
-            '.00001000. free env 00001000',
-            'Destroyed the only environment - nothing more to do!')
+            '.00001000. free env 00001000')
 
 @test(5)
 def test_buggyhello():
