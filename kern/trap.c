@@ -333,6 +333,7 @@ int trap_handle_cow(uint32_t fault_va){
 //    vma_t* hit, pte_t** pte, pte_t pte_original, page_info_t* new_page;
     vma_t * hit = vma_lookup(curenv, (void*) fault_va, 0);
     
+    //store original pte
     pte_t pte_original = *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0);
     
     if (!hit || ! pte_original) {
@@ -345,6 +346,9 @@ int trap_handle_cow(uint32_t fault_va){
     
     if (hit->flags.bit.COW && !(pte_original & PDE_BIT_HUGE)) {
         cprintf("[COW] va %p original_pte %p\n", hit->va, pte_original);
+        /* Reset pte entry */
+        *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
+        
         /* Extract original page address, copy this to our new page */
         page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
         page_info_t *new_page = page_alloc(ALLOC_ZERO);
@@ -353,7 +357,7 @@ int trap_handle_cow(uint32_t fault_va){
                 cprintf("[COW] Page allocation failed!\n");
                 return -1;
             }
-        /* Insert page with original permissions + write*/
+        /* Insert page with original permissions + write */
         
         if (page_insert(curenv->env_pgdir, new_page, (void*)(fault_va & 0xFFFFF000), 
                 (pte_original & 0x1F) | PTE_BIT_RW))
@@ -377,8 +381,10 @@ int trap_handle_cow(uint32_t fault_va){
         return 0;
     }else
         if (hit->flags.bit.COW) {
-            cprintf("[COW] [Huge] va %p original_pte %p\n", hit->va, pte_original);
             /* Hit on huge page */
+            cprintf("[COW] [Huge] va %p original_pte %p\n", hit->va, pte_original);
+            /* Reset pte entry */
+            *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
             
             /* Make some assertions */
             assert(pte_original & PDE_BIT_HUGE); //Should always be true due to if statement
