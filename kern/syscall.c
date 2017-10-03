@@ -130,6 +130,7 @@ static int sys_wait(envid_t envid)
     cur->env_status = ENV_WAITING;
     cur->waiting_for = envid;
     
+    cprintf("%#08x Now waiting for %#08x\n", cur->env_id, envid);
     return 0;
 }
 
