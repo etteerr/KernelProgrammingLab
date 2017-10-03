@@ -116,21 +116,24 @@ static void sys_yield(void)
 static int sys_wait(envid_t envid)
 {
     /* LAB 5: Your code here */
-    if(envid > NENV) {
+    if(ENVX(envid) > NENV) {
+        cprintf("[sys_wait] Invalid envid %p\n", envid);
         return -1;
     }
+    
+    cprintf("[sys_wait] %p shall now wait for %p\n", curenv->env_id, envid);
 
     env_t *env = &envs[envid];
     env_t *cur = (env_t *)curenv; /* IDE's macro unfolding is broken */
 
     if(!env || !cur) {
+        cprintf("[sys_wait] %p cannot wait for %p, %p does not exist!\n", curenv->env_id, envid, envid);
         return -1;
     }
     
     cur->env_status = ENV_WAITING;
     cur->waiting_for = envid;
     
-    cprintf("%#08x Now waiting for %#08x\n", cur->env_id, envid);
     return 0;
 }
 
