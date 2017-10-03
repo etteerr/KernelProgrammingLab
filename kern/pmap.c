@@ -728,6 +728,8 @@ void page_free(struct page_info *pp) {
  * freeing it if there are no more refs.
  */
 void page_decref(struct page_info *pp) {
+    cprintf("[page_decref] page has %d refs remaining.\n", pp->pp_ref - 1);
+    assert(pp->pp_ref > 0);
     if (--pp->pp_ref == 0)
         page_free(pp);
 }

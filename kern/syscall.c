@@ -259,6 +259,7 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
                 if ((src[it] & PTE_BIT_PRESENT) && (src[it] & PTE_BIT_USER)) {
                     uint32_t phy_addr = PTE_GET_PHYS_ADDRESS(src[it]);
                     page_info_t * ptmp = pa2page(phy_addr);
+                    assert(ptmp->pp_ref > 0);
                     ptmp->pp_ref++;
                 }
             }
