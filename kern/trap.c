@@ -353,8 +353,6 @@ int trap_handle_cow(uint32_t fault_va){
         page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
         page_info_t *new_page = page_alloc(ALLOC_ZERO);
         
-        new_page->pp_ref++;
-        
         if (!new_page) {
                 cprintf("[COW] Page allocation failed!\n");
                 return -1;
@@ -396,7 +394,6 @@ int trap_handle_cow(uint32_t fault_va){
             
             /* Now create 4M entry and handle cow */
             page_info_t *new_page = page_alloc(ALLOC_HUGE | ALLOC_ZERO);
-            new_page->pp_ref++;
             
             if (!new_page) {
                 cprintf("[COW] [HUGE] Page allocation failed!\n");
@@ -549,7 +546,6 @@ void handle_pf_pte(uint32_t fault_va){
         cprintf("[PAGEFAULT] Dynamic allocation for %p failed.\n", fault_va);
         murder_env(curenv, fault_va);
     }
-    pp->pp_ref++;
     vma_t * vma = vma_lookup(curenv, (void*)fault_va, 0);
     int perm = PTE_BIT_PRESENT | PTE_BIT_USER;
     perm |= vma->perm & VMA_PERM_WRITE ? PTE_BIT_RW : 0;
