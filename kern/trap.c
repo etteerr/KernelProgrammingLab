@@ -346,11 +346,21 @@ int trap_handle_cow(uint32_t fault_va){
     
     if (hit->flags.bit.COW && !(pte_original & PDE_BIT_HUGE)) {
         cprintf("[COW] va %p original_pte %p\n", hit->va, pte_original);
+        
+        /* If page is only referenced once, it is no longer shared! */
+        /* Get page */
+        page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
+        
+        if (cow_page->pp_ref == 1) {
+            cprintf("[COW] Page referenced only once. Assuming shared.\n");
+            *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) |= PTE_BIT_RW;
+            return 0;
+        }
+        
         /* Reset pte entry */
         *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
         
-        /* Extract original page address, copy this to our new page */
-        page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
+        /* Allocate new page */
         page_info_t *new_page = page_alloc(ALLOC_ZERO);
         
         if (!new_page) {
@@ -384,13 +394,23 @@ int trap_handle_cow(uint32_t fault_va){
         if (hit->flags.bit.COW) {
             /* Hit on huge page */
             cprintf("[COW] [Huge] va %p original_pte %p\n", hit->va, pte_original);
-            /* Reset pte entry */
-            *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
             
             /* Make some assertions */
             assert(pte_original & PDE_BIT_HUGE); //Should always be true due to if statement
             assert(hit->perm & VMA_PERM_WRITE);
             assert(pte_original * PDE_BIT_RW);
+            
+            /* Check if page is still shared */
+            page_info_t *cow_page = pa2page(PDE_GET_ADDRESS(pte_original));
+            
+            if (cow_page->pp_ref == 1) {
+                cprintf("[COW] Page referenced only once. Assuming shared.\n");
+                *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) |= PTE_BIT_RW;
+                return 0;
+            }
+            
+            /* Reset pte entry */
+            *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
             
             /* Now create 4M entry and handle cow */
             page_info_t *new_page = page_alloc(ALLOC_HUGE | ALLOC_ZERO);
@@ -400,7 +420,6 @@ int trap_handle_cow(uint32_t fault_va){
                 return -1;
             }
             
-            page_info_t *cow_page = pa2page(PDE_GET_ADDRESS(pte_original));
             
             if (page_insert(curenv->env_pgdir, new_page, (void*) page2pa(new_page), 
                     PDE_BIT_PRESENT | PDE_BIT_RW | PDE_BIT_HUGE | PDE_BIT_USER
