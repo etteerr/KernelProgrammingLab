@@ -314,6 +314,13 @@ static int sys_fork(void)
     /* make eax (return value) 0, such that it knows it is new */
     newenv->env_tf.tf_regs.reg_eax = 0;
     
+    /* Change uvpt to reflect the child page table in the child pgdir */
+    pte_t * uvpt_entry = pgdir_walk(newenv->env_pgdir, (void*)UVPT, 0);
+    if (!uvpt_entry)
+        panic("[FORK] Critical: uvpt entry missing!\n");
+    *uvpt_entry &= 0x0000001F; //Keep only permissions
+    *uvpt_entry |= (uint32_t)newenv->env_pgdir; //store address
+    
     /* Flush tlb */
     tlbflush();
     
