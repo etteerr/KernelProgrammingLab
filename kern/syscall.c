@@ -164,7 +164,7 @@ void fork_vma_makecow(env_t* newenv, uint32_t va_range_start, uint32_t va_range_
     }
 }
 
-void fork_pgdir_copy_and_cow(env_t* newenv){
+void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
     /* Setup permission check register */
     uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
     uint32_t pte_small_check = PTE_BIT_RW | PTE_BIT_PRESENT | PTE_BIT_USER;
@@ -182,7 +182,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
                 /* Huge page with user rw permissions, COW canidate */
                 pde ^= PDE_BIT_RW; //Set rw permissions to RO
                 newenv->env_pgdir[di] = pde; //save changes
-                curenv->env_pgdir[di] = pde;
+                cenv->env_pgdir[di] = pde;
                 
                 //Next index (Otherwise we would edit vma already)
                 continue;
@@ -190,7 +190,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
             /* COWify VMA range */
             if (range_start) {
                 uint32_t range_end = di * (PGSIZE*1024);
-                fork_vma_makecow(newenv, range_start, range_end);
+                fork_vma_makecow(cenv, range_start, range_end);
                 /* Reset range */
                 range_start = 0;
             }
@@ -201,7 +201,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
             /* Page table exits and is user rw, may contain COW canidates */
             /* Get page table entry */
             pte_t * pgtable = KADDR(PDE_GET_ADDRESS(pde));
-            pte_t * curpgtable = KADDR(PDE_GET_ADDRESS(curenv->env_pgdir[di]));
+            pte_t * curpgtable = KADDR(PDE_GET_ADDRESS(cenv->env_pgdir[di]));
             for(uint32_t ti = 0; ti < 1024; ti++) {
                 //page table entry register
                 register pte_t pte = pgtable[ti];
@@ -221,7 +221,7 @@ void fork_pgdir_copy_and_cow(env_t* newenv){
                 /* COWify VMA range */
                 if (range_start) {
                     uint32_t range_end = di * (PGSIZE*1024) + ti * PGSIZE; //Not inclusive
-                    fork_vma_makecow(newenv, range_start, range_end);
+                    fork_vma_makecow(cenv, range_start, range_end);
                     /* Reset range */
                     range_start = 0;
                 }
@@ -306,7 +306,7 @@ static int sys_fork(void)
     /* Copy pgdir, changing permissions to COW where applicable 
      * for both the parent and the child
      */
-    fork_pgdir_copy_and_cow(curenv);
+    fork_pgdir_copy_and_cow(curenv, newenv);
     
     /* Child now inherits the COW thingies */
     memcpy(newenv->vma_list, curenv->vma_list, sizeof(vma_arr_t));
