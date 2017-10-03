@@ -597,10 +597,16 @@ void page_fault_handler(struct trapframe *tf)
             murder_env(curenv, fault_va);
             break;
         case PAGEFAULT_TYPE_COW:
+            if (0) 
+                return;
+            uint32_t preval = *(uint32_t * ) fault_va;
             if (trap_handle_cow(fault_va)) {
                 cprintf("[PAGEFAULT] COW failed.\n");
                 murder_env(curenv, fault_va);
             }
+            uint32_t postval =*(uint32_t * ) fault_va;
+            cprintf("pre COW: %p\npost COW:%p\n", preval, postval);
+            assert(preval == postval);
             break;
         case PAGEFAULT_TYPE_FILEBACKED:
             if (trap_handle_backed_memory(fault_va)) {
