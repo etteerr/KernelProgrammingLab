@@ -274,11 +274,11 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     e->env_tf.tf_ss = GD_UD | 3;
     e->env_tf.tf_esp = USTACKTOP;
     e->env_tf.tf_cs = GD_UT | 3;
-    e->env_tf.tf_eflags |= FL_IF;
     /* You will set e->env_tf.tf_eip later. */
 
     /* Enable interrupts while in user mode.
      * LAB 5: Your code here. */
+    e->env_tf.tf_eflags |= FL_IF;
 
 
     /* commit the allocation */
@@ -591,7 +591,7 @@ void env_free(struct env *e)
 void env_destroy(struct env *e)
 {
     size_t i;
-    
+
     /* Mark all envs waiting for this env as runnable again */
     for(i = 0; i < NENV; i++) {
         env_t *env = &envs[i];
