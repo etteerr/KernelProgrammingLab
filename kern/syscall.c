@@ -154,8 +154,8 @@ void fork_vma_makecow(env_t* newenv, uint32_t va_range_start, uint32_t va_range_
         vma = &newenv->vma_list->vmas[vma_index];
         vma->flags.bit.COW = 1;
         /* Check if everything permissions in vma where correct as well */
-        assert(pvals.perm==VMA_PERM_WRITE);
-        assert(vma->perm==VMA_PERM_WRITE);
+        assert(pvals.perm & VMA_PERM_WRITE);
+        assert(vma->perm & VMA_PERM_WRITE);
         assert(vma->perm == pvals.perm);
     }
 }
@@ -270,13 +270,13 @@ static int sys_fork(void)
     //VMA
     memcpy(&newenv->vma_list, &curenv->vma_list, sizeof(vma_arr_t));
     //registers
-    newenv->env_tf= curenv->env_tf;
+    newenv->env_tf = curenv->env_tf;
     
     /* Make a deep copy of the page dir */
     pgdir_deepcopy(newenv->env_pgdir,curenv->env_pgdir);
     
     //Etc
-    newenv->env_status = curenv->env_status;
+    newenv->env_status = ENV_RUNNABLE;
     newenv->env_type = curenv->env_type;
     
     /* Copy pgdir, changing permissions to COW where applicable */

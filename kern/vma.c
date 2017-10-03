@@ -455,7 +455,10 @@ void vma_dump(vma_t * vma) {
     if (vma->type == VMA_UNUSED) cprintf(" unused");
     cprintf("] ");
     if (vma->backed_addr) {
-        cprintf("Backed by: %#08x - %#08x", vma->backed_addr, vma->backed_addr + vma->backed_start_offset);
+        cprintf("Backed by: %#08x - %#08x (%#08x)", 
+                vma->backed_addr, 
+                vma->backed_addr + vma->backsize, 
+                vma->backsize);
     }
 }
 

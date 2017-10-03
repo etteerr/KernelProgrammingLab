@@ -471,13 +471,14 @@ static void load_icode(struct env *e, uint8_t *binary)
 
             /* VMA mapping */
             int perm = 0;
-            perm |= ph->p_flags & ELF_PROG_FLAG_EXEC  ? VMA_PERM_EXEC  : 0;
-            perm |= ph->p_flags & ELF_PROG_FLAG_WRITE ? VMA_PERM_WRITE : 0;
-            perm |= ph->p_flags & ELF_PROG_FLAG_READ  ? VMA_PERM_READ  : 0;
+//            perm |= ph->p_flags & ELF_PROG_FLAG_EXEC  ? VMA_PERM_EXEC  : 0;
+//            perm |= ph->p_flags & ELF_PROG_FLAG_WRITE ? VMA_PERM_WRITE : 0;
+//            perm |= ph->p_flags & ELF_PROG_FLAG_READ  ? VMA_PERM_READ  : 0;
+            perm = VMA_PERM_WRITE | VMA_PERM_READ | VMA_PERM_EXEC;
             int vma_index = vma_new(e, (void*)ph->p_va, ph->p_memsz, perm, VMA_BINARY); //elf binary
             
             /* Set vma backing */
-            vma_set_backing(e, vma_index, binary + ph->p_offset, ph->p_filesz);
+//            vma_set_backing(e, vma_index, binary + ph->p_offset, ph->p_filesz);
             
             
             /* set end of code space variable*/
@@ -486,13 +487,13 @@ static void load_icode(struct env *e, uint8_t *binary)
 
             /* Allocate region (prevents fault OD allocations) */
             /* We may not allocate code region like this, it implies write permissions */
-//            region_alloc(e, (void *)ph->p_va, ph->p_memsz);
+            region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 
             /* We can use virtual addresses because the uenv's pgdir has been loaded */
-//            memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+            memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
 
             /* Zero out remaining bytes */
-//            memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
+            memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
         }
 
     /* Add ELF entry to environment's instruction pointer */
