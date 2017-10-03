@@ -314,6 +314,9 @@ static int sys_fork(void)
     /* make eax (return value) 0, such that it knows it is new */
     newenv->env_tf.tf_regs.reg_eax = 0;
     
+    /* Flush tlb */
+    tlbflush();
+    
     //Return the new env id so that the forker knows who he spawned
     return newenv->env_id;
 }
