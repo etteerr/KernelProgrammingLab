@@ -470,13 +470,23 @@ static void load_icode(struct env *e, uint8_t *binary)
             assert(ph->p_va + ph->p_memsz <= UTOP);
 
             /* VMA mapping */
-            vma_new(e, (void*)ph->p_va, ph->p_memsz, VMA_PERM_READ | VMA_PERM_EXEC, VMA_BINARY); //elf binary
-
+            int perm = 0;
+//            perm |= ph->p_flags & ELF_PROG_FLAG_EXEC  ? VMA_PERM_EXEC  : 0;
+//            perm |= ph->p_flags & ELF_PROG_FLAG_WRITE ? VMA_PERM_WRITE : 0;
+//            perm |= ph->p_flags & ELF_PROG_FLAG_READ  ? VMA_PERM_READ  : 0;
+            perm = VMA_PERM_WRITE | VMA_PERM_READ | VMA_PERM_EXEC;
+            int vma_index = vma_new(e, (void*)ph->p_va, ph->p_memsz, perm, VMA_BINARY); //elf binary
+            
+            /* Set vma backing */
+//            vma_set_backing(e, vma_index, binary + ph->p_offset, ph->p_filesz);
+            
+            
             /* set end of code space variable*/
             if (ph->p_va+ph->p_memsz > eoc_mem)
                 eoc_mem = ph->p_va+ph->p_memsz;
 
             /* Allocate region (prevents fault OD allocations) */
+            /* We may not allocate code region like this, it implies write permissions */
             region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 
             /* We can use virtual addresses because the uenv's pgdir has been loaded */
@@ -548,6 +558,9 @@ void env_free(struct env *e)
 
     /* Note the environment's demise. */
     cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+    
+    /* Clean vmas */
+    vma_array_destroy(e);
 
     /* Flush all mapped pages in the user portion of the address space */
     static_assert(UTOP % PTSIZE == 0);
@@ -562,9 +575,13 @@ void env_free(struct env *e)
         pt = (pte_t*) KADDR(pa);
 
         /* Unmap all PTEs in this page table */
-        for (pteno = 0; pteno <= PTX(~0); pteno++) {
-            if (pt[pteno] & PTE_P)
-                page_remove(e->env_pgdir, PGADDR(pdeno, pteno, 0));
+        if (e->env_pgdir[pdeno] & PDE_BIT_HUGE) {
+            page_remove(e->env_pgdir, PGADDR(pdeno, 0, 0));
+        }else{
+            for (pteno = 0; pteno <= PTX(~0); pteno++) {
+                if (pt[pteno] & PTE_P)
+                    page_remove(e->env_pgdir, PGADDR(pdeno, pteno, 0));
+            }
         }
 
         /* Free the page table itself */
@@ -609,12 +626,11 @@ void env_destroy(struct env *e)
         return;
     }
 
-    vma_array_destroy(e);
     env_free(e);
 
     if (curenv == e) {
         curenv = NULL;
-        sched_yield();
+//        sched_yield();
     }
 }
 

@@ -49,12 +49,14 @@ void sched_yield(void)
         curenv_i = (cur - envs);
 
         /* If current env has CPU time left in its slice, run it again */
-        if(cur->remain_cpu_time - since_last_yield < MAX_TIME_SLICE) {
+        if(cur->env_status == ENV_RUNNING && (cur->remain_cpu_time > since_last_yield)) {
             cur->remain_cpu_time -= since_last_yield;
+            cprintf("------------> Continue %d at %p remaining time: %u\n", curenv_i, envs[curenv_i].env_tf.tf_eip, cur->remain_cpu_time);
             unlock_kernel();
             env_run(cur);
         } else {
             cur->remain_cpu_time = MAX_TIME_SLICE;
+            cprintf("------------> End of Timeslice %d at %p\n", curenv_i, envs[curenv_i].env_tf.tf_eip);
         }
     }
 
@@ -65,6 +67,8 @@ void sched_yield(void)
         idle = &envs[env_i];
 
         if(idle && idle->env_status == ENV_RUNNABLE) {
+            cprintf("------------> Running %d at %p\n", env_i, envs[env_i].env_tf.tf_eip);
+            assert(idle->env_tf.tf_eip);
             unlock_kernel();
             env_run(idle);
         }
@@ -72,6 +76,7 @@ void sched_yield(void)
 
     /* If no eligible envs found above, we can continue running curenv if it is still marked as running */
     if(curenv && curenv->env_status == ENV_RUNNING) {
+        cprintf("------------> Continue %d at %p\n", curenv_i, envs[curenv_i].env_tf.tf_eip);
         unlock_kernel();
         env_run(curenv);
     }

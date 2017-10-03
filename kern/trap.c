@@ -21,6 +21,7 @@
 #include "monitor.h"
 #include "syscall.h"
 #include "spinlock.h"
+#include "kdebug.h"
 
 static struct taskstate ts;
 
@@ -275,7 +276,7 @@ void trap(struct trapframe *tf)
     assert(!(read_eflags() & FL_IF));
 
     cprintf("Incoming TRAP frame at %p\n", tf);
-
+    
     if ((tf->tf_cs & 3) == 3) {
         /* Trapped from user mode. */
         /* Acquire the big kernel lock before doing any serious kernel work.
@@ -327,6 +328,233 @@ void murder_env(env_t *env, uint32_t fault_va) {
     env_destroy(env);
 }
 
+int trap_handle_cow(uint32_t fault_va){
+    
+//    vma_t* hit, pte_t** pte, pte_t pte_original, page_info_t* new_page;
+    vma_t * hit = vma_lookup(curenv, (void*) fault_va, 0);
+    
+    //store original pte
+    pte_t pte_original = *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0);
+    
+    if (!hit || ! pte_original) {
+        cprintf("[COW] Invalid pte (%p) or vma (", pte_original);
+        if (hit)
+            vma_dump(hit);
+        cprintf(")!\n");
+        return -1;
+    }
+    
+    if (hit->flags.bit.COW && !(pte_original & PDE_BIT_HUGE)) {
+        cprintf("[COW] va %p original_pte %p\n", hit->va, pte_original);
+        /* Reset pte entry */
+        *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
+        
+        /* Extract original page address, copy this to our new page */
+        page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
+        page_info_t *new_page = page_alloc(ALLOC_ZERO);
+        
+        if (!new_page) {
+                cprintf("[COW] Page allocation failed!\n");
+                return -1;
+            }
+        /* Insert page with original permissions + write */
+        
+        if (page_insert(curenv->env_pgdir, new_page, (void*)(fault_va & 0xFFFFF000), 
+                (pte_original & 0x1F) | PTE_BIT_RW))
+        {
+            cprintf("[COW] Page insertion failed!\n");
+            page_decref(new_page);
+            return -1;
+        }
+        
+        void *src = (void*) page2kva(cow_page);
+        void *dst = (void*) page2kva(new_page);
+        memcpy(src,dst, PGSIZE);
+        
+        /* Make a final assertion, cow should only trigger on writes */
+        assert(hit->perm & PTE_BIT_RW);
+        assert(hit->perm & VMA_PERM_WRITE);
+        
+        /* Decrease page ref counter */
+        page_decref(cow_page);
+        
+        return 0;
+    }else
+        if (hit->flags.bit.COW) {
+            /* Hit on huge page */
+            cprintf("[COW] [Huge] va %p original_pte %p\n", hit->va, pte_original);
+            /* Reset pte entry */
+            *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
+            
+            /* Make some assertions */
+            assert(pte_original & PDE_BIT_HUGE); //Should always be true due to if statement
+            assert(hit->perm & VMA_PERM_WRITE);
+            assert(pte_original * PDE_BIT_RW);
+            
+            /* Now create 4M entry and handle cow */
+            page_info_t *new_page = page_alloc(ALLOC_HUGE | ALLOC_ZERO);
+            
+            if (!new_page) {
+                cprintf("[COW] [HUGE] Page allocation failed!\n");
+                return -1;
+            }
+            
+            page_info_t *cow_page = pa2page(PDE_GET_ADDRESS(pte_original));
+            
+            if (page_insert(curenv->env_pgdir, new_page, (void*) page2pa(new_page), 
+                    PDE_BIT_PRESENT | PDE_BIT_RW | PDE_BIT_HUGE | PDE_BIT_USER
+                    ))
+            {
+                cprintf("[COW] [HUGE] Page insertion failed!\n");
+                page_decref(new_page);
+                return -1;
+            }
+            
+            void *src = (void*) page2kva(cow_page);
+            void *dst = (void*) page2kva(new_page);
+            
+            memcpy(src, dst, PGSIZE*1024);
+            
+            /* Decrease page ref counter */
+            page_decref(cow_page);
+            
+            return 0;
+        }
+    
+    return -1;
+}
+
+int trap_handle_backed_memory(uint32_t fault_va){
+    vma_t * vma = vma_lookup(curenv, (void*)fault_va, 0);
+    if (vma->backed_addr && vma->len) {
+        /* Our vma is backed! */
+        cprintf("[filebacked memory] Backing memory address %p\n", fault_va);
+        
+        page_info_t * page = page_alloc(ALLOC_ZERO);
+        if (!page) {
+            cprintf("[filebacked memory] Page allocation failed!\n");
+            return -1;
+        }
+        
+        int perm = PTE_BIT_USER | PTE_BIT_PRESENT;
+        perm |= vma->perm & VMA_PERM_WRITE ? PTE_BIT_RW : 0;
+        
+        if (page_insert(curenv->env_pgdir, page, (void*)(fault_va & 0xFFFFF000), perm)) {
+            cprintf("[filebacked memory] Page insertion failed!\n");
+            page_decref(page);
+            return -1;
+        }
+        /* Set the inter vma offset of the file backing
+         * Take into account the intitial offset provided as non-allignment of the vma
+         * example:
+         *  vma_new(addr=0x0200020)
+         *  start addres will be 0x0200020
+         *  offset will be 0x20
+         *  as filebacking starts from requested vma addr
+         */
+        uint32_t page_va = fault_va & 0xFFFFF000;
+        
+        /* Set copy parameters */
+        uint32_t src = (uint32_t)vma->backed_addr;
+        uint32_t dst = (uint32_t)page2kva(page);
+        uint32_t cpy_len = PGSIZE;
+        
+        /* determine if dst_base is within page backed offset (null zone) */
+        /* page alligned -> [null zone | requested vma | null zone ] */
+        /* This is the case when it is the first page in the vma */
+        if ((page_va == (uint32_t)vma->va) && vma->backed_start_offset) {
+            /* We have a backed offset and this is the first page */
+            dst += vma->backed_start_offset;
+            assert(vma->backed_start_offset <= PGSIZE);
+            cpy_len -= vma->backed_start_offset;
+        }
+        
+        /* Check if we do not exceed our backed length */
+        uint32_t ivma_offset = fault_va - (uint32_t)vma->va;
+        if (ivma_offset > vma->backsize) {
+            uint32_t overflow = ivma_offset - vma->backsize;
+            if (overflow >= cpy_len)
+                return 0; //nothing to copy, we are in null region
+            
+            cpy_len -= overflow;
+        }
+        
+        /* Set correct src and dst offset in pages */
+        uint32_t pages_offset = fault_va - (uint32_t)vma->va;
+        pages_offset /= PGSIZE;
+        dst += pages_offset * PGSIZE;
+        src += pages_offset * PGSIZE;
+        
+        /* Do memcpy */
+        memcpy((void*) dst, (void*) src, cpy_len);
+        
+        return 0;
+    }
+    
+    return -1;
+}
+
+/**
+ * Determine the type of page fault
+ * @param fault_va
+ * @param is_kernel
+ * @return 
+ */
+int determine_pagefault(uint32_t fault_va, bool is_kernel){
+    env_t * e = curenv;
+    
+    /* Determine if this is the kernel */
+    if (is_kernel)
+        return PAGEFAULT_TYPE_KERNEL;
+    
+    /* Determine if it is user accessable*/
+    if(!is_kernel && (fault_va < USTABDATA || fault_va >= UTOP))
+        return PAGEFAULT_TYPE_OUTSIDE_USER_RANGE;
+    
+    /* Determine if the vma exists and is used */
+    vma_t * vma = vma_lookup(e, (void*)fault_va, 0);
+    if (!vma)
+        return PAGEFAULT_TYPE_NO_VMA;
+    
+    if (vma->type == VMA_UNUSED)
+        return PAGEFAULT_TYPE_UNUSED_VMA;
+    
+    /* Determine if the pte entry and vma specify a condition */
+    pte_t * pte = pgdir_walk(e->env_pgdir, (void*)fault_va, 0);
+    if (pte && (*pte & PTE_BIT_PRESENT)) {
+        /* Condition page present */
+        if (!(*pte & PTE_BIT_RW) && vma->perm & VMA_PERM_WRITE)
+            return PAGEFAULT_TYPE_COW;
+        else
+            return PAGEFAULT_TYPE_INVALID_PERMISSION;
+    }else{
+        /* Condition page not present */
+        if (!pte && vma->backed_addr)
+            return PAGEFAULT_TYPE_FILEBACKED;
+        
+        return PAGEFAULT_TYPE_NO_PTE;
+    }
+    
+    return PAGEFAULT_TYPE_NONE;
+}
+
+void handle_pf_pte(uint32_t fault_va){
+    page_info_t * pp = page_alloc(ALLOC_ZERO);
+    if (!pp) {
+        cprintf("[PAGEFAULT] Dynamic allocation for %p failed.\n", fault_va);
+        murder_env(curenv, fault_va);
+    }
+    vma_t * vma = vma_lookup(curenv, (void*)fault_va, 0);
+    int perm = PTE_BIT_PRESENT | PTE_BIT_USER;
+    perm |= vma->perm & VMA_PERM_WRITE ? PTE_BIT_RW : 0;
+    int res = page_insert(curenv->env_pgdir, pp, (void*)(fault_va & 0xFFFFF000), perm);
+    if (res) {
+        cprintf("[PAGEFAULT] Failed to map page table: page allocation failed\n");
+        page_decref(pp);
+        murder_env(curenv, fault_va);
+    }
+}
+
 void page_fault_handler(struct trapframe *tf)
 {
     uint32_t fault_va, cs;
@@ -339,51 +567,62 @@ void page_fault_handler(struct trapframe *tf)
         panic("No curenv set");
     }
 
-    /* If user is requesting an address outside its addressable range, kill it */
-    if(!is_kernel && (fault_va < USTABDATA || fault_va >= UTOP)) {
-        cprintf("Virtual address outside of user addressable range\n");
-        return murder_env(curenv, fault_va);
+    /* Determine type of pagefault */
+    int pf_type = determine_pagefault(fault_va, is_kernel);
+    
+    /* Handle all pagefaults */
+    
+    switch (pf_type) {
+        case PAGEFAULT_TYPE_KERNEL:
+            murder_env(curenv, fault_va);
+            break;
+        case PAGEFAULT_TYPE_OUTSIDE_USER_RANGE:
+            cprintf("[PAGEFAULT] Page outside user accessable range.\n");
+            murder_env(curenv, fault_va);
+            break;
+        case PAGEFAULT_TYPE_INVALID_PERMISSION:
+            cprintf("[PAGEFAULT] Page permissions insufficient.\n");
+            murder_env(curenv, fault_va);
+            break;
+        case PAGEFAULT_TYPE_NO_PTE:
+            cprintf("[PAGEFAULT] No page entry exists at %p.\n", fault_va);
+            handle_pf_pte(fault_va);
+            break;
+        case PAGEFAULT_TYPE_NO_VMA:
+            cprintf("[PAGEFAULT] Va outside VMA ranges.\n");
+            murder_env(curenv, fault_va);
+            break;
+        case PAGEFAULT_TYPE_UNUSED_VMA:
+            cprintf("[PAGEFAULT] VA inside unused VMA range.\n");
+            murder_env(curenv, fault_va);
+            break;
+        case PAGEFAULT_TYPE_COW:
+            if (0) 
+                return;
+            uint32_t preval = *(uint32_t * ) fault_va;
+            if (trap_handle_cow(fault_va)) {
+                cprintf("[PAGEFAULT] COW failed.\n");
+                murder_env(curenv, fault_va);
+            }
+            uint32_t postval =*(uint32_t * ) fault_va;
+            cprintf("pre COW: %p\npost COW:%p\n", preval, postval);
+            assert(preval == postval);
+            break;
+        case PAGEFAULT_TYPE_FILEBACKED:
+            if (trap_handle_backed_memory(fault_va)) {
+                cprintf("[PAGEFAULT] file backing failed.\n");
+                murder_env(curenv, fault_va);
+            }
+            break;
+        case PAGEFAULT_TYPE_NONE:
+            cprintf("[PAGEFAULT] No pagefault!\n");
+        default:
+            panic("Unhandled pagefault type %d", pf_type);
     }
-
-    /* Check if user env has a VMA for given address */
-    vma_t *hit = vma_lookup(curenv, (void *)fault_va, 0);
-    if(!hit) {
-        cprintf("Virtual address does not have VMA mapping\n");
-        vma_dump_all(curenv);
-        return murder_env(curenv, fault_va);
-    }
-
-    /* Only allow dynamic allocation of pre-mapped VMA regions */
-    if(hit->type == VMA_UNUSED) {
-        cprintf("Virtual address in unused VMA\n");
-        return murder_env(curenv, fault_va);
-    }
-
-    /* Check if memory address is already mapped. If so, the page fault was triggered by lacking permissions. */
-    pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)fault_va, 0);
-    if(pte && *pte & PTE_BIT_PRESENT) {
-        cprintf("User page fault\n");
-        return murder_env(curenv, fault_va);
-    }
-
-    /*Try and allocate a new physical page*/
-    page_info_t *page = page_alloc(ALLOC_ZERO);
-    if(!page) {
-        cprintf("Unable to allocate dynamically requested memory\n");
-        return murder_env(curenv, fault_va);
-    }
-
-    /* Set permissions and insert page into the page table (pgdir/pgtable) */
-    int permissions = PTE_BIT_PRESENT | PTE_BIT_USER;
-    permissions |= (hit->perm & VMA_PERM_WRITE) ? PTE_BIT_RW : 0;
-    int result = page_insert(curenv->env_pgdir, page, (void *)fault_va, permissions);
-    if(result == -E_NO_MEM) {
-        cprintf("Unable to allocate page table entry\n");
-        return murder_env(curenv, fault_va);
-    }
-
+        
+    
     /* If we've reached this point, the memory fault should have been addressed properly */
-    cprintf("Page fault should be fixed\n");
+    cprintf("Page fault at (%#08x) should be fixed\n", fault_va);
 }
 
 void breakpoint_handler(struct trapframe *tf) {

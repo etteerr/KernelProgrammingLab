@@ -41,17 +41,21 @@ void vma_array_init(env_t* e) {
             page_insert(e->env_pgdir, pp, (void*) VMA_UVA, PTE_BIT_USER | PTE_BIT_PRESENT);
     
     //Kernel mapping
-    ret |= page_insert(e->env_pgdir, pp, (void*) VMA_KVA, PTE_BIT_RW | PTE_BIT_PRESENT);
-    assert(ret==0);
+//    ret |= page_insert(e->env_pgdir, pp, (void*) VMA_KVA, PTE_BIT_RW | PTE_BIT_PRESENT);
+//    assert(ret==0);
         
     /* update env & set initial values */
-    vma_arr_t * vma_arr = (vma_arr_t*) VMA_KVA;
+    vma_arr_t * vma_arr = (vma_arr_t*) page2kva(pp);
     e->vma_list = vma_arr;
     
 //    vma_arr->highest_va_vma = VMA_INVALID_INDEX;
     vma_arr->lowest_va_vma = VMA_INVALID_INDEX;
 }
 
+/**
+ * Cleans the vma array and all its associated pgdir entries
+ * @param e
+ */
 void vma_array_destroy(env_t* e) {
     if (e->vma_list == 0)
         return;
@@ -68,7 +72,7 @@ void vma_array_destroy(env_t* e) {
     }
 
     /* Free vma_arr_t struct, which reserves an entire page */
-    __dealloc_range(e, (vma_arr_t*) VMA_KVA, PGSIZE);
+    __dealloc_range(e, (void*)VMA_UVA, PGSIZE);
 }
 
 inline int vma_is_empty(vma_t* vma) {
@@ -95,6 +99,13 @@ void vma_remove(env_t *e, vma_t * vma) {
     
     /* empty region */
     memset((void*)vma, 0, sizeof(vma_t));
+}
+
+void vma_set_backing(env_t* e, int vma_index, void * addr, uint32_t len) {
+        vma_t * vma = &e->vma_list->vmas[vma_index];
+        assert(vma->backed_addr == 0);
+        vma->backed_addr = addr;
+        vma->backsize = len;
 }
 
 int vma_get_relative(vma_t * vma1, vma_t * vma2) {
@@ -137,6 +148,9 @@ int vma_new(env_t *e, void *va, size_t len, int perm, int type) {
     /* vma assertions */
     assert(len);
     
+    /* pg allign */
+    len = ROUNDUP(len, PGSIZE);
+    
     /* Create and map a empty vma and link in the va order */
     uint32_t i;
     vma_arr_t * vmar = e->vma_list;
@@ -153,10 +167,13 @@ breaky:
     assert(entry);
 
     /* Fill entry values */
-    entry->va = va;
+    entry->va = (void*)((uint32_t)va & 0xFFFFF000);
+    entry->backed_start_offset = (uint16_t)((uint32_t)va & 0xFFF);
     entry->len = len;
     entry->perm = perm;
     entry->type = type; 
+    entry->backed_addr = 0;
+    entry->backsize = 0;
     
     
    if (vma_lookup(e, va, len)!=0) {
@@ -227,7 +244,7 @@ breaky:
             //If we are adjacent to the current ( [current][us] )
             if (pos_c == VMA_RELATIVE_AFTER_ADJ) {
                 /* merge with centry if permissions match */
-                if (entry->perm == centry->perm && entry->type == centry->type) {
+                if (entry->perm == centry->perm && entry->type == centry->type && centry->backsize == 0) {
                     centry->len += entry->len;
                     
                     /* Clear our allocated entry */
@@ -241,7 +258,7 @@ breaky:
             //If we are adjacent to the next entry ( [us][next] )
             if (pos_n == VMA_RELATIVE_BEFORE_ADJ) {
                 /* merge with centry if permissions match */
-                if (entry->perm == nentry->perm && entry->type == nentry->type) {
+                if (entry->perm == nentry->perm && entry->type == nentry->type && nentry->backsize == 0) {
                     nentry->len += (uint32_t)(nentry->va - entry->va);
                     nentry->va = entry->va;
                     
@@ -436,7 +453,13 @@ void vma_dump(vma_t * vma) {
     if (vma->type == VMA_ANON) cprintf(" anon");
     if (vma->type == VMA_BINARY) cprintf(" binary");
     if (vma->type == VMA_UNUSED) cprintf(" unused");
-    cprintf("]");
+    cprintf("] ");
+    if (vma->backed_addr) {
+        cprintf("Backed by: %#08x - %#08x (%#08x)", 
+                vma->backed_addr, 
+                vma->backed_addr + vma->backsize, 
+                vma->backsize);
+    }
 }
 
 void vma_dump_all(env_t *e) {

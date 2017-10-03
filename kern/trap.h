@@ -70,4 +70,17 @@ void trap_irq_err();
 /* Special trap to host the sysenter opcode's call */
 void trap_sysenter();
 
+/* Page fault types */
+enum {
+    PAGEFAULT_TYPE_NONE = 0,
+    PAGEFAULT_TYPE_KERNEL,
+    PAGEFAULT_TYPE_OUTSIDE_USER_RANGE,
+    PAGEFAULT_TYPE_NO_VMA,
+    PAGEFAULT_TYPE_UNUSED_VMA,
+    PAGEFAULT_TYPE_INVALID_PERMISSION,
+    PAGEFAULT_TYPE_COW,
+    PAGEFAULT_TYPE_FILEBACKED,
+    PAGEFAULT_TYPE_NO_PTE,
+};
+
 #endif /* JOS_KERN_TRAP_H */

@@ -101,5 +101,14 @@ enum {
  */
 int vma_get_relative(vma_t * vma1, vma_t * vma2);
 
+/**
+ * Set vma to be backed by addr untill addr + len, afterwards all zeros
+ * @param e
+ * @param vma_index
+ * @param addr
+ * @param len
+ */
+void vma_set_backing(env_t* e, int vma_index, void * addr, uint32_t len);
+
 #endif /* VMA_H */
 

@@ -6,8 +6,12 @@
 envid_t fork(void)
 {
     /* LAB 5: Your code here. */
-//    panic("fork not implemented");
-
-    /* TODO: this return is just so we can test user/spin.c, remove after implementing fork() */
-    return (envid_t)0;
+    uint32_t res = sys_fork();
+    if (res) 
+        return res;
+    
+    uint32_t envid = sys_getenvid();
+    thisenv = &envs[ENVX(envid)];
+    cprintf("Ima child, getting env id: %p\n", envid);
+    return 0;
 }

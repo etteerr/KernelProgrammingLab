@@ -12,7 +12,7 @@
 #define VMA_ARRAY_SIZE 128
 #define VMA_UVA 0xE0000000
 /* map above static 4m kernel mapping */
-#define VMA_KVA (0xFFFFF000)
+//#define VMA_KVA (0xFFFFF000)
 
 #define VMA_INVALID_POINTER (uint8_t)0xFFFF
 #define VMA_INVALID_INDEX (uint8_t)0xFFFF
@@ -36,13 +36,31 @@ enum {
     VMA_BINARY,
 };
 
+typedef union {
+    uint8_t reg;
+    struct {
+        unsigned COW:1;
+        unsigned :7;
+    }bit;
+} vma_flags_t;
+
 typedef struct vma {
-    int type;
-    void *va;
-    size_t len;
-    int perm;
-    uint8_t p_adj;
-    uint8_t n_adj;
+    void *va; //4
+    size_t len;//8
+    uint8_t perm; //9
+    uint8_t p_adj;//10
+    uint8_t n_adj;//11
+    uint8_t type;//12
+    /* 
+     * The lower 12 bits which get round round from va is va is not alligned.
+     * This is to support file backing outside allignment
+     */
+    uint16_t backed_start_offset;//14
+    //implied padding?
+    vma_flags_t flags;
+    void * backed_addr;
+    uint32_t backsize;
+    
     /* LAB 4: You may add more fields here, if required. */
 } vma_t;
 

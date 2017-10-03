@@ -126,18 +126,168 @@ static int sys_wait(envid_t envid)
     if(!env || !cur) {
         return -1;
     }
-
+    
     cur->env_status = ENV_WAITING;
     cur->waiting_for = envid;
-
+    
+    cprintf("%#08x Now waiting for %#08x\n", cur->env_id, envid);
     return 0;
+}
+
+void fork_vma_makecow(env_t* newenv, uint32_t va_range_start, uint32_t va_range_end){
+    uint32_t len = va_range_end - va_range_start;
+    vma_t *vma = vma_lookup(newenv, (void*)va_range_start, len);
+    
+    if (!vma) {
+        vma_dump_all(newenv);
+        cprintf("---------Error in vma range %#08x-%#08x---------\n", va_range_start, va_range_end);
+        panic("No existing vma in range!");
+    }
+    
+    if (vma->len == len){
+        vma->flags.bit.COW = 1;
+    }else {
+        /* remap required */
+        /* Copy original vma for future reference*/
+        vma_t pvals = *vma;
+        vma_unmap(newenv, (void*) va_range_start, len);
+        int vma_index = vma_new(newenv, (void*) va_range_start, len, pvals.perm, pvals.type);
+        vma = &newenv->vma_list->vmas[vma_index];
+        vma->flags.bit.COW = 1;
+        /* Check if everything permissions in vma where correct as well */
+        assert(pvals.perm & VMA_PERM_WRITE);
+        assert(vma->perm & VMA_PERM_WRITE);
+        assert(vma->perm == pvals.perm);
+    }
+}
+
+void fork_pgdir_copy_and_cow(env_t* newenv){
+    /* Setup permission check register */
+    uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
+    uint32_t pte_small_check = PTE_BIT_RW | PTE_BIT_PRESENT | PTE_BIT_USER;
+    
+    /* vma range tracker: Keeps track of continues COWified pages */
+    uint32_t range_start = 0;
+    
+    /* For all user RW pages, make COW entry (read only) */
+    for(uint32_t di = 0; di<KERNBASE/(PGSIZE*1024); di++) {
+        register pde_t pde = newenv->env_pgdir[di];
+        
+        /* Huge PAGE*/
+        if (pde & PDE_BIT_HUGE) {
+            if ((pde & pde_huge_check) == pde_huge_check) {
+                /* Huge page with user rw permissions, COW canidate */
+                pde ^= PDE_BIT_RW; //Set rw permissions to RO
+                newenv->env_pgdir[di] = pde; //save changes
+                
+                //Next index (Otherwise we would edit vma already)
+                continue;
+            }
+            /* COWify VMA range */
+            if (range_start) {
+                uint32_t range_end = di * (PGSIZE*1024);
+                fork_vma_makecow(newenv, range_start, range_end);
+                /* Reset range */
+                range_start = 0;
+            }
+            continue;
+        }
+        /* PAGE TABLE */
+        if ((pde & pte_small_check) == pte_small_check){
+            /* Page table exits and is user rw, may contain COW canidates */
+            /* Get page table entry */
+            pte_t * pgtable = KADDR(PDE_GET_ADDRESS(pde));
+            for(uint32_t ti = 0; ti < 1024; ti++) {
+                //page table entry register
+                register pte_t pte = pgtable[ti];
+                /* Check if pte is COW canidate */
+                if ((pte & pte_small_check) == pte_small_check) {
+                    if (~range_start)
+                        range_start = di * (PGSIZE*1024) + ti * PGSIZE;
+                    cprintf("Va: %#08x from di:%d ti:%d pte:%#08x perm:%#08x true?:%d\n", di * (PGSIZE*1024) + ti * PGSIZE, di, ti, pte,pte_small_check, (pde & pte_small_check) == pte_small_check);
+
+                    pte ^= PTE_BIT_RW; //Make readonly pte entry
+                    pgtable[ti] = pte;
+                    
+                    continue;
+                }
+                
+                /* COWify VMA range */
+                if (range_start) {
+                    uint32_t range_end = di * (PGSIZE*1024) + ti * PGSIZE; //Not inclusive
+                    fork_vma_makecow(newenv, range_start, range_end);
+                    /* Reset range */
+                    range_start = 0;
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Make a deep copy of cpgdir to npgdir
+ *  Leaves all permissions intact.
+ * @param curpg the current pgdir
+ * @param newpg the new pgdir
+ */
+void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
+    uint32_t page_huge = PDE_BIT_HUGE | PDE_BIT_PRESENT;
+    uint32_t page_table = PDE_BIT_PRESENT;
+    for(uint32_t pgi = 0; pgi < 1024; pgi++) {
+        pde_t pde = curpg[pgi];
+        
+        if (page_huge == (page_huge & pde)) {
+            /* Huge page, copy entry */
+            newpg[pgi] = pde;
+            continue;
+        }
+        
+        if (page_table == (pde & page_table)) {
+            /* Page table, allocate page and copy */
+            page_info_t *pp = page_alloc(0);
+            void *dst = page2kva(pp);
+            void *src = page2kva(pa2page(PDE_GET_ADDRESS(pde)));
+            memcpy(dst, src, PGSIZE);
+            /* Set new entry in pagetable */
+            pde &= 0xFFF; //keep old permissions
+            pde |= page2pa(pp);
+            newpg[pgi] = pde;
+        }
+    }
 }
 
 static int sys_fork(void)
 {
     /* fork() that follows COW semantics */
     /* LAB 5: Your code here */
-    return -1;
+    env_t *newenv;
+    
+    /* Allocate env  & duplicate shared info */
+    if (env_alloc(&newenv, curenv->env_id)) {
+        cprintf("Failed to fork new child process!\n");
+        return -1;
+    }
+    
+    //VMA
+    memcpy(newenv->vma_list, curenv->vma_list, sizeof(vma_arr_t));
+    //registers
+    newenv->env_tf = curenv->env_tf;
+    
+    /* Make a deep copy of the page dir */
+    pgdir_deepcopy(newenv->env_pgdir,curenv->env_pgdir);
+    
+    //Etc
+    newenv->env_status = ENV_RUNNABLE;
+    newenv->env_type = curenv->env_type;
+    
+    /* Copy pgdir, changing permissions to COW where applicable */
+    fork_pgdir_copy_and_cow(newenv);
+    
+    /* make eax (return value) 0, such that it knows it is new */
+    newenv->env_tf.tf_regs.reg_eax = 0;
+    
+    //Return the new env id so that the forker knows who he spawned
+    return newenv->env_id;
 }
 
 /* Dispatches to the correct kernel function, passing the arguments. */
@@ -170,6 +320,8 @@ int32_t syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3,
             return (uint32_t) sys_vma_create(a1, a2, a3);
         case SYS_vma_destroy:
             return sys_vma_destroy((void *)a1, a2);
+        case SYS_fork:
+            return sys_fork();
         default:
             return -E_NO_SYS;
     }
