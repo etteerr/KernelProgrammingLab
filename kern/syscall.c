@@ -250,6 +250,7 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
         if (page_table == (pde & page_table)) {
             /* Page table, allocate page and copy */
             page_info_t *pp = page_alloc(0);
+            pp->pp_ref++;
             pte_t *dst = page2kva(pp);
             pte_t *src = page2kva(pa2page(PDE_GET_ADDRESS(pde)));
             for(uint32_t it = 0; it < 1024; it++) {
