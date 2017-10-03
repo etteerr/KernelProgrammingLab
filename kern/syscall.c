@@ -239,15 +239,29 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
         if (page_huge == (page_huge & pde)) {
             /* Huge page, copy entry */
             newpg[pgi] = pde;
+            
+            /* inc ref to page */
+            if (pde & PDE_BIT_PRESENT) 
+                pa2page(PDE_GET_ADDRESS(pde))->pp_ref++;
+                
             continue;
         }
         
         if (page_table == (pde & page_table)) {
             /* Page table, allocate page and copy */
             page_info_t *pp = page_alloc(0);
-            void *dst = page2kva(pp);
-            void *src = page2kva(pa2page(PDE_GET_ADDRESS(pde)));
-            memcpy(dst, src, PGSIZE);
+            pte_t *dst = page2kva(pp);
+            pte_t *src = page2kva(pa2page(PDE_GET_ADDRESS(pde)));
+            for(uint32_t it = 0; it < 1024; it++) {
+                dst[it] = src[it];
+                
+                /* Increase ref on all pages */
+                if (src[it] & PTE_BIT_PRESENT) {
+                    uint32_t phy_addr = PTE_GET_PHYS_ADDRESS(src[it]);
+                    page_info_t * ptmp = pa2page(phy_addr);
+                    ptmp->pp_ref++;
+                }
+            }
             /* Set new entry in pagetable */
             pde &= 0xFFF; //keep old permissions
             pde |= page2pa(pp);
