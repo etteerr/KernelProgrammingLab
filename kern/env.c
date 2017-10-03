@@ -630,7 +630,7 @@ void env_destroy(struct env *e)
 
     if (curenv == e) {
         curenv = NULL;
-        sched_yield();
+//        sched_yield();
     }
 }
 
