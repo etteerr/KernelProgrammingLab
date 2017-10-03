@@ -328,18 +328,18 @@ void murder_env(env_t *env, uint32_t fault_va) {
     env_destroy(env);
 }
 
-void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_original, page_info_t* page){
+void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_original, page_info_t* new_page){
     //No original page?
     if (!pte_original)
         return;
     
     if (hit->flags.bit.COW && !(pte_original & PDE_BIT_HUGE)) {
+        cprintf("COW va %p original_pte %p new_pte %p\n", hit->va, pte_original, **pte);
         /* Extract original page address, copy this to our new page */
         page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
         
         void *src = (void*) page2kva(cow_page);
-        void *dst = (void*) page2kva(page);
-        
+        void *dst = (void*) page2kva(new_page);
         memcpy(src,dst, PGSIZE);
         
         /* Make a final assertion, cow should only trigger on writes */
@@ -350,9 +350,10 @@ void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_original, page_info_t* p
         page_decref(cow_page);
     }else
         if (hit->flags.bit.COW) {
+            cprintf("COW HUGE va %p\n");
             /* Hit on huge page */
             /* Revert allocated page and delete entry */
-            page_decref(page);
+            page_decref(new_page);
             *(*pte) = 0;
             
             /* Make some assertions */
