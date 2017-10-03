@@ -328,10 +328,10 @@ void murder_env(env_t *env, uint32_t fault_va) {
     env_destroy(env);
 }
 
-void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_entry, page_info_t* page){
-    if (hit->flags.bit.COW && !(pte_entry & PDE_BIT_HUGE)) {
+void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_original, page_info_t* page){
+    if (hit->flags.bit.COW && !(pte_original & PDE_BIT_HUGE)) {
         /* Extract original page address, copy this to our new page */
-        page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_entry));
+        page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
         
         void *src = (void*) page2kva(cow_page);
         void *dst = (void*) page2kva(page);
@@ -341,6 +341,9 @@ void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_entry, page_info_t* page
         /* Make a final assertion, cow should only trigger on writes */
         assert(hit->perm & PTE_BIT_RW);
         assert(hit->perm & VMA_PERM_WRITE);
+        
+        /* Decrease page ref counter */
+        page_decref(cow_page);
     }else
         if (hit->flags.bit.COW) {
             /* Hit on huge page */
@@ -349,13 +352,13 @@ void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_entry, page_info_t* page
             *(*pte) = 0;
             
             /* Make some assertions */
-            assert(pte_entry & PDE_BIT_HUGE); //Should always be true due to if statement
+            assert(pte_original & PDE_BIT_HUGE); //Should always be true due to if statement
             assert(hit->perm & VMA_PERM_WRITE);
-            assert(pte_entry * PDE_BIT_RW);
+            assert(pte_original * PDE_BIT_RW);
             
             /* Now create 4M entry and handle cow */
             page_info_t *new_page = page_alloc(ALLOC_HUGE);
-            page_info_t *cow_page = pa2page(PDE_GET_ADDRESS(pte_entry));
+            page_info_t *cow_page = pa2page(PDE_GET_ADDRESS(pte_original));
             
             page_insert(curenv->env_pgdir, new_page, (void*) page2pa(new_page), 
                     PDE_BIT_PRESENT | PDE_BIT_RW | PDE_BIT_HUGE | PDE_BIT_USER
@@ -366,6 +369,8 @@ void trap_handle_cow(vma_t* hit, pte_t** pte, pte_t pte_entry, page_info_t* page
             
             memcpy(src, dst, PGSIZE*1024);
             
+            /* Decrease page ref counter */
+            page_decref(cow_page);
         }
 }
 
