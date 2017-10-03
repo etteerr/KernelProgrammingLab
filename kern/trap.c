@@ -369,7 +369,7 @@ int trap_handle_cow(uint32_t fault_va){
         
         void *src = (void*) page2kva(cow_page);
         void *dst = (void*) page2kva(new_page);
-        memcpy(src,dst, PGSIZE);
+        memcpy(dst, src, PGSIZE);
         
         /* Make a final assertion, cow should only trigger on writes */
         assert(hit->perm & PTE_BIT_RW);
@@ -413,7 +413,7 @@ int trap_handle_cow(uint32_t fault_va){
             void *src = (void*) page2kva(cow_page);
             void *dst = (void*) page2kva(new_page);
             
-            memcpy(src, dst, PGSIZE*1024);
+            memcpy(dst, src, PGSIZE*1024);
             
             /* Decrease page ref counter */
             page_decref(cow_page);
