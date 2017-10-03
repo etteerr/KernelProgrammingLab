@@ -371,18 +371,6 @@ int trap_handle_cow(uint32_t fault_va){
         void *dst = (void*) page2kva(new_page);
         memcpy(dst, src, PGSIZE);
         
-//        for(uint32_t i = 0; i<PGSIZE; i+=sizeof(uint32_t)) {
-//            uint32_t * _src, *_dst;
-//            _src = src + i;
-//            _dst = (void*)(fault_va & 0xFFFFF000) + i;
-//            if (*_src != *_dst) {
-//                cprintf("[COW] Error at offset %p: %p != %p\n", i, *_src, *_dst);
-//            }
-//            if ((fault_va & 0xFFFFF000) + i == fault_va)
-//                cprintf("=>[COW] %p => %p\n", *_src, *_dst);
-//            else
-//                cprintf("[COW] %p => %p\n", *_src, *_dst);
-//        }
         
         /* Make a final assertion, cow should only trigger on writes */
         assert(hit->perm & PTE_BIT_RW);
