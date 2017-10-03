@@ -421,8 +421,9 @@ int trap_handle_backed_memory(uint32_t fault_va){
     vma_t * vma = vma_lookup(curenv, (void*)fault_va, 0);
     if (vma->backed_addr && vma->len) {
         /* Our vma is backed! */
-        page_info_t * page = page_alloc(ALLOC_ZERO);
+        cprintf("[filebacked memory] Backing memory address %p\n", fault_va);
         
+        page_info_t * page = page_alloc(ALLOC_ZERO);
         if (!page) {
             cprintf("[filebacked memory] Page allocation failed!\n");
             return -1;
