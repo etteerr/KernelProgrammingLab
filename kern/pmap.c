@@ -592,7 +592,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         if (page2pa(current) >= start_address && page2pa(current) <= end_address) {
             current->pp_link = 0;
             current->pp_link = NULL;
-            current->c0.reg.huge = 1;
+            if (amount == HUGE_PAGE_AMOUNT) current->c0.reg.huge = 1;
             current->c0.reg.free = 0;
             *p_nextfree = next;
             outed++;
