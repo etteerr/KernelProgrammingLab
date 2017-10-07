@@ -154,6 +154,12 @@ void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
                 newenv->env_pgdir[di] = pde; //save changes
                 cenv->env_pgdir[di] = pde;
                 
+                page_info_t *pp = pa2page(PDE_GET_ADDRESS(pde));
+                
+                //Inc reference counter
+                if (pp)
+                    page_inc_ref(pp);
+                
                 //Next index
                 continue;
             }
@@ -175,6 +181,14 @@ void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
                     pte ^= PTE_BIT_RW; //Make readonly pte entry
                     pgtable[ti] = pte;
                     curpgtable[ti] = pte;
+                    
+                    /* Inc ref counter if it is mapped in (accessable) physical region */
+                    uint32_t phys = PTE_GET_PHYS_ADDRESS(pte);
+                    if (PGNUM(phys) < npages) {
+                        page_info_t * pp = pa2page(phys);
+                        if (pp)
+                            page_inc_ref(pp);
+                    }
                     
                     continue;
                 }
@@ -252,7 +266,7 @@ static int sys_fork(void)
     newenv->env_tf = curenv->env_tf;
     
     /* Make a deep copy of the page dir */
-    pgdir_deepcopy(newenv->env_pgdir,curenv->env_pgdir);
+//    pgdir_deepcopy(newenv->env_pgdir,curenv->env_pgdir);
     
     //Etc
     newenv->env_status = ENV_RUNNABLE;
