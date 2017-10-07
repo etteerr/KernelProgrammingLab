@@ -592,6 +592,7 @@ struct page_info *alloc_consecutive_pages(uint16_t amount, int alloc_flags) {
         if (page2pa(current) >= start_address && page2pa(current) <= end_address) {
             current->pp_link = 0;
             current->pp_link = NULL;
+            current->c0.reg.huge = 1;
             current->c0.reg.free = 0;
             *p_nextfree = next;
             outed++;
@@ -702,6 +703,8 @@ struct page_info *page_alloc(int alloc_flags) {
                 if (alloc_flags & ALLOC_ZERO) {
                     memset(page2kva(page), 0, PGSIZE);
                 }
+                
+//                dprintf("Low VM alloc (pa %p)\n", page2pa(page));
 
                 return page;
             }
@@ -715,6 +718,8 @@ struct page_info *page_alloc(int alloc_flags) {
     assert(page);
     prepare_page(page, alloc_flags);
 
+//    dprintf("Page alloc (pa %p) with flags: %d (decimal)\n", page2pa(page), alloc_flags);
+    
     return page;
 }
 
@@ -731,7 +736,7 @@ void page_free(struct page_info *pp) {
 
     assert(pp != 0);
 
-    if (pp->pp_ref) {
+    if (*page_get_ref(pp)) {
         panic("Page contained nonzero refcount during free()");
     }
 
@@ -756,6 +761,8 @@ void page_free(struct page_info *pp) {
 
         //set flag to free
         current->c0.reg.free = 1;
+        //Remove huge flag
+        current->c0.reg.huge = 0;
     }
 
     if (warn)
@@ -767,10 +774,34 @@ void page_free(struct page_info *pp) {
  * freeing it if there are no more refs.
  */
 void page_decref(struct page_info *pp) {
-    dprintf("page (%p) has %d refs remaining.\n", page2pa(pp), pp->pp_ref - 1);
-    assert(pp->pp_ref > 0);
+    dprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), *page_get_ref(pp) - 1, pp->c0.reg.huge);
+    
+    assert(*page_get_ref(pp) > 0);
+    
+    /* Check if page is huge
+     * to make sure the head of the pages get dereferenced 
+     * and not a intermitted page
+     */
+    if (pp->c0.reg.huge && !pp->c0.reg.alligned4mb) {
+        /* This is a page part of a huge alloc,  */
+        int i = pp-pages;
+        pp = &pages[i - (i%HUGE_PAGE_AMOUNT)];
+        assert(pp->c0.reg.alligned4mb);
+    }
+    
     if (--pp->pp_ref == 0)
         page_free(pp);
+}
+
+uint16_t* page_get_ref(page_info_t *pp) {
+    /* If page is huge, get head */
+    if (pp->c0.reg.huge && !pp->c0.reg.alligned4mb) {
+        /* This is a page part of a huge alloc,  */
+        int i = pp-pages;
+        pp = &pages[i - (i%HUGE_PAGE_AMOUNT)];
+        assert(pp->c0.reg.alligned4mb);
+    }
+    return &pp->pp_ref;
 }
 
 /*

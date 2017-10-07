@@ -154,6 +154,14 @@ void page_remove(pde_t *pgdir, void *va);
 struct page_info *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store);
 void page_decref(struct page_info *pp);
 
+/**
+ * Determines the amount of references to pp
+ *  Takes into account if page is body of a huge allocation
+ * @param pp
+ * @return pointer to ref of header page
+ */
+uint16_t *page_get_ref(page_info_t *pp);
+
 void tlb_invalidate(pde_t *pgdir, void *va);
 
 void *mmio_map_region(physaddr_t pa, size_t size);

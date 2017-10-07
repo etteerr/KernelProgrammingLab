@@ -376,7 +376,7 @@ int trap_handle_cow(uint32_t fault_va){
         /* Get page */
         page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
 
-        if (cow_page->pp_ref == 1) {
+        if (*page_get_ref(cow_page) <= 1) {
             dprintf("Page referenced only once. Assuming shared.\n");
             *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) |= PTE_BIT_RW;
             return 0;
@@ -428,7 +428,7 @@ int trap_handle_cow(uint32_t fault_va){
             /* Check if page is still shared */
             page_info_t *cow_page = pa2page(PDE_GET_ADDRESS(pte_original));
 
-            if (cow_page->pp_ref == 1) {
+            if (*page_get_ref(cow_page) <= 1) {
                 cprintf("[COW] Page referenced only once. Assuming shared.\n");
                 *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) |= PTE_BIT_RW;
                 return 0;

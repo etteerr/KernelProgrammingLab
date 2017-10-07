@@ -270,8 +270,8 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
 
                         //If referenced by our parent, we ref it too. 
                         //If its not referenced, it might be kernel allocated
-                        if (ptmp->pp_ref)
-                            ptmp->pp_ref++;
+                        if (*page_get_ref(ptmp))
+                            (*page_get_ref(ptmp))++;
                     }
                 }
             }
