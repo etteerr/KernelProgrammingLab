@@ -310,7 +310,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
      *   (Watch out for corner-cases!)
      */
     //Set print header
-    cprintf("region_alloc: %#08x to %#08x\n", va, va+len);
+    dprintf("region_alloc: %#08x to %#08x\n", va, va+len);
 
     //Assertions
     assert(len>0);
@@ -326,9 +326,9 @@ static void region_alloc(struct env *e, void *va, size_t len)
 
     /* Allocate */
     //Allocated start page
-    cprintf("\tAllocating... ");
+    dprintf("\tAllocating... ");
     struct page_info * pp = alloc_consecutive_pages(numpages,  0);
-    cprintf("Success!\n");
+    dprintf("Success!\n");
 
     //TODO: try allocating separate pages if consecutive does not succeed
     //assert allocation successful
@@ -346,7 +346,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
     pages4M = 0;
 
     /* setup va tables */
-    cprintf("\tSetting up %u 4M and %u 4K pages at %#08x to %#08x... ",
+    dprintf("\tSetting up %u 4M and %u 4K pages at %#08x to %#08x... ",
     pages4M, pages4K-pages4M*1024, rva, rva+rlen);
 
     uint32_t i = 0;
@@ -372,10 +372,10 @@ static void region_alloc(struct env *e, void *va, size_t len)
 
     //Check if there where any errors
     assert(res==0);
-    cprintf("Success!\n");
+    dprintf("Success!\n");
 
     /* Check virtual pages */
-    cprintf("\tChecking access (R/W) to va range... ");
+    dprintf("\tChecking access (R/W) to va range... ");
 
     //Create 32 bit sized bites (volatile hack to prevent optimizations)
     volatile uint32_t * data;
@@ -387,7 +387,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
         *data = tmp;
     }
     //If no pagefault happend, check succes!
-    cprintf("Successful!\n");
+    dprintf("Successful!\n");
 
     /* Invalidate TLB */
     //Legacy code if lcr3 changes, keep this line!

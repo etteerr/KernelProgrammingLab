@@ -31,4 +31,9 @@ int vfprintf(int fd, const char *fmt, va_list);
 /* lib/readline.c */
 char *readline(const char *prompt);
 
+/* Debug print */
+#define DEBUGPRINT 1
+#define dprintf(fmt, ...) \
+        if (DEBUGPRINT) cprintf("[%s] " fmt, __func__, ##__VA_ARGS__)
+
 #endif /* !JOS_INC_STDIO_H */

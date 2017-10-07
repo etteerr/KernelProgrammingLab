@@ -108,7 +108,7 @@ static void *boot_alloc(uint32_t n) {
     uint32_t usage_cp, max;
     usage_cp = ((uint32_t) nextfree - KERNBASE) + n;
     max = 4 << 20; //4MiB
-    cprintf("Kernel boot alloc:\n\tnew alloc: %uK\n\tcurrent Usage %uK\n\tmax Usage: %uK\n", n / 1024, usage_cp / 1024,
+    dprintf("Kernel boot alloc:\n\tnew alloc: %uK\n\tcurrent Usage %uK\n\tmax Usage: %uK\n", n / 1024, usage_cp / 1024,
             max / 1024);
     if (usage_cp >= max)
         panic("Out of Memory PANIC: boot allocation failed.");
@@ -190,7 +190,7 @@ void mem_init(void) {
      * 'npages' is the number of physical pages in memory.  Your code goes here.
      */
     //npages of boot_alloc required for paging
-    cprintf("Allocating %u pages.\n", npages);
+    dprintf("Allocating %u pages.\n", npages);
     pages = boot_alloc(sizeof (struct page_info) * npages); //This panics if Out of Memory
 
 
@@ -198,7 +198,7 @@ void mem_init(void) {
      * Make 'envs' point to an array of size 'NENV' of 'struct env'.
      * LAB 3: Your code here.
      */
-    cprintf("Allocating %u user environments.\n", NENV);
+    dprintf("Allocating %u user environments.\n", NENV);
     envs = boot_alloc(sizeof(struct env) * NENV);
 
     /*********************************************************************
@@ -416,7 +416,7 @@ void page_init(void) {
 
     }
 
-    cprintf("%u free pages. (%uK)\n", cf, (cf * PGSIZE) / 1024);
+    dprintf("%u free pages. (%uK)\n", cf, (cf * PGSIZE) / 1024);
 }
 
 #ifdef BUDDY
@@ -769,7 +769,7 @@ void page_free(struct page_info *pp) {
  * freeing it if there are no more refs.
  */
 void page_decref(struct page_info *pp) {
-    cprintf("[page_decref] page has %d refs remaining.\n", pp->pp_ref - 1);
+    dprintf("page has %d refs remaining.\n", pp->pp_ref - 1);
     assert(pp->pp_ref > 0);
     if (--pp->pp_ref == 0)
         page_free(pp);
@@ -905,7 +905,7 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
         //Map pentry to physical region pa
         *pentry = (pa + i) | perm;
     }
-    cprintf("Mapped va %#08x-%#08x to pa %#08x-%#08x\n", va, va+size, pa, pa+size);
+    dprintf("Mapped va %#08x-%#08x to pa %#08x-%#08x\n", va, va+size, pa, pa+size);
 }
 
 /*

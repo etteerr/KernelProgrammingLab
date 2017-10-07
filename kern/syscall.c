@@ -117,17 +117,17 @@ static int sys_wait(envid_t envid)
 {
     /* LAB 5: Your code here */
     if(ENVX(envid) > NENV) {
-        cprintf("[sys_wait] Invalid envid %p\n", envid);
+        dprintf("Invalid envid %p\n", envid);
         return -1;
     }
     
-    cprintf("[sys_wait] %p shall now wait for %p\n", curenv->env_id, envid);
+    dprintf("%p shall now wait for %p\n", curenv->env_id, envid);
 
     env_t *env = &envs[envid];
     env_t *cur = (env_t *)curenv; /* IDE's macro unfolding is broken */
 
     if(!env || !cur) {
-        cprintf("[sys_wait] %p cannot wait for %p, %p does not exist!\n", curenv->env_id, envid, envid);
+        dprintf("%p cannot wait for %p, %p does not exist!\n", curenv->env_id, envid, envid);
         return -1;
     }
     
@@ -209,7 +209,7 @@ void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
                 if ((pte & pte_small_check) == pte_small_check) {
                     if (~range_start)
                         range_start = di * (PGSIZE*1024) + ti * PGSIZE;
-                    cprintf("Va: %#08x from di:%d ti:%d pte:%#08x perm:%#08x true?:%d\n", di * (PGSIZE*1024) + ti * PGSIZE, di, ti, pte,pte_small_check, (pde & pte_small_check) == pte_small_check);
+                    dprintf("Va: %#08x from di:%d ti:%d pte:%#08x perm:%#08x true?:%d\n", di * (PGSIZE*1024) + ti * PGSIZE, di, ti, pte,pte_small_check, (pde & pte_small_check) == pte_small_check);
 
                     pte ^= PTE_BIT_RW; //Make readonly pte entry
                     pgtable[ti] = pte;

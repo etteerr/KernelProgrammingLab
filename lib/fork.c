@@ -12,6 +12,5 @@ envid_t fork(void)
     
     uint32_t envid = sys_getenvid();
     thisenv = &envs[ENVX(envid)];
-    cprintf("Ima child, getting env id: %p\n", envid);
     return 0;
 }
