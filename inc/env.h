@@ -3,12 +3,14 @@
 #ifndef JOS_INC_ENV_H
 #define JOS_INC_ENV_H
 
-#include <inc/types.h>
-#include <inc/trap.h>
-#include <inc/memlayout.h>
+#include "../inc/trap.h"
+#include "../inc/types.h"
+#include "../inc/memlayout.h"
+
 
 typedef int32_t envid_t;
-
+struct vma_arr;
+typedef struct vma_arr vma_arr_t;
 /*
  * An environment ID 'envid_t' has three parts:
  *
@@ -37,6 +39,7 @@ enum {
     ENV_DYING,
     ENV_RUNNABLE,
     ENV_RUNNING,
+    ENV_WAITING,
     ENV_NOT_RUNNABLE
 };
 
@@ -45,7 +48,7 @@ enum env_type {
     ENV_TYPE_USER = 0,
 };
 
-struct env {
+typedef struct env {
     struct trapframe env_tf;    /* Saved registers */
     struct env *env_link;       /* Next free env */
     envid_t env_id;             /* Unique environment identifier */
@@ -54,27 +57,14 @@ struct env {
     unsigned env_status;        /* Status of the environment */
     uint32_t env_runs;          /* Number of times environment has run */
     int env_cpunum;             /* The CPU that the env is running on */
+    uint32_t remain_cpu_time;
+    envid_t waiting_for;
 
     /* Address space */
     pde_t *env_pgdir;           /* Kernel virtual address of page dir */
-    struct vma *env_vmas;       /* Virtual memory areas of this env. */
-};
+    vma_arr_t *vma_list;
+} env_t;
 
-/* Anonymous VMAs are zero-initialized whereas binary VMAs
- * are filled-in from the ELF binary.
- */
-enum {
-    VMA_UNUSED,
-    VMA_ANON,
-    VMA_BINARY,
-};
 
-struct vma {
-    int type;
-    void *va;
-    size_t len;
-    int perm;
-    /* LAB 4: You may add more fields here, if required. */
-};
 
 #endif /* !JOS_INC_ENV_H */

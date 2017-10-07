@@ -3,7 +3,7 @@
 #include <inc/stdio.h>
 #include <inc/string.h>
 #include <inc/assert.h>
-
+#include <kern/vma.h>
 #include <kern/monitor.h>
 #include <kern/console.h>
 #include <kern/pmap.h>
@@ -16,6 +16,8 @@
 #include <kern/spinlock.h>
 
 static void boot_aps(void);
+
+#include "vma.h"
 
 
 void i386_init(void)
@@ -33,6 +35,9 @@ void i386_init(void)
 
     /* Lab 1 and 2 memory management initialization functions. */
     mem_init();
+
+    /* Assertions */
+    assert(sizeof(struct vma_arr)<= PGSIZE);
 
     /* Lab 3 user environment initialization functions. */
     env_init();
@@ -56,7 +61,9 @@ void i386_init(void)
     ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
     /* Touch all you want. */
-    ENV_CREATE(user_divzero, ENV_TYPE_USER);
+    ENV_CREATE(user_yield, ENV_TYPE_USER);
+//    ENV_CREATE(user_spin, ENV_TYPE_USER);
+    ENV_CREATE(user_yield, ENV_TYPE_USER);
 #endif
 
     /* Schedule and run the first user environment! */

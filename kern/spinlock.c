@@ -109,8 +109,12 @@ void spin_unlock(struct spinlock *lk)
         uint32_t pcs[10];
         /* Nab the acquiring EIP chain before it gets released */
         memmove(pcs, lk->pcs, sizeof pcs);
-        cprintf("CPU %d cannot release %s: held by CPU %d\nAcquired at:",
-            cpunum(), lk->name, lk->cpu->cpu_id);
+        if (lk->locked)
+            cprintf("CPU %d cannot release %s: held by CPU %d\nAcquired at:",
+                cpunum(), lk->name, lk->cpu->cpu_id);
+        else
+            cprintf("CPU %d cannot release %s: No cpu holds lock.\n",
+                cpunum(), lk->name);
         for (i = 0; i < 10 && pcs[i]; i++) {
             struct eip_debuginfo info;
             if (debuginfo_eip(pcs[i], &info) >= 0)

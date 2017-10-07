@@ -15,3 +15,7 @@
 /lab?/
 /sol?/
 /*.patch
+.idea
+cmake-build-debug
+CMakeLists.txt
+nbproject*

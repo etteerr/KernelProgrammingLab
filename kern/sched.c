@@ -1,9 +1,15 @@
-#include <inc/assert.h>
-#include <inc/x86.h>
-#include <kern/spinlock.h>
-#include <kern/env.h>
-#include <kern/pmap.h>
-#include <kern/monitor.h>
+#include "../inc/env.h"
+#include "../inc/x86.h"
+#include "../inc/stdio.h"
+#include "../inc/assert.h"
+#include "cpu.h"
+#include "env.h"
+#include "sched.h"
+#include "pmap.h"
+#include "monitor.h"
+#include "spinlock.h"
+
+static uint64_t last_ran = 0;
 
 void sched_halt(void);
 
@@ -13,6 +19,7 @@ void sched_halt(void);
 void sched_yield(void)
 {
     struct env *idle;
+    int curenv_i = 0, env_i, i;
 
     /*
      * Implement simple round-robin scheduling.
@@ -30,12 +37,55 @@ void sched_yield(void)
      * If there are
      * no runnable environments, simply drop through to the code
      * below to halt the cpu.
-     *
-     * LAB 5: Your code here.
      */
+
+    lock_kernel();
+
+    env_t *cur = (env_t *)curenv; /* For IDE autocompletion, macro unfolding is b0rked */
+    uint64_t since_last_yield = read_tsc() - last_ran;
+    last_ran = read_tsc();
+
+    if(curenv) {
+        curenv_i = (cur - envs);
+
+        /* If current env has CPU time left in its slice, run it again */
+        if(cur->env_status == ENV_RUNNING && (cur->remain_cpu_time > since_last_yield)) {
+            cur->remain_cpu_time -= since_last_yield;
+            cprintf("------------> Continue %d at %p remaining time: %u\n", curenv_i, envs[curenv_i].env_tf.tf_eip, cur->remain_cpu_time);
+            unlock_kernel();
+            env_run(cur);
+        } else {
+            cur->remain_cpu_time = MAX_TIME_SLICE;
+            cprintf("------------> End of Timeslice %d at %p\n", curenv_i, envs[curenv_i].env_tf.tf_eip);
+        }
+    }
+
+    /* Iterates over envs, starting at curenv's index, wrapping
+     * around NENVS to 0, and from there up to curenv's index. */
+    for(i = 0; i < NENV; i++) {
+        env_i = (curenv_i + i) % NENV;
+        idle = &envs[env_i];
+
+        if(idle && idle->env_status == ENV_RUNNABLE) {
+            cprintf("------------> Running %d at %p\n", env_i, envs[env_i].env_tf.tf_eip);
+            assert(idle->env_tf.tf_eip);
+            unlock_kernel();
+            env_run(idle);
+        }
+    }
+
+    /* If no eligible envs found above, we can continue running curenv if it is still marked as running */
+    if(curenv && curenv->env_status == ENV_RUNNING) {
+        cprintf("------------> Continue %d at %p\n", curenv_i, envs[curenv_i].env_tf.tf_eip);
+        unlock_kernel();
+        env_run(curenv);
+    }
 
     /* sched_halt never returns */
     sched_halt();
+
+    /* Here to please the compiler, given sched_yield() is marked as non-returning */
+    panic("sched_halt() should never return");
 }
 
 /*

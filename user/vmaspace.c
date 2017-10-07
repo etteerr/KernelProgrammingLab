@@ -1,6 +1,9 @@
-#include <inc/lib.h>
-#include <inc/mmu.h>
-#include <inc/assert.h>
+#include "../inc/lib.h"
+#include "../inc/mmu.h"
+#include "../inc/types.h"
+#include "../inc/stdio.h"
+#include "../inc/assert.h"
+#include "../inc/memlayout.h"
 
 #define CODE_SIZE	(7*PGSIZE)
 #define STACK_SIZE	(3*PGSIZE)
