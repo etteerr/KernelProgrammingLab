@@ -6,7 +6,7 @@
 # error "This is a JOS kernel header; user programs should not #include it"
 #endif
 
-#define MAX_TIME_SLICE 1000000000 /* 1ms on 1GHz CPU */
+#define MAX_TIME_SLICE 1000000 /* 1ms on 1GHz CPU */
 
 /* This function does not return. */
 void sched_yield(void) __attribute__((noreturn));
