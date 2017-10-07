@@ -12,7 +12,7 @@
  * LAB 6: Comment out the following macro definition
  *        when you are ready to move to fine-grained locking.
  */
-//#define USE_BIG_KERNEL_LOCK 1
+#define USE_BIG_KERNEL_LOCK 1
 
 /* Mutual exclusion lock. */
 struct spinlock {
