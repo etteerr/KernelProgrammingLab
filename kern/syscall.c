@@ -218,7 +218,7 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
                 /* Increase ref on all pages */
                 if ((src[it] & PTE_BIT_PRESENT) && (src[it] & PTE_BIT_USER)) {
                     uint32_t phy_addr = PTE_GET_PHYS_ADDRESS(src[it]);
-                    if (phy_addr <= 0xFFFF) {
+                    if (PGNUM(phy_addr) < npages) {
                         page_info_t * ptmp = pa2page(phy_addr);
 
                         //If referenced by our parent, we ref it too. 
