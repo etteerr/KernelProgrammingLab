@@ -12,6 +12,7 @@
 #include "kclock.h"
 #include "env.h"
 #include "buddydef.h"
+#include "cpu.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages; /* Amount of physical memory (in pages) */
@@ -259,14 +260,7 @@ void mem_init(void) {
      *       overwrite memory.  Known as a "guard page".
      *     Permissions: kernel RW, user NONE
      * Your code goes here:
-     *
-     * LAB 6 Update:
-     * We now move to initializing kernel stacks in mem_init_mp().
-     * So, we must remove this bootstack initialization from here.
      */
-    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, ((uint32_t)bootstacktop - KERNBASE)-KSTKSIZE, PTE_BIT_RW | PTE_BIT_PRESENT);
-    /* Invalid phys addr to trigger fault when accessed */
-    boot_map_region(kern_pgdir, KSTACKTOP-PTSIZE, KSTKGAP, 0xFFFFF000 - KSTKGAP,0);
 
     /* Note: Dont map anything between KSTACKTOP - PTSIZE and KSTACKTOP - KTSIZE
      * leaving this as guard region.
@@ -341,6 +335,17 @@ static void mem_init_mp(void)
      *
      * LAB 6: Your code here:
      */
+    int i;
+    uint32_t kstacktop_i;
+
+    for(i = 0; i < NCPU; i++) {
+        kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+
+        boot_map_region(kern_pgdir, kstacktop_i-KSTKSIZE, KSTKSIZE, kstacktop_i-KSTKSIZE, PTE_BIT_RW | PTE_BIT_PRESENT);
+
+        /* Invalid phys addr to trigger fault when accessed */
+        boot_map_region(kern_pgdir, kstacktop_i-PTSIZE, KSTKGAP, 0xFFFFF000 - KSTKGAP,0);
+    }
 
 }
 
