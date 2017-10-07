@@ -387,13 +387,14 @@ int trap_handle_cow(uint32_t fault_va){
 
         /* Allocate new page */
         page_info_t *new_page = page_alloc(ALLOC_ZERO);
+        assert(new_page != cow_page);
 
         if (!new_page) {
                 cprintf("[COW] Page allocation failed!\n");
                 return -1;
             }
         /* Insert page with original permissions + write */
-
+        /* Insert handles pg_ref++ */
         if (page_insert(curenv->env_pgdir, new_page, (void*)(fault_va & 0xFFFFF000),
                 (pte_original & 0x1F) | PTE_BIT_RW))
         {
@@ -480,7 +481,7 @@ int trap_handle_backed_memory(uint32_t fault_va){
             cprintf("Page allocation failed!\n");
             return -1;
         }
-        page->pp_ref++;
+//        page->pp_ref++;
 
         int perm = PTE_BIT_USER | PTE_BIT_PRESENT;
         perm |= vma->perm & VMA_PERM_WRITE ? PTE_BIT_RW : 0;

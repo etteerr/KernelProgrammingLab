@@ -794,6 +794,7 @@ void page_decref(struct page_info *pp) {
 }
 
 uint16_t* page_get_ref(page_info_t *pp) {
+    uint32_t phys = page2pa(pp);
     /* If page is huge, get head */
     if (pp->c0.reg.huge && !pp->c0.reg.alligned4mb) {
         /* This is a page part of a huge alloc,  */
@@ -801,6 +802,7 @@ uint16_t* page_get_ref(page_info_t *pp) {
         pp = &pages[i - (i%HUGE_PAGE_AMOUNT)];
         assert(pp->c0.reg.alligned4mb);
     }
+    dprintf("page (%p) reference accesed. page (%p) has %d references.\n", page2pa(pp), phys, pp->pp_ref);
     return &pp->pp_ref;
 }
 
@@ -866,7 +868,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
                 return NULL; //Alloc failed
 
 
-            pp->pp_ref++;
+            (*page_get_ref(pp))++;
 
             entry = (uint32_t)page2pa(pp);
 
@@ -988,7 +990,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
             struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*pentry));
             page_remove(pgdir, va);
         }else
-            pp->pp_ref--;
+            (*page_get_ref(pp))--;
     }
 
     //fill entry
@@ -1021,7 +1023,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     tlb_invalidate(pgdir, va);
 
     //page is now referenced
-    pp->pp_ref++;
+    (*page_get_ref(pp))++;
 
     return 0;
 }
