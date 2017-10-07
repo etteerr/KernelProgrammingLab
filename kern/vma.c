@@ -31,11 +31,14 @@ void __dealloc_range(env_t *e, void *va, size_t len) {
     }
 }
 
-void vma_array_init(env_t* e) {
+int vma_array_init(env_t* e) {
     assert(e->vma_list == 0);
     
     /* page allocation and mapping */
     struct page_info * pp = page_alloc(ALLOC_ZERO);
+    
+    if (!pp)
+        return -1;
     
     //user mapping
     uint32_t ret = 
@@ -51,6 +54,8 @@ void vma_array_init(env_t* e) {
     
 //    vma_arr->highest_va_vma = VMA_INVALID_INDEX;
     vma_arr->lowest_va_vma = VMA_INVALID_INDEX;
+    
+    return 0;
 }
 
 /**

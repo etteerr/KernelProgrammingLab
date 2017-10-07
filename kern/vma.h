@@ -78,8 +78,9 @@ void vma_dump(vma_t*);
  *  - inits vma_arr_t metadata
  * asserts enviroment vma pointer is zero.
  * @param e target environment
+ * @return -1 on page_alloc failure
  */
-void vma_array_init(env_t *e);
+int vma_array_init(env_t *e);
 
 /**
  * vma_array_destroy:
