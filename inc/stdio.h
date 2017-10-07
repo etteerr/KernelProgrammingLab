@@ -32,7 +32,9 @@ int vfprintf(int fd, const char *fmt, va_list);
 char *readline(const char *prompt);
 
 /* Debug print */
+#ifndef DEBUGPRINT
 #define DEBUGPRINT 1
+#endif
 #define dprintf(fmt, ...) \
         if (DEBUGPRINT) cprintf("[%s] " fmt, __func__, ##__VA_ARGS__)
 

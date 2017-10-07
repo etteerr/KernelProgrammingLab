@@ -12,7 +12,7 @@
  * LAB 6: Comment out the following macro definition
  *        when you are ready to move to fine-grained locking.
  */
-#define USE_BIG_KERNEL_LOCK 1
+//#define USE_BIG_KERNEL_LOCK 1
 
 /* Mutual exclusion lock. */
 struct spinlock {
@@ -91,6 +91,44 @@ static inline void assert_lock_env(void) { }
 
 #else /* USE_BIG_KERNEL_LOCK */
 
+/*
+ * 🔒
+ * Kernel lock and unlock debug functions
+ */
+#ifdef DEBUG_SPINLOCK
+#define lock_pagealloc() _lock_pagealloc(__FILE__, __LINE__)
+#define unlock_pagealloc() _unlock_pagealloc(__FILE__, __LINE__)
+#define lock_env() _lock_env(__FILE__, __LINE__)
+#define unlock_env() _unlock_env(__FILE__, __LINE__)
+#define lock_console() _lock_console(__FILE__, __LINE__)
+#define unlock_console() _unlock_console(__FILE__, __LINE__)
+#define lock_kernel() _lock_kernel(__FILE__, __LINE__)
+#define unlock_kernel() _unlock_kernel(__FILE__, __LINE__)
+
+/* Activate dprintf statement */
+#ifdef DEBUGPRINT
+#undef DEBUGPRINT
+#endif
+#define DEBUGPRINT 1
+
+/* Copy paste code */
+extern struct spinlock pagealloc_lock;
+extern struct spinlock env_lock;
+extern struct spinlock console_lock;
+
+/* Copy paste & edit with print code*/
+static inline void _lock_pagealloc(const char * file, const int line) { dprintf("lock at %s:%d\n", file, line); spin_lock(&pagealloc_lock); }
+static inline void _unlock_pagealloc(const char * file, const int line) { dprintf("unlock at %s:%d\n", file, line); spin_unlock(&pagealloc_lock); asm volatile("pause"); }
+static inline void _lock_env(const char * file, const int line) { dprintf("lock at %s:%d\n", file, line); spin_lock(&env_lock); }
+static inline void _unlock_env(const char * file, const int line) { dprintf("unlock at %s:%d\n", file, line); spin_unlock(&env_lock); asm volatile("pause"); }
+static inline void _lock_console(const char * file, const int line) { spin_lock(&console_lock); }
+static inline void _unlock_console(const char * file, const int line) { spin_unlock(&console_lock); asm volatile("pause"); }
+static inline void _lock_kernel(const char * file, const int line) { }
+static inline void _unlock_kernel(const char * file, const int line) { }
+
+/* End of me debug, original code follows */
+#else
+
 extern struct spinlock pagealloc_lock;
 extern struct spinlock env_lock;
 extern struct spinlock console_lock;
@@ -104,6 +142,7 @@ static inline void unlock_console(void) { spin_unlock(&console_lock); asm volati
 static inline void lock_kernel(void) { }
 static inline void unlock_kernel(void) { }
 
+#endif
 
 #ifdef DEBUG_SPINLOCK
 static __always_inline void assert_lock_env(void)
