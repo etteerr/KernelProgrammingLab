@@ -33,7 +33,7 @@ char *readline(const char *prompt);
 
 /* Debug print */
 #ifndef DEBUGPRINT
-#define DEBUGPRINT 0
+#define DEBUGPRINT 1
 #endif
 #define dprintf(fmt, ...) \
         if (DEBUGPRINT) cprintf("[%s] " fmt, __func__, ##__VA_ARGS__)
