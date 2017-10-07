@@ -6,7 +6,7 @@
 # error "This is a JOS kernel header; user programs should not #include it"
 #endif
 
-#define PAGE_SUPER_VERBOSE 1
+#define PAGE_SUPER_VERBOSE 0
 
 #include <inc/memlayout.h>
 #include <inc/assert.h>

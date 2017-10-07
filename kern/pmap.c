@@ -776,7 +776,7 @@ void page_free(struct page_info *pp) {
  * freeing it if there are no more refs.
  */
 void page_decref(struct page_info *pp) {
-    if (PAGE_SUPER_VERBOSE) dprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), page_get_ref(pp) - 1, pp->c0.reg.huge);
+    dprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), page_get_ref(pp) - 1, pp->c0.reg.huge);
     
     assert(page_get_ref(pp) > 0);
     
@@ -804,7 +804,7 @@ uint16_t page_get_ref(page_info_t *pp) {
         pp = &pages[i - (i%HUGE_PAGE_AMOUNT)];
         assert(pp->c0.reg.alligned4mb);
     }
-    if (PAGE_SUPER_VERBOSE) dprintf("page (%p) reference accesed. page (%p) has %d references.\n", page2pa(pp), phys, pp->pp_ref);
+    if (PAGE_SUPER_VERBOSE) dprintf("page (%p) reference accessed. page (%p) has %d references.\n", page2pa(pp), phys, pp->pp_ref);
     return pp->pp_ref;
 }
 

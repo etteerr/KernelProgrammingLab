@@ -176,16 +176,17 @@ int fork_pgtable_cow(pde_t* ppdir, pde_t* cpdir, uint16_t i){
         /* If entry is comform COW, make it COW and Always copy it */
         if ((ppt[j] & pte_small_check) == pte_small_check) {
             ppt[j] ^= PTE_BIT_RW;
-            dprintf("VA %p now COW.\n", i*PGSIZE*1024 + j*PGSIZE);
+            dprintf("VA %p now COW.\n", (i*PGSIZE*1024) + (j*PGSIZE));
         }
         
         cpt[j] = ppt[j];
         
         /* Inc ref on user pages*/
         if (ppt[j] & PTE_BIT_PRESENT) //if present
-            if (PGNUM(PTE_GET_PHYS_ADDRESS(ppt[j])) < npages) //and refers to existing physical page
-                if (pa2page(PTE_GET_PHYS_ADDRESS(ppt[j]))->pp_ref) //And parent has referenced it
-                    page_inc_ref(pa2page(PTE_GET_PHYS_ADDRESS(ppt[j]))); //Increase reference
+            if (ppt[j] & PTE_BIT_USER) //And user accessable
+                if (PGNUM(PTE_GET_PHYS_ADDRESS(ppt[j])) < npages) //and refers to existing physical page
+                    if (pa2page(PTE_GET_PHYS_ADDRESS(ppt[j]))->pp_ref) //And parent has referenced it
+                        page_inc_ref(pa2page(PTE_GET_PHYS_ADDRESS(ppt[j]))); //Increase reference
     }
     
     return 0;
@@ -212,8 +213,9 @@ int fork_pgdir_copy_and_cow(env_t * penv ,env_t* cenv){
             
             /* Increase page reference of huge pages */
             if (ppdir[i] & PDE_BIT_HUGE)
-                if (pa2page(PDE_GET_ADDRESS(ppdir[i]))->pp_ref)
-                    page_inc_ref(pa2page(PDE_GET_ADDRESS(ppdir[i])));
+                if (ppdir[i] & PDE_BIT_USER)
+                    if (pa2page(PDE_GET_ADDRESS(ppdir[i]))->pp_ref)
+                        page_inc_ref(pa2page(PDE_GET_ADDRESS(ppdir[i])));
             
             /* If it is not huge, copy pgtable */
             if (!(ppdir[i] & PDE_BIT_HUGE))
