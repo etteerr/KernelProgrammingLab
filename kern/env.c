@@ -239,7 +239,12 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
         return r;
 
     /* Create VMA list for this environment */
-    vma_array_init(e);
+    if (vma_array_init(e)) {
+        dprintf("env_alloc failed: No free pages for vma_array!\n");
+        //Undo env_setup
+        page_decref(pa2page(PADDR(e->env_pgdir)));
+        return -E_NO_MEM;
+    }
 
     /* Generate an env_id for this environment. */
     generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);

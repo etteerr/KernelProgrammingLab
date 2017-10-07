@@ -154,23 +154,9 @@ int fork_pgtable_cow(pde_t* ppdir, pde_t* cpdir, uint16_t i){
     if (!(ppdir[i] & PDE_BIT_PRESENT))
         return 0;
 
-    /* Allocate new page for childs pgtable */
-    page_info_t * pp = page_alloc(0); // we copy every entry, so no zero alloc
-    if (!pp) {
-        dprintf("Allocation failed!\n");
-        return -1;
-    }
-    page_inc_ref(pp);
-    
-    /* 
-    * Insert new page (table) into child pgdir 
-    * Keep parent permissions
-    */
-    cpdir[i] = page2pa(pp) | (ppdir[i] & 0x1F);
-    
     /* Set table pointers */
     pte_t * ppt = KADDR(PDE_GET_ADDRESS(ppdir[i]));
-    pte_t * cpt = page2kva(pp);
+    pte_t * cpt = KADDR(PDE_GET_ADDRESS(cpdir[i]));
   
     for(uint32_t j = 0; j< 1024; j++) {
         /* If entry is comform COW, make it COW and Always copy it */
@@ -192,16 +178,57 @@ int fork_pgtable_cow(pde_t* ppdir, pde_t* cpdir, uint16_t i){
     return 0;
 }
 
+int fork_allocate_pgtables(pde_t* cpdir, pde_t* ppdir){
+    for(uint16_t i = 0; i<1024; i++) {
+        if (ppdir[i] & PDE_BIT_PRESENT && !(ppdir[i] & PDE_BIT_HUGE)) {
+            /* Allocate new page for childs pgtable */
+            page_info_t * pp = page_alloc(0); // we copy every entry, so no zero alloc
+            if (!pp) {
+                dprintf("Allocation failed!\n");
+                return -1;
+            }
+            page_inc_ref(pp);
+            
+            /* 
+            * Insert new page (table) into child pgdir 
+            * Keep parent permissions
+            */
+            cpdir[i] = page2pa(pp) | (ppdir[i] & 0x1F);
+        }
+    }
+    return 0;
+}
+
+void fork_reverse_pgtable_alloc(pde_t* cpdir){
+    dprintf("Reversing allocation of page tables.\n");
+    for(uint32_t i = 0; i<1024; i++) {
+        if (cpdir[i] & PDE_BIT_PRESENT && !(cpdir[i] & PDE_BIT_HUGE)) {
+            page_info_t * pp = pa2page(PDE_GET_ADDRESS(cpdir[i]));
+            if (pp->pp_ref == 1)
+                page_decref(pp);
+        }
+    }
+}
+
 int fork_pgdir_copy_and_cow(env_t * penv ,env_t* cenv){
     /* Setup permission check register */
     uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
+    
+    /* page dir pointers */
+    pde_t * ppdir = penv->env_pgdir;
+    pde_t * cpdir = cenv->env_pgdir;
+    
+    /* Allocate first, any error can be reverted! */
+    if (fork_allocate_pgtables(cpdir,ppdir)) {
+        dprintf("Out of Memory!\n");
+        fork_reverse_pgtable_alloc(cpdir);
+        return 0;
+    }
     
     /* 
      * - Duplicate pgdir
      * \- edit pgdir entry to COW when pde_huge_check comfirms
      */
-    pde_t * ppdir = penv->env_pgdir;
-    pde_t * cpdir = cenv->env_pgdir;
     for(uint16_t i = 0; i<1024; i++) {
         if (ppdir[i] & PDE_BIT_PRESENT) {
             if ((ppdir[i] & pde_huge_check) == pde_huge_check)
