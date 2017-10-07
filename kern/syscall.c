@@ -197,58 +197,6 @@ void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
     }
 }
 
-/**
- * Make a deep copy of cpgdir to npgdir
- *  Leaves all permissions intact.
- * @param curpg the current pgdir
- * @param newpg the new pgdir
- */
-void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
-    uint32_t page_huge = PDE_BIT_HUGE | PDE_BIT_PRESENT;
-    uint32_t page_table = PDE_BIT_PRESENT;
-    for(uint32_t pgi = 0; pgi < 1024; pgi++) {
-        pde_t pde = curpg[pgi];
-        
-        if (page_huge == (page_huge & pde)) {
-            /* Huge page, copy entry */
-            newpg[pgi] = pde;
-            
-            /* inc ref to page */
-            if ((pde & PDE_BIT_PRESENT) && (pde & PDE_BIT_USER))
-                page_inc_ref(pa2page(PDE_GET_ADDRESS(pde)));
-                
-            continue;
-        }
-        
-        if (page_table == (pde & page_table)) {
-            /* Page table, allocate page and copy */
-            page_info_t *pp = page_alloc(0);
-            page_inc_ref(pp);
-            pte_t *dst = page2kva(pp);
-            pte_t *src = page2kva(pa2page(PDE_GET_ADDRESS(pde)));
-            for(uint32_t it = 0; it < 1024; it++) {
-                dst[it] = src[it];
-                
-                /* Increase ref on all pages */
-                if ((src[it] & PTE_BIT_PRESENT) && (src[it] & PTE_BIT_USER)) {
-                    uint32_t phy_addr = PTE_GET_PHYS_ADDRESS(src[it]);
-                    if (PGNUM(phy_addr) < npages) {
-                        page_info_t * ptmp = pa2page(phy_addr);
-
-                        //If referenced by our parent, we ref it too. 
-                        //If its not referenced, it might be kernel allocated
-                        if (page_get_ref(ptmp))
-                            page_inc_ref(pp);
-                    }
-                }
-            }
-            /* Set new entry in pagetable */
-            pde &= 0xFFF; //keep old permissions
-            pde |= page2pa(pp);
-            newpg[pgi] = pde;
-        }
-    }
-}
 
 static int sys_fork(void)
 {
@@ -264,9 +212,6 @@ static int sys_fork(void)
     
     //registers
     newenv->env_tf = curenv->env_tf;
-    
-    /* Make a deep copy of the page dir */
-//    pgdir_deepcopy(newenv->env_pgdir,curenv->env_pgdir);
     
     //Etc
     newenv->env_status = ENV_RUNNABLE;
