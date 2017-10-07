@@ -137,64 +137,93 @@ static int sys_wait(envid_t envid)
     return 0;
 }
 
-void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
-    /* Setup permission check register */
-    uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
+/**
+ * Fork a pagetable
+ *  Allocate new pgtable for child
+ *  Copy pgtable
+ *  Make entries COW when needed
+ * @param ppdir
+ * @param cpdir
+ * @param i
+ * @return 
+ */
+int fork_pgtable_cow(pde_t* ppdir, pde_t* cpdir, uint16_t i){
+    //Define COW'able pte enrty
     uint32_t pte_small_check = PTE_BIT_RW | PTE_BIT_PRESENT | PTE_BIT_USER;
     
-    /* For all user RW pages, make COW entry (read only) */
-    for(uint32_t di = 0; di<KERNBASE/(PGSIZE*1024); di++) {
-        register pde_t pde = newenv->env_pgdir[di];
-        
-        /* Huge PAGE*/
-        if (pde & PDE_BIT_HUGE) {
-            if ((pde & pde_huge_check) == pde_huge_check) {
-                /* Huge page with user rw permissions, COW canidate */
-                pde ^= PDE_BIT_RW; //Set rw permissions to RO
-                newenv->env_pgdir[di] = pde; //save changes
-                cenv->env_pgdir[di] = pde;
-                
-                page_info_t *pp = pa2page(PDE_GET_ADDRESS(pde));
-                
-                //Inc reference counter
-                if (pp)
-                    page_inc_ref(pp);
-                
-                //Next index
-                continue;
-            }
-            continue;
-        }
-        /* PAGE TABLE */
-        if ((pde & pte_small_check) == pte_small_check){
-            /* Page table exits and is user rw, may contain COW canidates */
-            /* Get page table entry */
-            pte_t * pgtable = KADDR(PDE_GET_ADDRESS(pde));
-            pte_t * curpgtable = KADDR(PDE_GET_ADDRESS(cenv->env_pgdir[di]));
-            for(uint32_t ti = 0; ti < 1024; ti++) {
-                //page table entry register
-                register pte_t pte = pgtable[ti];
-                /* Check if pte is COW canidate */
-                if ((pte & pte_small_check) == pte_small_check) {
-                    dprintf("Va: %#08x from di:%d ti:%d pte:%#08x perm:%#08x true?:%d\n", di * (PGSIZE*1024) + ti * PGSIZE, di, ti, pte,pte_small_check, (pde & pte_small_check) == pte_small_check);
+    if (!(ppdir[i] & PDE_BIT_PRESENT))
+        return 0;
 
-                    pte ^= PTE_BIT_RW; //Make readonly pte entry
-                    pgtable[ti] = pte;
-                    curpgtable[ti] = pte;
-                    
-                    /* Inc ref counter if it is mapped in (accessable) physical region */
-                    uint32_t phys = PTE_GET_PHYS_ADDRESS(pte);
-                    if (PGNUM(phys) < npages) {
-                        page_info_t * pp = pa2page(phys);
-                        if (pp)
-                            page_inc_ref(pp);
-                    }
-                    
-                    continue;
-                }
-            }
+    /* Allocate new page for childs pgtable */
+    page_info_t * pp = page_alloc(0); // we copy every entry, so no zero alloc
+    if (!pp) {
+        dprintf("Allocation failed!\n");
+        return -1;
+    }
+    page_inc_ref(pp);
+    
+    /* 
+    * Insert new page (table) into child pgdir 
+    * Keep parent permissions
+    */
+    cpdir[i] = page2pa(pp) | (ppdir[i] & 0x1F);
+    
+    /* Set table pointers */
+    pte_t * ppt = KADDR(PDE_GET_ADDRESS(ppdir[i]));
+    pte_t * cpt = page2kva(pp);
+  
+    for(uint32_t j = 0; j< 1024; j++) {
+        /* If entry is comform COW, make it COW and Always copy it */
+        if ((ppt[j] & pte_small_check) == pte_small_check) {
+            ppt[j] ^= PTE_BIT_RW;
+            dprintf("VA %p now COW.\n", i*PGSIZE*1024 + j*PGSIZE);
+        }
+        
+        cpt[j] = ppt[j];
+        
+        /* Inc ref on user pages*/
+        if (ppt[j] & PTE_BIT_PRESENT) //if present
+            if (PGNUM(PTE_GET_PHYS_ADDRESS(ppt[j])) < npages) //and refers to existing physical page
+                if (pa2page(PTE_GET_PHYS_ADDRESS(ppt[j]))->pp_ref) //And parent has referenced it
+                    page_inc_ref(pa2page(PTE_GET_PHYS_ADDRESS(ppt[j]))); //Increase reference
+    }
+    
+    return 0;
+}
+
+int fork_pgdir_copy_and_cow(env_t * penv ,env_t* cenv){
+    /* Setup permission check register */
+    uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
+    
+    /* 
+     * - Duplicate pgdir
+     * \- edit pgdir entry to COW when pde_huge_check comfirms
+     */
+    pde_t * ppdir = penv->env_pgdir;
+    pde_t * cpdir = cenv->env_pgdir;
+    for(uint16_t i = 0; i<1024; i++) {
+        if (ppdir[i] & PDE_BIT_PRESENT) {
+            if ((ppdir[i] & pde_huge_check) == pde_huge_check)
+                /* Remove write bit */
+                ppdir[i] ^= PDE_BIT_RW;
+            
+            //Copy entry from parent to child
+            cpdir[i] = ppdir[i];
+            
+            /* Increase page reference of huge pages */
+            if (ppdir[i] & PDE_BIT_HUGE)
+                if (pa2page(PDE_GET_ADDRESS(ppdir[i]))->pp_ref)
+                    page_inc_ref(pa2page(PDE_GET_ADDRESS(ppdir[i])));
+            
+            /* If it is not huge, copy pgtable */
+            if (!(ppdir[i] & PDE_BIT_HUGE))
+                if (i!=PDX(UVPT))
+                    if (fork_pgtable_cow(ppdir, cpdir, i))
+                        return -1;
         }
     }
+    
+    return 0;
 }
 
 
@@ -220,7 +249,12 @@ static int sys_fork(void)
     /* Copy pgdir, changing permissions to COW where applicable 
      * for both the parent and the child
      */
-    fork_pgdir_copy_and_cow(curenv, newenv);
+    if (fork_pgdir_copy_and_cow(curenv, newenv)) {
+        dprintf("forking pgdir failed!\n");
+        env_free(newenv);
+        return -1;
+    }
+    dprintf("Forking pgdir success!\n");
     
     /* Child now inherits the COW thingies */
     memcpy(newenv->vma_list, curenv->vma_list, sizeof(vma_arr_t));
@@ -233,6 +267,9 @@ static int sys_fork(void)
     
     /* Flush tlb */
     tlbflush();
+    
+    /* Dump child vma */
+    vma_dump_all(newenv);
     
     //Return the new env id so that the forker knows who he spawned
     return newenv->env_id;

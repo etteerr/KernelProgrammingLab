@@ -370,7 +370,7 @@ int trap_handle_cow(uint32_t fault_va){
     }
 
     if ((hit->perm & VMA_PERM_WRITE) && !(pte_original & PDE_BIT_HUGE)) {
-        dprintf("va %p original_pte %p (phy_addr: %p)\n", hit->va, pte_original, PTE_GET_PHYS_ADDRESS(pte_original));
+        dprintf("va %p original_pte %p (phy_addr: %p)\n", fault_va, pte_original, PTE_GET_PHYS_ADDRESS(pte_original));
 
         /* If page is only referenced once, it is no longer shared! */
         /* Get page */
@@ -414,6 +414,8 @@ int trap_handle_cow(uint32_t fault_va){
 
         /* Decrease page ref counter */
         page_decref(cow_page);
+        
+        dprintf("va %p now maps to %p\n", fault_va, page2pa(new_page));
 
         return 0;
     }else
