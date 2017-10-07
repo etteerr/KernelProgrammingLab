@@ -347,7 +347,7 @@ void murder_env(env_t *env, uint32_t fault_va) {
         panic("Exiting due to kernel page fault");
     }
 
-    dprintf("[%08x] user fault va %08x ip %08x\n",
+    cprintf("[%08x] user fault va %08x ip %08x\n",
             env->env_id, fault_va, env->env_tf.tf_eip);
     print_trapframe(&env->env_tf);
     env_destroy(env);
