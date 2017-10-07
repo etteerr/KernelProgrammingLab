@@ -600,6 +600,9 @@ void env_free(struct env *e)
     e->env_status = ENV_FREE;
     e->env_link = env_free_list;
     env_free_list = e;
+    
+    /* Zero out env */
+    memset(e, 0, sizeof(env_t));
 }
 
 /*
