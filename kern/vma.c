@@ -73,6 +73,9 @@ void vma_array_destroy(env_t* e) {
 
     /* Free vma_arr_t struct, which reserves an entire page */
     __dealloc_range(e, (void*)VMA_UVA, PGSIZE);
+    
+    /* Zero out vma_array */
+    memset(&e->vma_list, 0, sizeof(vma_arr_t));
 }
 
 inline int vma_is_empty(vma_t* vma) {
