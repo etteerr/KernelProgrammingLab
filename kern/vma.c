@@ -21,7 +21,8 @@ void __dealloc_range(env_t *e, void *va, size_t len) {
             if (pa) {
                 struct page_info * pp = pa2page(pa);
                 if (pp) {
-                    page_decref(pp);
+                    if (!pp->c0.reg.kernelPage)
+                        page_decref(pp);
                     *pte = 0;
                     tlb_invalidate(e->env_pgdir, (void*)i);
                 }
@@ -75,7 +76,7 @@ void vma_array_destroy(env_t* e) {
     __dealloc_range(e, (void*)VMA_UVA, PGSIZE);
     
     /* Zero out vma_array */
-    memset(&e->vma_list, 0, sizeof(vma_arr_t));
+    memset(e->vma_list, 0, sizeof(vma_arr_t));
 }
 
 inline int vma_is_empty(vma_t* vma) {

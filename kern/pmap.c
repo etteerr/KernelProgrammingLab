@@ -926,7 +926,6 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
  */
 static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm) {
     uint32_t i;
-    struct page_info *page;
     for(i = 0; i < size; i += PGSIZE) {
         //Walk dir, create table if non ext., get pointer to entry, profit
         pte_t *pentry = pgdir_walk(pgdir, (void *)((uint32_t)va + i), CREATE_NORMAL);
