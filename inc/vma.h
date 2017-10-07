@@ -36,14 +36,6 @@ enum {
     VMA_BINARY,
 };
 
-typedef union {
-    uint8_t reg;
-    struct {
-        unsigned COW:1;
-        unsigned :7;
-    }bit;
-} vma_flags_t;
-
 typedef struct vma {
     void *va; //4
     size_t len;//8
@@ -56,8 +48,6 @@ typedef struct vma {
      * This is to support file backing outside allignment
      */
     uint16_t backed_start_offset;//14
-    //implied padding?
-    vma_flags_t flags;
     void * backed_addr;
     uint32_t backsize;
     

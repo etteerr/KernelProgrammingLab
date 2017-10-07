@@ -369,7 +369,7 @@ int trap_handle_cow(uint32_t fault_va){
         return -1;
     }
 
-    if (hit->flags.bit.COW && !(pte_original & PDE_BIT_HUGE)) {
+    if ((hit->perm & VMA_PERM_WRITE) && !(pte_original & PDE_BIT_HUGE)) {
         dprintf("va %p original_pte %p (phy_addr: %p)\n", hit->va, pte_original, PTE_GET_PHYS_ADDRESS(pte_original));
 
         /* If page is only referenced once, it is no longer shared! */
@@ -416,7 +416,7 @@ int trap_handle_cow(uint32_t fault_va){
 
         return 0;
     }else
-        if (hit->flags.bit.COW) {
+        if (hit->perm & VMA_PERM_WRITE) {
             /* Hit on huge page */
             dprintf("va %p original_pte %p (phy_addr: %p)\n", hit->va, pte_original, PTE_GET_PHYS_ADDRESS(pte_original));
 

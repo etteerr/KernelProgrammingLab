@@ -137,40 +137,10 @@ static int sys_wait(envid_t envid)
     return 0;
 }
 
-void fork_vma_makecow(env_t* newenv, uint32_t va_range_start, uint32_t va_range_end){
-    uint32_t len = va_range_end - va_range_start;
-    vma_t *vma = vma_lookup(newenv, (void*)va_range_start, len);
-    
-    if (!vma) {
-        vma_dump_all(newenv);
-        cprintf("---------Error in vma range %#08x-%#08x---------\n", va_range_start, va_range_end);
-        panic("No existing vma in range!");
-    }
-    
-    if (vma->len == len){
-        vma->flags.bit.COW = 1;
-    }else {
-        /* remap required */
-        /* Copy original vma for future reference*/
-        vma_t pvals = *vma;
-        vma_unmap(newenv, (void*) va_range_start, len, 1);
-        int vma_index = vma_new(newenv, (void*) va_range_start, len, pvals.perm, pvals.type);
-        vma = &newenv->vma_list->vmas[vma_index];
-        vma->flags.bit.COW = 1;
-        /* Check if everything permissions in vma where correct as well */
-        assert(pvals.perm & VMA_PERM_WRITE);
-        assert(vma->perm & VMA_PERM_WRITE);
-        assert(vma->perm == pvals.perm);
-    }
-}
-
 void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
     /* Setup permission check register */
     uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
     uint32_t pte_small_check = PTE_BIT_RW | PTE_BIT_PRESENT | PTE_BIT_USER;
-    
-    /* vma range tracker: Keeps track of continues COWified pages */
-    uint32_t range_start = 0;
     
     /* For all user RW pages, make COW entry (read only) */
     for(uint32_t di = 0; di<KERNBASE/(PGSIZE*1024); di++) {
@@ -184,15 +154,8 @@ void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
                 newenv->env_pgdir[di] = pde; //save changes
                 cenv->env_pgdir[di] = pde;
                 
-                //Next index (Otherwise we would edit vma already)
+                //Next index
                 continue;
-            }
-            /* COWify VMA range */
-            if (range_start) {
-                uint32_t range_end = di * (PGSIZE*1024);
-                fork_vma_makecow(cenv, range_start, range_end);
-                /* Reset range */
-                range_start = 0;
             }
             continue;
         }
@@ -207,8 +170,6 @@ void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
                 register pte_t pte = pgtable[ti];
                 /* Check if pte is COW canidate */
                 if ((pte & pte_small_check) == pte_small_check) {
-                    if (~range_start)
-                        range_start = di * (PGSIZE*1024) + ti * PGSIZE;
                     dprintf("Va: %#08x from di:%d ti:%d pte:%#08x perm:%#08x true?:%d\n", di * (PGSIZE*1024) + ti * PGSIZE, di, ti, pte,pte_small_check, (pde & pte_small_check) == pte_small_check);
 
                     pte ^= PTE_BIT_RW; //Make readonly pte entry
@@ -216,14 +177,6 @@ void fork_pgdir_copy_and_cow(env_t * cenv,env_t* newenv){
                     curpgtable[ti] = pte;
                     
                     continue;
-                }
-                
-                /* COWify VMA range */
-                if (range_start) {
-                    uint32_t range_end = di * (PGSIZE*1024) + ti * PGSIZE; //Not inclusive
-                    fork_vma_makecow(cenv, range_start, range_end);
-                    /* Reset range */
-                    range_start = 0;
                 }
             }
         }
