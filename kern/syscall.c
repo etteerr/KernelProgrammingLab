@@ -265,12 +265,14 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
                 /* Increase ref on all pages */
                 if ((src[it] & PTE_BIT_PRESENT) && (src[it] & PTE_BIT_USER)) {
                     uint32_t phy_addr = PTE_GET_PHYS_ADDRESS(src[it]);
-                    page_info_t * ptmp = pa2page(phy_addr);
-                    
-                    //If referenced by our parent, we ref it too. 
-                    //If its not referenced, it might be kernel allocated
-                    if (ptmp->pp_ref)
-                        ptmp->pp_ref++;
+                    if (phy_addr <= 0xFFFF) {
+                        page_info_t * ptmp = pa2page(phy_addr);
+
+                        //If referenced by our parent, we ref it too. 
+                        //If its not referenced, it might be kernel allocated
+                        if (ptmp->pp_ref)
+                            ptmp->pp_ref++;
+                    }
                 }
             }
             /* Set new entry in pagetable */
