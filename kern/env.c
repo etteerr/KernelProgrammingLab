@@ -207,7 +207,7 @@ static int env_setup_vm(struct env *e)
      */
 
     /* LAB 3: Your code here. */
-    (*page_get_ref(p))++;
+    page_inc_ref(p);
     e->env_pgdir = page2kva(p);
     memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
 

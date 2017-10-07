@@ -201,7 +201,7 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
             
             /* inc ref to page */
             if ((pde & PDE_BIT_PRESENT) && (pde & PDE_BIT_USER))
-                (*page_get_ref(pa2page(PDE_GET_ADDRESS(pde))))++;
+                page_inc_ref(pa2page(PDE_GET_ADDRESS(pde)));
                 
             continue;
         }
@@ -209,7 +209,7 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
         if (page_table == (pde & page_table)) {
             /* Page table, allocate page and copy */
             page_info_t *pp = page_alloc(0);
-            (*page_get_ref(pp))++;
+            page_inc_ref(pp);
             pte_t *dst = page2kva(pp);
             pte_t *src = page2kva(pa2page(PDE_GET_ADDRESS(pde)));
             for(uint32_t it = 0; it < 1024; it++) {
@@ -223,8 +223,8 @@ void pgdir_deepcopy(pde_t* newpg, pde_t* curpg){
 
                         //If referenced by our parent, we ref it too. 
                         //If its not referenced, it might be kernel allocated
-                        if (*page_get_ref(ptmp))
-                            (*page_get_ref(ptmp))++;
+                        if (page_get_ref(ptmp))
+                            page_inc_ref(pp);
                     }
                 }
             }

@@ -158,9 +158,16 @@ void page_decref(struct page_info *pp);
  * Determines the amount of references to pp
  *  Takes into account if page is body of a huge allocation
  * @param pp
- * @return pointer to ref of header page
+ * @return ref of header page
  */
-uint16_t *page_get_ref(page_info_t *pp);
+uint16_t page_get_ref(page_info_t *pp);
+
+/**
+ * Increments the ref counter of pp safely
+ * @param pp
+ * @return New ref count
+ */
+uint16_t page_inc_ref(page_info_t* pp);
 
 void tlb_invalidate(pde_t *pgdir, void *va);
 
