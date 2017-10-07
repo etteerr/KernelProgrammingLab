@@ -343,11 +343,11 @@ void murder_env(env_t *env, uint32_t fault_va) {
     bool is_kernel = ((env->env_tf.tf_cs & 3) != 3);
     /* Handle kernel-mode page faults. */
     if (is_kernel) {
-        cprintf("Kernel fault va %08x ip %08x\n", fault_va, env->env_tf.tf_eip);
+        dprintf("Kernel fault va %08x ip %08x\n", fault_va, env->env_tf.tf_eip);
         panic("Exiting due to kernel page fault");
     }
 
-    cprintf("[%08x] user fault va %08x ip %08x\n",
+    dprintf("[%08x] user fault va %08x ip %08x\n",
             env->env_id, fault_va, env->env_tf.tf_eip);
     print_trapframe(&env->env_tf);
     env_destroy(env);
@@ -370,14 +370,14 @@ int trap_handle_cow(uint32_t fault_va){
     }
 
     if (hit->flags.bit.COW && !(pte_original & PDE_BIT_HUGE)) {
-        cprintf("[COW] va %p original_pte %p\n", hit->va, pte_original);
+        dprintf("va %p original_pte %p\n", hit->va, pte_original);
 
         /* If page is only referenced once, it is no longer shared! */
         /* Get page */
         page_info_t *cow_page = pa2page(PTE_GET_PHYS_ADDRESS(pte_original));
 
         if (cow_page->pp_ref == 1) {
-            cprintf("[COW] Page referenced only once. Assuming shared.\n");
+            dprintf("Page referenced only once. Assuming shared.\n");
             *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) |= PTE_BIT_RW;
             return 0;
         }
@@ -418,7 +418,7 @@ int trap_handle_cow(uint32_t fault_va){
     }else
         if (hit->flags.bit.COW) {
             /* Hit on huge page */
-            cprintf("[COW] [Huge] va %p original_pte %p\n", hit->va, pte_original);
+            dprintf("[Huge] va %p original_pte %p\n", hit->va, pte_original);
 
             /* Make some assertions */
             assert(pte_original & PDE_BIT_HUGE); //Should always be true due to if statement
@@ -473,11 +473,11 @@ int trap_handle_backed_memory(uint32_t fault_va){
     vma_t * vma = vma_lookup(curenv, (void*)fault_va, 0);
     if (vma->backed_addr && vma->len) {
         /* Our vma is backed! */
-        cprintf("[filebacked memory] Backing memory address %p\n", fault_va);
+        dprintf("Backing memory address %p\n", fault_va);
 
         page_info_t * page = page_alloc(ALLOC_ZERO);
         if (!page) {
-            cprintf("[filebacked memory] Page allocation failed!\n");
+            cprintf("Page allocation failed!\n");
             return -1;
         }
         page->pp_ref++;
@@ -668,7 +668,7 @@ void page_fault_handler(struct trapframe *tf)
 
 
     /* If we've reached this point, the memory fault should have been addressed properly */
-    cprintf("Page fault at (%#08x) should be fixed\n", fault_va);
+    dprintf("Page fault at (%#08x) should be fixed\n", fault_va);
 }
 
 void breakpoint_handler(struct trapframe *tf) {
