@@ -102,7 +102,7 @@ static int sys_vma_destroy(void *va, size_t size)
     if(size <= 0) {
         return -1;
     }
-    return vma_unmap(curenv, va, size);
+    return vma_unmap(curenv, va, size, 0);
 }
 
 /*
@@ -153,7 +153,7 @@ void fork_vma_makecow(env_t* newenv, uint32_t va_range_start, uint32_t va_range_
         /* remap required */
         /* Copy original vma for future reference*/
         vma_t pvals = *vma;
-        vma_unmap(newenv, (void*) va_range_start, len);
+        vma_unmap(newenv, (void*) va_range_start, len, 1);
         int vma_index = vma_new(newenv, (void*) va_range_start, len, pvals.perm, pvals.type);
         vma = &newenv->vma_list->vmas[vma_index];
         vma->flags.bit.COW = 1;

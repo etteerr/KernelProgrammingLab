@@ -49,7 +49,15 @@ int vma_is_empty(vma_t * vma);
  */
 int vma_new(env_t *e, void *va, size_t len, int perm, int type);
 int vma_new_range(env_t *e, size_t len, int perm, int type);
-int vma_unmap(env_t *e, void *va, size_t len);
+/**
+ * unmaps vma and page_decref associated pages
+ * @param e
+ * @param va
+ * @param len
+ * @param leave_pages_allocated if 1, does NOT DECREF THE PAGES
+ * @return 
+ */
+int vma_unmap(env_t *e, void *va, size_t len, int leave_pages_allocated);
 /**
  * Looks up a vma table which is the first to be found in the range of va to va+len
  * @param e

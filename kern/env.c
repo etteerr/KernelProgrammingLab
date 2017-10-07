@@ -326,7 +326,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
 
     /* Allocate */
     //Allocated start page
-    dprintf("\tAllocating... ");
+    dprintf("\tAllocating %d pages... ", numpages);
     struct page_info * pp = alloc_consecutive_pages(numpages,  0);
     dprintf("Success!\n");
 

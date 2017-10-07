@@ -346,12 +346,13 @@ int vma_new_range(env_t *e, size_t len, int perm, int type) {
     return -1;
 }
 
-int vma_unmap(env_t *e, void *va, size_t len) {
+int vma_unmap(env_t *e, void *va, size_t len, int leave_pages_allocated) {
     /* assertions */
     assert(len);
     
     /* Helper variables */
     uint32_t vlen = (uint32_t) va + len;
+    int dealloc = !leave_pages_allocated;
     
     /* Determine vma entry */
     vma_t * entry, tmp1;
@@ -367,11 +368,11 @@ int vma_unmap(env_t *e, void *va, size_t len) {
             /* unmap, and keep beginning if va > entry->va */
             if (va > entry->va) {
                 entry->len = (uint32_t)(va - entry->va);
-                __dealloc_range(e, va, tmp1.len - entry->len);
+                if (dealloc) __dealloc_range(e, va, tmp1.len - entry->len);
             }
             else {
                 vma_remove(e, entry);
-                __dealloc_range(e, entry->va, entry->len);
+                if (dealloc) __dealloc_range(e, entry->va, entry->len);
             }
 
             /* remap remainder if there is a remainder */
@@ -388,11 +389,11 @@ int vma_unmap(env_t *e, void *va, size_t len) {
             /* If overlap is complete, remove */
             if (vlen >= i_vlen) {
                 vma_remove(e, entry);
-                __dealloc_range(e, entry->va, entry->len);
+                if (dealloc) __dealloc_range(e, entry->va, entry->len);
             }
             else {//Else, shrink entry
                 entry->va =  (void*)vlen;
-                __dealloc_range(e, tmp1.va, vlen - (uint32_t)tmp1.va);
+                if (dealloc) __dealloc_range(e, tmp1.va, vlen - (uint32_t)tmp1.va);
             }
         }
     }
