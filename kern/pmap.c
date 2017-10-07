@@ -332,8 +332,6 @@ static void mem_init_mp(void)
      *             it will fault rather than overwrite another CPU's stack.
      *             Known as a "guard page".
      *     Permissions: kernel RW, user NONE
-     *
-     * LAB 6: Your code here:
      */
     int i;
     uint32_t kstacktop_i;
@@ -343,8 +341,8 @@ static void mem_init_mp(void)
 
         boot_map_region(kern_pgdir, kstacktop_i-KSTKSIZE, KSTKSIZE, (uint32_t)percpu_kstacks[i], PTE_BIT_RW | PTE_BIT_PRESENT);
 
-        /* Invalid phys addr to trigger fault when accessed */
-        boot_map_region(kern_pgdir, kstacktop_i-PTSIZE, KSTKGAP, 0xFFFFF000 - KSTKGAP,0);
+        /* No perms to trigger fault when accessed */
+        boot_map_region(kern_pgdir, kstacktop_i - (KSTKSIZE + KSTKGAP), KSTKGAP, 0, 0);
     }
 
 }
