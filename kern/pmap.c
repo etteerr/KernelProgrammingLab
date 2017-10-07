@@ -804,7 +804,7 @@ uint16_t page_get_ref(page_info_t *pp) {
         pp = &pages[i - (i%HUGE_PAGE_AMOUNT)];
         assert(pp->c0.reg.alligned4mb);
     }
-    if (PAGE_SUPER_VERBOSE) dprintf("page (%p) reference accessed. page (%p) has %d references.\n", page2pa(pp), phys, pp->pp_ref);
+//    if (PAGE_SUPER_VERBOSE) dprintf("page (%p) reference accessed. page (%p) has %d references.\n", page2pa(pp), phys, pp->pp_ref);
     return pp->pp_ref;
 }
 

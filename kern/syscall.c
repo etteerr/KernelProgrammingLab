@@ -147,9 +147,9 @@ static int sys_wait(envid_t envid)
  * @param i
  * @return 
  */
-int fork_pgtable_cow(pde_t* ppdir, pde_t* cpdir, uint16_t i){
+int fork_pgtable_cow(env_t *pe, pde_t* ppdir, pde_t* cpdir, uint32_t i){
     //Define COW'able pte enrty
-    uint32_t pte_small_check = PTE_BIT_RW | PTE_BIT_PRESENT | PTE_BIT_USER;
+    uint32_t pte_small_check = PTE_BIT_PRESENT | PTE_BIT_USER;
     
     if (!(ppdir[i] & PDE_BIT_PRESENT))
         return 0;
@@ -160,16 +160,17 @@ int fork_pgtable_cow(pde_t* ppdir, pde_t* cpdir, uint16_t i){
   
     for(uint32_t j = 0; j< 1024; j++) {
         /* If entry is comform COW, make it COW and Always copy it */
-        if ((ppt[j] & pte_small_check) == pte_small_check) {
-            ppt[j] ^= PTE_BIT_RW;
-            dprintf("VA %p now COW.\n", (i*PGSIZE*1024) + (j*PGSIZE));
-        }
+        if ((ppt[j] & pte_small_check) == pte_small_check)
+            if (vma_lookup(pe, (void*) ((i*PGSIZE*1024) + (j*PGSIZE)), 0)->perm | VMA_PERM_WRITE)
+                ppt[j] &= ~(uint32_t)PTE_BIT_RW;
+            
         
         cpt[j] = ppt[j];
         
         /* Inc ref on user pages*/
+//        if (ppt[j]) dprintf("(%p) %p\n", PTE_GET_PHYS_ADDRESS(ppt[j]), ppt[j]);
         if (ppt[j] & PTE_BIT_PRESENT) //if present
-            if (ppt[j] & PTE_BIT_USER) //And user accessable
+//            if (ppt[j] & PTE_BIT_USER) //And user accessable
                 if (PGNUM(PTE_GET_PHYS_ADDRESS(ppt[j])) < npages) //and refers to existing physical page
                     if (pa2page(PTE_GET_PHYS_ADDRESS(ppt[j]))->pp_ref) //And parent has referenced it
                         page_inc_ref(pa2page(PTE_GET_PHYS_ADDRESS(ppt[j]))); //Increase reference
@@ -212,7 +213,7 @@ void fork_reverse_pgtable_alloc(pde_t* cpdir){
 
 int fork_pgdir_copy_and_cow(env_t * penv ,env_t* cenv){
     /* Setup permission check register */
-    uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_RW | PDE_BIT_PRESENT | PDE_BIT_USER;
+    uint32_t pde_huge_check = PDE_BIT_HUGE | PDE_BIT_PRESENT | PDE_BIT_USER;
     
     /* page dir pointers */
     pde_t * ppdir = penv->env_pgdir;
@@ -229,25 +230,26 @@ int fork_pgdir_copy_and_cow(env_t * penv ,env_t* cenv){
      * - Duplicate pgdir
      * \- edit pgdir entry to COW when pde_huge_check comfirms
      */
-    for(uint16_t i = 0; i<1024; i++) {
+    for(uint32_t i = 0; i<1024; i++) {
         if (ppdir[i] & PDE_BIT_PRESENT) {
             if ((ppdir[i] & pde_huge_check) == pde_huge_check)
-                /* Remove write bit */
-                ppdir[i] ^= PDE_BIT_RW;
+                if (vma_lookup(penv, (void*)(i*PGSIZE*1024), 0)->perm & VMA_PERM_WRITE)
+                    /* Remove write bit */
+                    ppdir[i] &= ~(uint32_t)PDE_BIT_RW;
             
             //Copy entry from parent to child
             cpdir[i] = ppdir[i];
             
             /* Increase page reference of huge pages */
             if (ppdir[i] & PDE_BIT_HUGE)
-                if (ppdir[i] & PDE_BIT_USER)
-                    if (pa2page(PDE_GET_ADDRESS(ppdir[i]))->pp_ref)
+//                if (ppdir[i] & PDE_BIT_USER)
+                    if (page_get_ref(pa2page(PDE_GET_ADDRESS(ppdir[i]))))
                         page_inc_ref(pa2page(PDE_GET_ADDRESS(ppdir[i])));
             
             /* If it is not huge, copy pgtable */
             if (!(ppdir[i] & PDE_BIT_HUGE))
                 if (i!=PDX(UVPT))
-                    if (fork_pgtable_cow(ppdir, cpdir, i))
+                    if (fork_pgtable_cow(penv, ppdir, cpdir, i))
                         return -1;
         }
     }
