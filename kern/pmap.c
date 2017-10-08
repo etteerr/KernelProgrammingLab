@@ -13,6 +13,7 @@
 #include "env.h"
 #include "buddydef.h"
 #include "cpu.h"
+#include "inc/atomic_ops.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages; /* Amount of physical memory (in pages) */
@@ -392,6 +393,7 @@ void page_init(void) {
         //List states of page
         pc0.reg.kernelPage =
                 page_addr >= EXTPHYSMEM && page_addr < (uint32_t) nextfree - KERNBASE; //Kernel allocated space
+        pc0.reg.kernelPage |= page_addr == MPENTRY_PADDR;
         pc0.reg.IOhole = (page_addr >= IOPHYSMEM && page_addr < EXTPHYSMEM); //IO hole
         pc0.reg.bios = !i;
         //Every 1024 pages are 4mb alligned
@@ -791,7 +793,7 @@ void page_decref(struct page_info *pp) {
         assert(pp->c0.reg.alligned4mb);
     }
     
-    if (--pp->pp_ref == 0)
+    if (sync_sub_and_fetch(&pp->pp_ref, (uint16_t)1) == 0)
         page_free(pp);
 }
 
@@ -819,7 +821,7 @@ uint16_t page_inc_ref(page_info_t *pp) {
         assert(pp->c0.reg.alligned4mb);
     }
     if (PAGE_SUPER_VERBOSE) dprintf("page (%p) reference incremented. page (%p) has %d references.\n", page2pa(pp), phys, pp->pp_ref+1);
-    return ++pp->pp_ref;
+    return sync_add_and_fetch(&pp->pp_ref, (uint16_t)1);
 }
 
 /*
