@@ -571,29 +571,47 @@ void env_free(struct env *e)
 
     /* Flush all mapped pages in the user portion of the address space */
     static_assert(UTOP % PTSIZE == 0);
-    for (pdeno = 0; pdeno < PDX(UTOP); pdeno++) {
+    for (pdeno = 0; pdeno < 1024; pdeno++) {
 
         /* Only look at mapped page tables */
         if (!(e->env_pgdir[pdeno] & PTE_P))
             continue;
-
-        /* Find the pa and va of the page table */
-        pa = PTE_ADDR(e->env_pgdir[pdeno]);
-        pt = (pte_t*) KADDR(pa);
-
-        /* Unmap all PTEs in this page table */
+        
+        /* Only at user accessable tables */
+        if (!(e->env_pgdir[pdeno] & PTE_BIT_USER))
+            continue;
+        
+        /* Dont look above utop */
+        if ((uint32_t)PGADDR(pdeno, 0, 0) >= UTOP)
+            continue;
+        
+        /* Unmap huge */
         if (e->env_pgdir[pdeno] & PDE_BIT_HUGE) {
-            page_remove(e->env_pgdir, PGADDR(pdeno, 0, 0));
-        }else{
-            for (pteno = 0; pteno <= PTX(~0); pteno++) {
-                if (pt[pteno] & PTE_P)
-                    page_remove(e->env_pgdir, PGADDR(pdeno, pteno, 0));
-            }
+            page_info_t *huge = pa2page(PDE_GET_ADDRESS(e->env_pgdir[pdeno]));
+            page_decref(huge);
+            continue;
         }
-
-        /* Free the page table itself */
-        e->env_pgdir[pdeno] = 0;
-        page_decref(pa2page(pa));
+        
+        /* Unmap all PTEs in this page table */
+        page_info_t *page_of_table = pa2page(PDE_GET_ADDRESS(e->env_pgdir[pdeno]));
+        pte_t * table = page2kva(page_of_table);
+        
+        for(uint32_t i = 0; i<1024; i++) {
+            pte_t pte = table[i];
+            
+            /* Only decref present user pages */
+            if (pte & PTE_BIT_PRESENT) {
+                if (pte & PTE_BIT_USER) {
+                    page_info_t *usr_page = pa2page(PTE_GET_PHYS_ADDRESS(pte));
+                    page_decref(usr_page);
+                }
+            }
+                
+        }
+        
+        /* Unmap the table itself */
+        page_decref(page_of_table);
+        
     }
 
     /* Free the page directory */
