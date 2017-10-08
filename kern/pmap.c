@@ -392,6 +392,7 @@ void page_init(void) {
         //List states of page
         pc0.reg.kernelPage =
                 page_addr >= EXTPHYSMEM && page_addr < (uint32_t) nextfree - KERNBASE; //Kernel allocated space
+        pc0.reg.kernelPage |= page_addr == MPENTRY_PADDR;
         pc0.reg.IOhole = (page_addr >= IOPHYSMEM && page_addr < EXTPHYSMEM); //IO hole
         pc0.reg.bios = !i;
         //Every 1024 pages are 4mb alligned
