@@ -382,18 +382,16 @@ int trap_handle_cow(uint32_t fault_va){
             return 0;
         }
 
-        /* Reset pte entry */
-        *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
-
         /* Allocate new page */
         page_info_t *new_page = page_alloc(ALLOC_ZERO);
         assert(new_page != cow_page);
 
         if (!new_page) {
-                cprintf("[COW] Page allocation failed!\n");
-                return -1;
-            }
+            cprintf("[COW] Page allocation failed!\n");
+            return -1;
+        }
         /* Insert page with original permissions + write */
+        /* Insert handles pg_decref */
         /* Insert handles pg_ref++ */
         if (page_insert(curenv->env_pgdir, new_page, (void*)(fault_va & 0xFFFFF000),
                 (pte_original & 0x1F) | PTE_BIT_RW))
@@ -412,8 +410,6 @@ int trap_handle_cow(uint32_t fault_va){
         assert(hit->perm & PTE_BIT_RW);
         assert(hit->perm & VMA_PERM_WRITE);
 
-        /* Decrease page ref counter */
-        page_decref(cow_page);
         
         dprintf("va %p now maps to %p\n", fault_va, page2pa(new_page));
 
@@ -437,11 +433,8 @@ int trap_handle_cow(uint32_t fault_va){
                 return 0;
             }
 
-            /* Reset pte entry */
-            *pgdir_walk(curenv->env_pgdir, (void*)fault_va, 0) = 0;
-
             /* Now create 4M entry and handle cow */
-            page_info_t *new_page = page_alloc(ALLOC_HUGE | ALLOC_ZERO);
+            page_info_t *new_page = page_alloc(ALLOC_HUGE);
 
             if (!new_page) {
                 cprintf("[COW] [HUGE] Page allocation failed!\n");
@@ -458,13 +451,11 @@ int trap_handle_cow(uint32_t fault_va){
                 return -1;
             }
 
+            /* Copy original data */
             void *src = (void*) page2kva(cow_page);
             void *dst = (void*) page2kva(new_page);
 
             memcpy(dst, src, PGSIZE*1024);
-
-            /* Decrease page ref counter */
-            page_decref(cow_page);
 
             return 0;
         }
