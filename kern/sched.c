@@ -8,11 +8,32 @@
 #include "pmap.h"
 #include "monitor.h"
 #include "spinlock.h"
+#include "inc/atomic_ops.h"
 
 static uint64_t last_ran = 0;
 
 void sched_halt(void);
 
+static long long int shared_sched_iter = 0;
+
+/**
+ * function handles increment and returns current iterator
+ * @return iterator before atomic increment
+ */
+long long int shared_sched_get_next_iter() {
+    return sync_fetch_and_add(&shared_sched_iter, (long long int)1);
+}
+
+/**
+ * checks if env status is runnable
+ *  if true, sets status to running and returns true
+ *  if not, leaves status and returns false
+ * @param env the enviroment (env_t) object
+ * @return true on setting status to ENV_RUNNING from ENV_RUNNABLE
+ */
+int shared_sched_do_run(env_t * env) {
+    return sync_bool_compare_and_swap(&env->env_status, ENV_RUNNABLE, ENV_RUNNING);
+}
 /*
  * Choose a user environment to run and run it.
  */
