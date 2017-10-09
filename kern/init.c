@@ -132,7 +132,9 @@ void mp_main(void)
      * to start running processes on this CPU.  But make sure that
      * only one CPU can enter the scheduler at a time!
      */
-    dprintf("CPU %d startup done, running scheduler\n", cpunum());
+    dprintf("CPU %d startup done, waiting for cpu0 to complete booting\n", cpunum());
+    lock_kernel();
+    unlock_kernel();
     sched_yield();
 
     /* Remove this after you initialize per-CPU trap information */

@@ -148,7 +148,7 @@ void sched_yield(void)
     }
 
     /* sched_halt never returns */
-    dprintf("CPU %d: Running sched_halt()\n", cpunum());
+    dprintf("Running sched_halt()\n");
     sched_halt();
 
     /* Here to please the compiler, given sched_yield() is marked as non-returning */
@@ -191,7 +191,7 @@ void sched_halt(void)
     /* Release the big kernel lock as if we were "leaving" the kernel */
 //    unlock_kernel();
 
-    dprintf("CPU %d: Halting\n", cpunum());
+    dprintf("Halting\n");
     /* Reset stack pointer, enable interrupts and then halt. */
     asm volatile (
         "movl $0, %%ebp\n"
