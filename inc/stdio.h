@@ -32,10 +32,18 @@ int vfprintf(int fd, const char *fmt, va_list);
 char *readline(const char *prompt);
 
 /* Debug print */
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
 #ifndef DEBUGPRINT
 #define DEBUGPRINT 1
 #endif
 #define dprintf(fmt, ...) \
-        if (DEBUGPRINT) cprintf("[%d|%s] " fmt, cpunum(), __func__, ##__VA_ARGS__)
+        if (DEBUGPRINT) cprintf("%s[%s%d%s|%s%s%s] %s" fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
 
 #endif /* !JOS_INC_STDIO_H */
