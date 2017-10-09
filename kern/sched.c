@@ -94,7 +94,6 @@ void sched_yield(void)
      */
     if(curenv) {
         curenv_i = (cur - envs);
-
         /* If current env has CPU time left in its slice, run it again */
         if(cur->env_status == ENV_RUNNING && (cur->remain_cpu_time > since_last_yield)) {
             cur->remain_cpu_time -= since_last_yield;
@@ -149,6 +148,7 @@ void sched_yield(void)
     }
 
     /* sched_halt never returns */
+    dprintf("CPU %d: Running sched_halt()\n", cpunum());
     sched_halt();
 
     /* Here to please the compiler, given sched_yield() is marked as non-returning */
