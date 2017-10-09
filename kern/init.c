@@ -54,8 +54,9 @@ void i386_init(void)
     lock_kernel();
 
     /* Starting non-boot CPUs */
+    dprintf("Bootcpu: Starting aps...\n");
     boot_aps();
-    
+    dprintf("Bootcpu: Starting aps... done!\n");
     /* Release lock for sched_yield() */
     unlock_kernel();
 
