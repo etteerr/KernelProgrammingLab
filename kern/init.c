@@ -117,9 +117,13 @@ void mp_main(void)
     lcr3(PADDR(kern_pgdir));
     cprintf("SMP: CPU %d starting\n", cpunum());
 
+    dprintf("Init lapic (cpu %d)\n", cpunum());
     lapic_init();
+    dprintf("Init env (cpu %d)\n", cpunum());
     env_init_percpu();
+    dprintf("Init traps (cpu %d)\n", cpunum());
     trap_init_percpu();
+    dprintf("set status to CPU_STARTED (cpu %d)\n", cpunum());
     xchg(&thiscpu->cpu_status, CPU_STARTED); /* tell boot_aps() we're up */
 
     /*
@@ -127,6 +131,7 @@ void mp_main(void)
      * to start running processes on this CPU.  But make sure that
      * only one CPU can enter the scheduler at a time!
      */
+    dprintf("CPU %d startup done, running scheduler\n", cpunum());
     sched_yield();
 
     /* Remove this after you initialize per-CPU trap information */
