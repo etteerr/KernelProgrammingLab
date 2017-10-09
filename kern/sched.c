@@ -14,13 +14,13 @@ static uint64_t last_ran = 0;
 
 void sched_halt(void);
 
-static long long int shared_sched_iter = 0;
+static unsigned long long int shared_sched_iter = 0;
 
 /**
  * function handles increment and returns current iterator
  * @return iterator before atomic increment
  */
-long long int shared_sched_get_next_iter() {
+unsigned long long int shared_sched_get_next_iter() {
     return sync_fetch_and_add(&shared_sched_iter, (long long int)1);
 }
 
