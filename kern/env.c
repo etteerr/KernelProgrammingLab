@@ -19,6 +19,7 @@
 #include "sched.h"
 #include "monitor.h"
 #include "spinlock.h"
+#include "inc/atomic_ops.h"
 
 struct env *envs = NULL;            /* All environments */
 static struct env *env_free_list;   /* Free environment list */
@@ -255,7 +256,7 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     /* Set the basic status variables. */
     e->env_parent_id = parent_id;
     e->env_type = ENV_TYPE_USER;
-    e->env_status = ENV_RUNNABLE;
+    e->env_status = ENV_NOT_RUNNABLE; //Not initialized so not runnable!
     e->env_runs = 0;
     e->remain_cpu_time = MAX_TIME_SLICE;
 
@@ -545,6 +546,10 @@ void env_create(uint8_t *binary, enum env_type type)
 
     /* Load code */
     load_icode(e, binary); //also setups env registers (such SP and IP)
+    
+    /* Now its runnable, mark it as such */
+    if (sync_bool_compare_and_swap(&e->env_status, ENV_NOT_RUNNABLE, ENV_RUNNABLE) == 0)
+        panic("Set runnable failed!");
 
 }
 
