@@ -165,7 +165,7 @@ void sched_halt(void)
 
     /* For debugging and testing purposes, if there are no runnable
      * environments in the system, then drop into the kernel monitor. */
-    dprintf("CPU %d: Checking for runnable enviroments...\n", cpunum());
+    dprintf("Checking for runnable environments...\n");
     for (i = 0; i < NENV; i++) {
         if ((envs[i].env_status == ENV_RUNNABLE ||
              envs[i].env_status == ENV_RUNNING ||
