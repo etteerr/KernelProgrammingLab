@@ -1,9 +1,9 @@
 #ifndef JOS_INC_SPINLOCK_H
 #define JOS_INC_SPINLOCK_H
 
-#include <inc/types.h>
-#include <inc/assert.h>
-#include <kern/cpu.h>
+#include "../inc/types.h"
+#include "../inc/assert.h"
+#include "cpu.h"
 
 /* Comment this to disable spinlock debugging */
 #define DEBUG_SPINLOCK
@@ -48,8 +48,9 @@ extern struct spinlock kernel_lock;
 
 #ifdef lock_kernel
 static inline void lock_kernel_(const char * file, const int line) {
-    cprintf("[kern lock] Kernel lock at %s:%d\n", file, line);
+    dprintf("CPU %d Kernel lock at %s:%d\n", cpunum(), file, line);
     spin_lock(&kernel_lock);
+    dprintf("CPU %d Kernel lock done at %s:%d\n", cpunum(), file, line);
 }
 #else
 static inline void lock_kernel(void)
@@ -61,9 +62,10 @@ static inline void lock_kernel(void)
 #ifdef unlock_kernel
 static inline void unlock_kernel_(const char * file, const int line)
 {
-    cprintf("[kern lock] Kernel unlock at %s:%d\n", file, line);
+    dprintf("CPU %d Kernel unlock at %s:%d\n", cpunum(), file, line);
     spin_unlock(&kernel_lock);
     asm volatile("pause");
+    dprintf("CPU %d Kernel unlock done at %s:%d\n", cpunum(), file, line);
 }
 #else
 static inline void unlock_kernel(void)

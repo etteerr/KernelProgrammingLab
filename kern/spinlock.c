@@ -88,8 +88,9 @@ void spin_lock(struct spinlock *lk)
     /* The xchg is atomic.
      * It also serializes, so that reads after acquire are not reordered before
      * it. */
-    while (xchg(&lk->locked, 1) != 0)
+    while (xchg(&lk->locked, 1) != 0) {
         asm volatile ("pause");
+    }
 
     /* Record info about lock acquisition for debugging. */
 #ifdef DEBUG_SPINLOCK
