@@ -292,8 +292,8 @@ void trap(struct trapframe *tf)
         asm volatile("hlt");
 
     /* Re-acqurie the big kernel lock if we were halted in sched_yield(). */
-    if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
-        lock_kernel();
+//    if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
+//        lock_kernel();
 
     /* Check that interrupts are disabled.
      * If this assertion fails, DO NOT be tempted to fix it by inserting a "cli"
@@ -301,6 +301,7 @@ void trap(struct trapframe *tf)
     assert(!(read_eflags() & FL_IF));
 
     cprintf("Incoming TRAP frame at %p\n", tf);
+    dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
 
     if ((tf->tf_cs & 3) == 3) {
         /* Trapped from user mode. */
@@ -330,6 +331,9 @@ void trap(struct trapframe *tf)
 
     /* Dispatch based on what type of trap occurred */
     trap_dispatch(tf);
+    
+    /* Unlock kernel */
+    unlock_kernel();
 
     /* If we made it to this point, then no other environment was scheduled, so
      * we should return to the current environment if doing so makes sense. */

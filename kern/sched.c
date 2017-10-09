@@ -171,11 +171,11 @@ void sched_halt(void)
              envs[i].env_status == ENV_DYING))
             break;
     }
-    if (i == NENV) {
-        cprintf("No runnable environments in the system!\n");
-        while (1)
-            monitor(NULL);
-    }
+//    if (i == NENV) {
+//        cprintf("No runnable environments in the system!\n");
+//        while (1)
+//            monitor(NULL);
+//    }
 
     /* Mark that no environment is running on this CPU */
     curenv = NULL;
@@ -187,7 +187,7 @@ void sched_halt(void)
     xchg(&thiscpu->cpu_status, CPU_HALTED);
 
     /* Release the big kernel lock as if we were "leaving" the kernel */
-    unlock_kernel();
+//    unlock_kernel();
 
     /* Reset stack pointer, enable interrupts and then halt. */
     asm volatile (
