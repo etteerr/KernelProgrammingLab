@@ -165,12 +165,14 @@ void sched_halt(void)
 
     /* For debugging and testing purposes, if there are no runnable
      * environments in the system, then drop into the kernel monitor. */
+    dprintf("CPU %d: Checking for runnable enviroments...\n", cpunum());
     for (i = 0; i < NENV; i++) {
         if ((envs[i].env_status == ENV_RUNNABLE ||
              envs[i].env_status == ENV_RUNNING ||
              envs[i].env_status == ENV_DYING))
             break;
     }
+    dprintf("CPU %d: No runnable enviroments found.\n", cpunum());
 //    if (i == NENV) {
 //        cprintf("No runnable environments in the system!\n");
 //        while (1)
@@ -189,6 +191,7 @@ void sched_halt(void)
     /* Release the big kernel lock as if we were "leaving" the kernel */
 //    unlock_kernel();
 
+    dprintf("CPU %d: Halting\n", cpunum());
     /* Reset stack pointer, enable interrupts and then halt. */
     asm volatile (
         "movl $0, %%ebp\n"

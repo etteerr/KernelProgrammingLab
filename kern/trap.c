@@ -333,7 +333,7 @@ void trap(struct trapframe *tf)
     trap_dispatch(tf);
     
     /* Unlock kernel */
-    unlock_kernel();
+//    unlock_kernel();
 
     /* If we made it to this point, then no other environment was scheduled, so
      * we should return to the current environment if doing so makes sense. */
