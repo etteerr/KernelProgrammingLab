@@ -239,18 +239,23 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
 
     lock_env();
 
-    if (!(e = env_free_list))
+    if (!(e = env_free_list)) {
+        unlock_env();
         return -E_NO_FREE_ENV;
+    }
 
     /* Allocate and set up the page directory for this environment. */
-    if ((r = env_setup_vm(e)) < 0)
+    if ((r = env_setup_vm(e)) < 0) {
+        unlock_env();
         return r;
+    }
 
     /* Create VMA list for this environment */
     if (vma_array_init(e)) {
         dprintf("env_alloc failed: No free pages for vma_array!\n");
         //Undo env_setup
         page_decref(pa2page(PADDR(e->env_pgdir)));
+        unlock_env();
         return -E_NO_MEM;
     }
 
@@ -300,9 +305,8 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     env_free_list = e->env_link;
     *newenv_store = e;
 
-    unlock_env();
-
     cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+    unlock_env();
     return 0;
 }
 
