@@ -24,7 +24,7 @@
  * Returns value before swap
  */
 #define sync_val_compare_and_swap(p_val, if_value, set_value) \
-            __sync_val_compare_and_swap(p_val, if_val, set_val)
+            __sync_val_compare_and_swap(p_val, if_value, set_value)
 
 /*
  * performs an atomic compare and swap. 
@@ -33,7 +33,7 @@
  * Returns 1 on swap, 0 if no swap occured
  */
 #define sync_bool_compare_and_swap(p_val, if_value, set_value) \
-            __sync_bool_compare_and_swap(p_val, if_val, set_val)
+            __sync_bool_compare_and_swap(p_val, if_value, set_value)
 
 /* Imlpies a full synchonization barrier */
 #define sync_synchronize() __sync_synchronize()
