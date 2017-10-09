@@ -172,7 +172,7 @@ void sched_halt(void)
             envs[i].env_status == ENV_DYING))
             break;
     }
-    if (i == NENV) {
+    if (i == NENV && cpunum() == 0) {
         dprintf("No runnable environments in the system!\n");
         while (1)
             monitor(NULL);
