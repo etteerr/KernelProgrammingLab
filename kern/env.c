@@ -332,7 +332,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
 
     /* Allocate */
     //Allocated start page
-    dprintf("\tAllocating %d pages... ", numpages);
+    dprintf("\tAllocating %d pages... \n", numpages);
     struct page_info * pp = alloc_consecutive_pages(numpages,  0);
     dprintf("Success!\n");
 
@@ -352,7 +352,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
     pages4M = 0;
 
     /* setup va tables */
-    dprintf("\tSetting up %u 4M and %u 4K pages at %#08x to %#08x... ",
+    dprintf("\tSetting up %u 4M and %u 4K pages at %#08x to %#08x... \n",
     pages4M, pages4K-pages4M*1024, rva, rva+rlen);
 
     uint32_t i = 0;
@@ -381,7 +381,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
     dprintf("Success!\n");
 
     /* Check virtual pages */
-    dprintf("\tChecking access (R/W) to va range... ");
+    dprintf("\tChecking access (R/W) to va range... \n");
 
     //Create 32 bit sized bites (volatile hack to prevent optimizations)
     volatile uint32_t * data;

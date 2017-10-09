@@ -71,7 +71,7 @@ void sched_yield(void)
      * no runnable environments, simply drop through to the code
      * below to halt the cpu.
      */
-    
+
     /**************************************
      * Multi-core rules                   *
      **************************************
@@ -88,7 +88,7 @@ void sched_yield(void)
     uint64_t since_last_yield = read_tsc() - last_ran;
     last_ran = read_tsc();
 
-    /* 
+    /*
      * If we have a current enviroment
      * It is considered locked for us!
      */
@@ -97,8 +97,8 @@ void sched_yield(void)
         /* If current env has CPU time left in its slice, run it again */
         if(cur->env_status == ENV_RUNNING && (cur->remain_cpu_time > since_last_yield)) {
             cur->remain_cpu_time -= since_last_yield;
-            dprintf("------------> Continue %d at %p (CPU %d) remaining time: %u\n", 
-                    curenv_i, 
+            dprintf("------------> Continue %d at %p (CPU %d) remaining time: %u\n",
+                    curenv_i,
                     envs[curenv_i].env_tf.tf_eip,
                     thiscpu->cpu_id,
                     cur->remain_cpu_time
@@ -125,10 +125,10 @@ void sched_yield(void)
                     if (shared_sched_yield_env(curenv)==0)
                         panic("Yielding failed! Must never happen!");
             }
-            
+
             /* Run new curenv */
-            dprintf("------------> running %d at %p (CPU %d).\n", 
-                    curenv_i, 
+            dprintf("------------> running %d at %p (CPU %d).\n",
+                    curenv_i,
                     envs[curenv_i].env_tf.tf_eip,
                     thiscpu->cpu_id
                     );
@@ -139,8 +139,8 @@ void sched_yield(void)
 
     /* If no eligible envs found above, we can continue running curenv if it is still marked as running */
     if(curenv && curenv->env_status == ENV_RUNNING) {
-        dprintf("------------> continue %d at %p (CPU %d).\n", 
-                    curenv_i, 
+        dprintf("------------> continue %d at %p (CPU %d).\n",
+                    curenv_i,
                     envs[curenv_i].env_tf.tf_eip,
                     thiscpu->cpu_id
                     );
@@ -169,15 +169,15 @@ void sched_halt(void)
     for (i = 0; i < NENV; i++) {
         if ((envs[i].env_status == ENV_RUNNABLE ||
              envs[i].env_status == ENV_RUNNING ||
-             envs[i].env_status == ENV_DYING))
+             envs[i].env_status == ENV_WAITING ||
+            envs[i].env_status == ENV_DYING))
             break;
     }
-    dprintf("CPU %d: No runnable enviroments found.\n", cpunum());
-//    if (i == NENV) {
-//        cprintf("No runnable environments in the system!\n");
-//        while (1)
-//            monitor(NULL);
-//    }
+    if (i == NENV && cpunum() == 0) {
+        dprintf("No runnable environments in the system!\n");
+        while (1)
+            monitor(NULL);
+    }
 
     /* Mark that no environment is running on this CPU */
     curenv = NULL;
