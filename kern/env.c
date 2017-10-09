@@ -716,15 +716,15 @@ void env_run(struct env *e)
     if (curenv != e) {
 
         //set a running env back to runnable
-        if (curenv && curenv->env_status == ENV_RUNNING)
-            curenv->env_status = ENV_RUNNABLE;
+//        if (curenv && curenv->env_status == ENV_RUNNING)
+//            curenv->env_status = ENV_RUNNABLE;
 
         //switch curenv variable
         curenv = e;
 
         //update new curenv status
-        assert(curenv->env_status == ENV_RUNNABLE);
-        curenv->env_status = ENV_RUNNING;
+//        assert(curenv->env_status == ENV_RUNNABLE);
+//        curenv->env_status = ENV_RUNNING;
 
         //inc runs
         curenv->env_runs++;
@@ -735,7 +735,7 @@ void env_run(struct env *e)
 
     //Check if everything is OK
     assert(curenv == e);
-    assert(curenv->env_status = ENV_RUNNING);
+    assert(curenv->env_status == ENV_RUNNING);
 
     /* restore env registers */
     env_pop_tf(&e->env_tf);
