@@ -6,7 +6,7 @@
 #include <inc/types.h>
 #include <inc/stdio.h>
 #include <inc/stdarg.h>
-#include <kern/spinlock.h>
+#include "spinlock.h"
 
 static void putch(int ch, int *cnt)
 {

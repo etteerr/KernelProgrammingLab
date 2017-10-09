@@ -131,10 +131,11 @@ void mp_main(void)
      * Now that we have finished some basic setup, call sched_yield()
      * to start running processes on this CPU.  But make sure that
      * only one CPU can enter the scheduler at a time!
+     *
+     * Note Tom: our scheduler uses atomic cooperative iteration of the envs,
+     * So multiple cores can enter it concurrently safely.
      */
     dprintf("CPU %d startup done, waiting for cpu0 to complete booting\n", cpunum());
-    lock_kernel();
-    unlock_kernel();
     sched_yield();
 
     /* Remove this after you initialize per-CPU trap information */
