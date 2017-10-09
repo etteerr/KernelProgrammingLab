@@ -83,11 +83,13 @@ int envid2env(envid_t envid, struct env **env_store, bool checkperm)
 {
     struct env *e;
 
+    lock_env();
     assert_lock_env();
 
     /* If envid is zero, return the current environment. */
     if (envid == 0) {
         *env_store = curenv;
+        unlock_env();
         return 0;
     }
 
@@ -101,6 +103,7 @@ int envid2env(envid_t envid, struct env **env_store, bool checkperm)
     e = &envs[ENVX(envid)];
     if (e->env_status == ENV_FREE || e->env_id != envid) {
         *env_store = 0;
+        unlock_env();
         return -E_BAD_ENV;
     }
 
@@ -113,10 +116,12 @@ int envid2env(envid_t envid, struct env **env_store, bool checkperm)
      */
     if (checkperm && e != curenv && e->env_parent_id != curenv->env_id) {
         *env_store = 0;
+        unlock_env();
         return -E_BAD_ENV;
     }
 
     *env_store = e;
+    unlock_env();
     return 0;
 }
 
@@ -232,6 +237,8 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     int r;
     struct env *e;
 
+    lock_env();
+
     if (!(e = env_free_list))
         return -E_NO_FREE_ENV;
 
@@ -292,6 +299,8 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
     /* commit the allocation */
     env_free_list = e->env_link;
     *newenv_store = e;
+
+    unlock_env();
 
     cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
     return 0;
@@ -641,6 +650,7 @@ void env_free(struct env *e)
 void env_destroy(struct env *e)
 {
     size_t i;
+    lock_env();
     assert_lock_env();
 
     /* Mark all envs waiting for this env as runnable again */
@@ -664,8 +674,9 @@ void env_destroy(struct env *e)
 
     if (curenv == e) {
         curenv = NULL;
-//        sched_yield();
     }
+
+    unlock_env();
 }
 
 /*
