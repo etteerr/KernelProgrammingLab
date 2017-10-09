@@ -101,11 +101,12 @@ void sched_halt(void)
     for (i = 0; i < NENV; i++) {
         if ((envs[i].env_status == ENV_RUNNABLE ||
              envs[i].env_status == ENV_RUNNING ||
-             envs[i].env_status == ENV_DYING))
+             envs[i].env_status == ENV_WAITING ||
+            envs[i].env_status == ENV_DYING))
             break;
     }
     if (i == NENV) {
-        cprintf("No runnable environments in the system!\n");
+        dprintf("No runnable environments in the system!\n");
         while (1)
             monitor(NULL);
     }
