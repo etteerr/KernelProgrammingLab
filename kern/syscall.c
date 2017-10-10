@@ -275,7 +275,7 @@ static int sys_fork(void)
     env_t *newenv;
     
     /* Allocate env  & duplicate shared info */
-    if (env_alloc(&newenv, curenv->env_id)) {
+    if (env_alloc(&newenv, curenv->env_id, ENV_TYPE_USER)) {
         cprintf("Failed to fork new child process!\n");
         return -1;
     }

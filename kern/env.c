@@ -231,7 +231,7 @@ static int env_setup_vm(struct env *e)
  *  -E_NO_FREE_ENV if all NENVS environments are allocated
  *  -E_NO_MEM on memory exhaustion
  */
-int env_alloc(struct env **newenv_store, envid_t parent_id)
+int env_alloc(struct env **newenv_store, envid_t parent_id, enum env_type envtype)
 {
     int32_t generation;
     int r;
@@ -549,7 +549,7 @@ void env_create(uint8_t *binary, enum env_type type)
 {
     /* Allocate environment */
     struct env * e = 0;
-    assert(env_alloc(&e, 0)==0);
+    assert(env_alloc(&e, 0, ENV_TYPE_USER)==0);
 
     /* Setup env */
     e->env_type = type;
