@@ -45,22 +45,22 @@ extern struct spinlock kernel_lock;
  */
 static inline void lock_kernel_(const char *file, const int line) {
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d Kernel lock at %s:%d\n", cpunum(), file, line);
+    dprintf("Kernel lock at %s:%d\n", cpunum(), file, line);
 #endif
     spin_lock(&kernel_lock);
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d Kernel lock done at %s:%d\n", cpunum(), file, line);
+    dprintf("Kernel lock done at %s:%d\n", cpunum(), file, line);
 #endif
 }
 
 static inline void unlock_kernel_(const char *file, const int line) {
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d Kernel unlock at %s:%d\n", cpunum(), file, line);
+    dprintf("Kernel unlock at %s:%d\n", cpunum(), file, line);
 #endif
     spin_unlock(&kernel_lock);
     asm volatile("pause");
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d Kernel unlock done at %s:%d\n", cpunum(), file, line);
+    dprintf("Kernel unlock done at %s:%d\n", cpunum(), file, line);
 #endif
 }
 
@@ -72,25 +72,25 @@ static inline void lock_(struct spinlock *slock, const char * file, const int li
     lock_kernel_(file, line);
 #else /* USE_BIG_KERNEL_LOCK */
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d %s lock at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
+    dprintf("%s lock at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
 #endif
     spin_lock(slock);
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d %s lock done at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
+    dprintf("%s lock done at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
 #endif
 #endif /* USE_BIG_KERNEL_LOCK */
-}
+}   
 
 static inline void unlock_(struct spinlock *slock, const char * file, const int line, const char * func) {
 #ifdef USE_BIG_KERNEL_LOCK
     unlock_kernel_(file, line);
 #else /* USE_BIG_KERNEL_LOCK */
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d %s unlock at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
+    dprintf("%s unlock at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
 #endif
     spin_unlock(slock);
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d %s unlock done at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
+    dprintf("%s unlock done at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
 #endif
 #endif /* USE_BIG_KERNEL_LOCK */
     asm volatile("pause");
