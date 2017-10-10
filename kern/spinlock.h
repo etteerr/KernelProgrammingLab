@@ -7,7 +7,7 @@
 #include "cpu.h"
 
 /* Comment this to disable spinlock debugging */
-#define DEBUG_SPINLOCK
+//#define DEBUG_SPINLOCK
 
 /* Disable big kernel lock
  *
