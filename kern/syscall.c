@@ -17,7 +17,7 @@
 #include "console.h"
 #include "../inc/memlayout.h"
 #include "../inc/mmu.h"
-#include "inc/atomic_ops.h"
+#include "../inc/atomic_ops.h"
 
 
 /*
