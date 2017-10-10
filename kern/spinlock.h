@@ -86,11 +86,11 @@ static inline void unlock_(struct spinlock *slock, const char * file, const int 
     unlock_kernel_(file, line);
 #else /* USE_BIG_KERNEL_LOCK */
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d %s unlock at %s:%d (%s)\n", cpunum(), slock->name, file, line);
+    dprintf("CPU %d %s unlock at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
 #endif
     spin_unlock(slock);
 #ifdef DEBUG_SPINLOCK
-    dprintf("CPU %d %s unlock done at %s:%d (%s)\n", cpunum(), slock->name, file, line);
+    dprintf("CPU %d %s unlock done at %s:%d (%s)\n", cpunum(), slock->name, file, line, func);
 #endif
 #endif /* USE_BIG_KERNEL_LOCK */
     asm volatile("pause");
