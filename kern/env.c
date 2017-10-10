@@ -562,7 +562,7 @@ void env_create(uint8_t *binary, enum env_type type)
 {
     /* Allocate environment */
     struct env * e = 0;
-    assert(env_alloc(&e, 0, ENV_TYPE_USER)==0);
+    assert(env_alloc(&e, 0, type)==0);
 
     /* Setup env */
     e->env_type = type;
