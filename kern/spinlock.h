@@ -8,6 +8,7 @@
 
 /* Comment this to disable spinlock debugging */
 #define DEBUG_SPINLOCK
+
 /* Disable big kernel lock
  *
  * LAB 6: Comment out the following macro definition

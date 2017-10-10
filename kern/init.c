@@ -49,16 +49,10 @@ void i386_init(void)
 
     /* Lab 5 multitasking initialization functions */
     pic_init();
-
-    /* Acquire the big kernel lock before waking up APs.*/
-    lock_kernel();
-
     /* Starting non-boot CPUs */
     dprintf("Bootcpu: Starting aps...\n");
     boot_aps();
     dprintf("Bootcpu: Starting aps... done!\n");
-    /* Release lock for sched_yield() */
-    unlock_kernel();
 
 #if defined(TEST)
     /* Don't touch -- used by grading script! */
