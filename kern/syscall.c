@@ -292,7 +292,7 @@ static int sys_fork(void)
      */
     if (fork_pgdir_copy_and_cow(curenv, newenv)) {
         dprintf("forking pgdir failed!\n");
-        env_destroy(newenv);
+        env_free(newenv);
         return -1;
     }
     dprintf("Forking pgdir success!\n");
