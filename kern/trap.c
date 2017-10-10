@@ -291,10 +291,6 @@ void trap(struct trapframe *tf)
     if (panicstr)
         asm volatile("hlt");
 
-    /* Re-acqurie the big kernel lock if we were halted in sched_yield(). */
-//    if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
-//        lock_kernel();
-
     /* Check that interrupts are disabled.
      * If this assertion fails, DO NOT be tempted to fix it by inserting a "cli"
      * in the interrupt path. */
@@ -304,10 +300,6 @@ void trap(struct trapframe *tf)
     dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
 
     if ((tf->tf_cs & 3) == 3) {
-        /* Trapped from user mode. */
-        /* Acquire the big kernel lock before doing any serious kernel work.
-         * LAB 6: Your code here. */
-
         assert(curenv);
 
         /* Garbage collect if current environment is a zombie. */

@@ -1277,16 +1277,23 @@ int user_mem_check(struct env *env, const void *va, size_t len, int perm)
  * of memory [va, va+len) with permissions 'perm | PTE_U | PTE_P'.
  * If it can, then the function simply returns.
  * If it cannot, 'env' is destroyed and, if env is the current
- * environment, this function will not return.
+ * environment.
+ *
+ * This function was specified to not return, but we do not agree with this pattern.
+ * Calling sched_yield() from this assert is bad practise. We instead return its success,
+ * so calling methods know not to allow the user program to perform its action.
+ *
+ * If this is triggered from a trap, sched_yield() will be called after proper cleanup.
  */
-void user_mem_assert(struct env *env, const void *va, size_t len, int perm)
+int user_mem_assert(struct env *env, const void *va, size_t len, int perm)
 {
     if (user_mem_check(env, va, len, perm | PTE_U) < 0) {
         cprintf("[%08x] user_mem_check assertion failure for "
             "va %08x\n", env->env_id, user_mem_check_addr);
-        env_destroy(env);   /* may not return */
-//        sched_yield(); //Maybe?
+        env_destroy(env);
+        return -1;
     }
+    return 0;
 }
 
 
