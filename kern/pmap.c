@@ -14,6 +14,7 @@
 #include "buddydef.h"
 #include "cpu.h"
 #include "inc/atomic_ops.h"
+#include "spinlock.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages; /* Amount of physical memory (in pages) */
@@ -668,16 +669,22 @@ struct page_info * remove_page_from_freelist(struct page_info * pp) {
 struct page_info *page_alloc(int alloc_flags) {
     struct page_info *page = 0;
 
+    lock_pagealloc();
+
     //Check page free list
     if (!page_free_list) {
+        unlock_pagealloc();
         return NULL;
     }
 
     if (alloc_flags & ALLOC_HUGE) {
         page = alloc_consecutive_pages((uint16_t) HUGE_PAGE_AMOUNT, alloc_flags); //CAN RETURN NULL
-        if (!page)
+        if (!page) {
+            unlock_pagealloc();
             return page; //return null
+        }
         page->c0.reg.huge = 1;
+        unlock_pagealloc();
         return page;
     }
 
@@ -708,12 +715,14 @@ struct page_info *page_alloc(int alloc_flags) {
                 
 //                dprintf("Low VM alloc (pa %p)\n", page2pa(page));
 
+                unlock_pagealloc();
                 return page;
             }
 
             p=&i->pp_link;
         }
 
+        unlock_pagealloc();
         return NULL; //No success in finding a page
     }
 
@@ -721,7 +730,8 @@ struct page_info *page_alloc(int alloc_flags) {
     prepare_page(page, alloc_flags);
 
 //    dprintf("Page alloc (pa %p) with flags: %d (decimal)\n", page2pa(page), alloc_flags);
-    
+
+    unlock_pagealloc();
     return page;
 }
 
@@ -779,7 +789,9 @@ void page_free(struct page_info *pp) {
  */
 void page_decref(struct page_info *pp) {
     dprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), page_get_ref(pp) - 1, pp->c0.reg.huge);
-    
+
+    lock_pagealloc();
+
     assert(page_get_ref(pp) > 0);
     
     /* Check if page is huge
@@ -795,6 +807,8 @@ void page_decref(struct page_info *pp) {
     
     if (sync_sub_and_fetch(&pp->pp_ref, (uint16_t)1) == 0)
         page_free(pp);
+
+    unlock_pagealloc();
 }
 
 uint16_t page_get_ref(page_info_t *pp) {
@@ -812,6 +826,8 @@ uint16_t page_get_ref(page_info_t *pp) {
 
 uint16_t page_inc_ref(page_info_t *pp) {
     uint32_t phys = page2pa(pp);
+
+    lock_pagealloc();
     
     /* Determine page head */
     if (pp->c0.reg.huge && !pp->c0.reg.alligned4mb) {
@@ -821,8 +837,12 @@ uint16_t page_inc_ref(page_info_t *pp) {
         assert(pp->c0.reg.alligned4mb);
     }
     if (PAGE_SUPER_VERBOSE) dprintf("page (%p) reference incremented. page (%p) has %d references.\n", page2pa(pp), phys, pp->pp_ref+1);
-    return sync_add_and_fetch(&pp->pp_ref, (uint16_t)1);
+    uint16_t result = sync_add_and_fetch(&pp->pp_ref, (uint16_t)1);
+
+    unlock_pagealloc();
+    return result;
 }
+
 
 /*
  * Given 'pgdir', a pointer to a page directory, pgdir_walk returns
@@ -995,6 +1015,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     if (!pentry) //if entry returns null, it becomes a address...
         return -E_NO_MEM;
 
+
     //If the entry exists, remove it
     //page_remove asserts we do not delete a pg table with valid entries
     if (*pentry & PTE_BIT_PRESENT) {
@@ -1007,9 +1028,12 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
             //When pp == paddr, the page is 'simply' cleared as end result if the ref counter hits 0
             struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*pentry));
             page_remove(pgdir, va);
-        }else
-            pp->pp_ref--; //This ref is a offset for the incomming inc, this page is used again!
+        } else {
+            pp->pp_ref--; //This ref is a offset for the incoming inc, this page is used again!
+        }
     }
+
+    lock_pagealloc();
 
     //fill entry
     *pentry = (uint32_t) page2pa(pp);
@@ -1031,6 +1055,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
 
     //Remove page from free list, it is referenced
     pp = remove_page_from_freelist(pp);
+    unlock_pagealloc();
     if (!pp) {
         *pentry = 0;
         return -E_UNSPECIFIED;
