@@ -30,7 +30,7 @@ static void sys_cputs(const char *s, size_t len)
     /* Check that the user has permission to read memory [s, s+len).
      * Destroy the environment if not. */
 
-    if(user_mem_assert(curenv, (void*) s, len, PTE_BIT_USER | PTE_BIT_PRESENT) == 0){
+    if(user_mem_assert(curenv, (void*) s, len, PTE_BIT_USER | PTE_BIT_PRESENT) != 0){
         return;
     }
 
