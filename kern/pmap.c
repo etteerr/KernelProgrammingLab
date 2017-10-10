@@ -15,6 +15,7 @@
 #include "cpu.h"
 #include "inc/atomic_ops.h"
 #include "spinlock.h"
+#include "sched.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages; /* Amount of physical memory (in pages) */
@@ -1284,6 +1285,7 @@ void user_mem_assert(struct env *env, const void *va, size_t len, int perm)
         cprintf("[%08x] user_mem_check assertion failure for "
             "va %08x\n", env->env_id, user_mem_check_addr);
         env_destroy(env);   /* may not return */
+//        sched_yield(); //Maybe?
     }
 }
 
