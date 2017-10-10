@@ -1004,6 +1004,7 @@ static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t 
  * Also add support for huge page insertion.
  */
 int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
+    register uint32_t same_page = 0;
     register uint32_t pgdi = VA_GET_PDE_INDEX(va);
     pte_t * pentry;
     if (perm & PDE_BIT_HUGE)
@@ -1028,9 +1029,8 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
             //When pp == paddr, the page is 'simply' cleared as end result if the ref counter hits 0
             struct page_info *paddr = (struct page_info *) KADDR(PTE_GET_PHYS_ADDRESS(*pentry));
             page_remove(pgdir, va);
-        } else {
-            pp->pp_ref--; //This ref is a offset for the incoming inc, this page is used again!
-        }
+        }else
+            same_page = 1;
     }
 
     lock_pagealloc();
@@ -1066,7 +1066,7 @@ int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm) {
     tlb_invalidate(pgdir, va);
 
     //page is now referenced
-    page_inc_ref(pp);
+    if (!same_page) page_inc_ref(pp);
     
     return 0;
 }

@@ -231,7 +231,7 @@ static int env_setup_vm(struct env *e)
  *  -E_NO_FREE_ENV if all NENVS environments are allocated
  *  -E_NO_MEM on memory exhaustion
  */
-int env_alloc(struct env **newenv_store, envid_t parent_id)
+int env_alloc(struct env **newenv_store, envid_t parent_id, enum env_type envtype)
 {
     int32_t generation;
     int r;
@@ -267,7 +267,7 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
 
     /* Set the basic status variables. */
     e->env_parent_id = parent_id;
-    e->env_type = ENV_TYPE_USER;
+    e->env_type = envtype;
     e->env_status = ENV_NOT_RUNNABLE; //Not initialized so not runnable!
     e->env_runs = 0;
     e->remain_cpu_time = MAX_TIME_SLICE;
@@ -289,23 +289,36 @@ int env_alloc(struct env **newenv_store, envid_t parent_id)
      * checks involving the RPL and the Descriptor Privilege Level
      * (DPL) stored in the descriptors themselves.
      */
-    e->env_tf.tf_ds = GD_UD | 3;
-    e->env_tf.tf_es = GD_UD | 3;
-    e->env_tf.tf_ss = GD_UD | 3;
+    switch (envtype) {
+        case ENV_TYPE_USER:
+            e->env_tf.tf_ds = GD_UD | 3;
+            e->env_tf.tf_cs = GD_UT | 3;
+            /* Enable interrupts while in user mode. */
+            e->env_tf.tf_eflags |= FL_IF;
+            break;
+        case ENV_TYPE_KERNEL:
+            /* Set kernel rights*/
+            e->env_tf.tf_ds = GD_KD | 0;
+            e->env_tf.tf_cs = GD_KT | 0;
+            break;
+        default:
+            panic("Invalid env type %d", envtype);
+    }
+    
+    /* Set remaining tf variables */
+    e->env_tf.tf_es = e->env_tf.tf_ds; // Same as tf_ds
+    e->env_tf.tf_ss = e->env_tf.tf_ds; // Same as tf_ds
     e->env_tf.tf_esp = USTACKTOP;
-    e->env_tf.tf_cs = GD_UT | 3;
-    /* You will set e->env_tf.tf_eip later. */
-
-    /* Enable interrupts while in user mode.
-     * LAB 5: Your code here. */
-    e->env_tf.tf_eflags |= FL_IF;
 
 
     /* commit the allocation */
     env_free_list = e->env_link;
     *newenv_store = e;
 
-    cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+    char *type = envtype ? "kernel" : "user";
+    cprintf("[%08x] new env %08x of type %s\n", curenv ? curenv->env_id : 0, e->env_id, type);
+    
+    
     unlock_env();
     return 0;
 }
@@ -549,7 +562,7 @@ void env_create(uint8_t *binary, enum env_type type)
 {
     /* Allocate environment */
     struct env * e = 0;
-    assert(env_alloc(&e, 0)==0);
+    assert(env_alloc(&e, 0, ENV_TYPE_USER)==0);
 
     /* Setup env */
     e->env_type = type;
