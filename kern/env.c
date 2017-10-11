@@ -296,7 +296,8 @@ int env_alloc(struct env **newenv_store, envid_t parent_id, enum env_type envtyp
             /* Enable interrupts while in user mode. */
             e->env_tf.tf_eflags |= FL_IF;
             break;
-        case ENV_TYPE_KERNEL:
+        case ENV_TYPE_KERNEL_ENV:
+        case ENV_TYPE_KERNEL_THREAD:
             /* Set kernel rights*/
             e->env_tf.tf_ds = GD_KD | 0;
             e->env_tf.tf_cs = GD_KT | 0;
@@ -721,8 +722,8 @@ void env_pop_tf(struct trapframe *tf)
     /* Record the CPU we are running on for user-space debugging */
     curenv->env_cpunum = cpunum();
     
-    if (curenv->env_type == ENV_TYPE_KERNEL) {
-        /* Our env is a kernel thread */
+    if (curenv->env_type == ENV_TYPE_KERNEL_ENV) {
+        /* Our env is a kernel env */
         __asm __volatile(
             "mov %0, %%esp\n" /* tf */
             "subl $0xc, 0x3c(%%esp)\n" /* Reserve 12 more bytes on tf_esp */
@@ -738,17 +739,29 @@ void env_pop_tf(struct trapframe *tf)
             "popal\n" /* Reset registers to tf_regs */
             "mov 0x1c(%%esp), %%esp\n" /* tf_esp -> esp */
             "iret\n"
-            :: "g" (tf) : "memory");
+        :: "g" (tf) : "memory");
+    } else if (curenv->env_type == ENV_TYPE_KERNEL_THREAD) {
+        /* Our env is a kernel thread */
+        __asm __volatile(
+        "mov %0, %%esp\n"
+            "popal\n"
+            "\tpopl %%es\n"
+            "\tpopl %%ds\n"
+            "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
+            "ret\n"
+        :: "g" (tf) : "memory");
+    } else {
+        __asm __volatile("movl %0,%%esp\n"
+            "\tpopal\n"
+            "\tpopl %%es\n"
+            "\tpopl %%ds\n"
+            "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
+            "\tiret"
+        : : "g" (tf) : "memory");
+        panic("iret failed");  /* mostly to placate the compiler */
     }
 
-    __asm __volatile("movl %0,%%esp\n"
-        "\tpopal\n"
-        "\tpopl %%es\n"
-        "\tpopl %%ds\n"
-        "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
-        "\tiret"
-        : : "g" (tf) : "memory");
-    panic("iret failed");  /* mostly to placate the compiler */
+    panic("env_pop_tf() should not return");
 }
 
 /*

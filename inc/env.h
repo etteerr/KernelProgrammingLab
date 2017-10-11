@@ -46,7 +46,8 @@ enum {
 /* Special environment types */
 enum env_type {
     ENV_TYPE_USER = 0,
-    ENV_TYPE_KERNEL,
+    ENV_TYPE_KERNEL_ENV,
+    ENV_TYPE_KERNEL_THREAD,
 };
 
 typedef struct env {

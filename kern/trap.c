@@ -287,7 +287,7 @@ void trap(struct trapframe *tf)
     asm volatile("cld" ::: "cc");
 
     /* If this is an intra-ring0 trap, we need to save the esp manually */
-    if(tf->tf_esp == 0 && tf->tf_cs == 0x08) {
+    if(tf->tf_cs == 0x08) {
         tf->tf_esp = (uint32_t)tf;
     }
 
@@ -345,7 +345,7 @@ void murder_env(env_t *env, uint32_t fault_va) {
     /* Handle kernel-mode page faults. */
     if (is_kernel) {
         dprintf("Kernel fault va %08x ip %08x\n", fault_va, env->env_tf.tf_eip);
-        panic("Exiting due to kernel page fault");
+        panic("Exiting due to unresolved kernel page fault");
     }
 
     cprintf("[%08x] user fault va %08x ip %08x\n",
@@ -549,7 +549,7 @@ int determine_pagefault(uint32_t fault_va, bool is_kernel){
         return PAGEFAULT_TYPE_KERNEL;
 
     /* Determine if it is user accessable*/
-    if(!is_kernel && (fault_va < USTABDATA || fault_va >= UTOP))
+    if(!is_kernel && e->env_tf.tf_cs != GD_KT && (fault_va < USTABDATA || fault_va >= UTOP))
         return PAGEFAULT_TYPE_OUTSIDE_USER_RANGE;
 
     /* Determine if the vma exists and is used */

@@ -20,10 +20,10 @@
 void kern_thread_create(void* entry) {
         /* Allocate environment */
     struct env * e = 0;
-    assert(env_alloc(&e, 0, ENV_TYPE_KERNEL)==0);
+    assert(env_alloc(&e, 0, ENV_TYPE_KERNEL_THREAD)==0);
 
     /* Setup env */
-    e->env_type = ENV_TYPE_KERNEL;
+    e->env_type = ENV_TYPE_KERNEL_THREAD;
 
     /* Switch to user environment page directory */
     lcr3(PADDR(e->env_pgdir));
