@@ -14,6 +14,7 @@ _kernel_thread_start:
     pop %esp
     sub $0x3c, %eax //subtract 64 to get *tf
     //x80_86 calling convention
+    pushl %eax //save *tf at the beginning of the stack (never changes)
     pushl %ebp //save original base pointer of the kernel
     mov %esp, %ebp
     //Push arguments
@@ -21,8 +22,25 @@ _kernel_thread_start:
     mov %edx, %eax
     call *%eax
     //Caller returns! OMG
-spin:
-    jmp spin
+    //Lets, in this case, say the enviroment has ended
+    //Good idea for quick launch and forget threads
+    //Call env_destroy, *tf is on the stack
+    pop %ebx
+    // Set kernel stack pointer
+    call   cpunum //only eax used
+    mov %eax, %ecx
+    mov $(0x8000), %eax //8*stacksize = KTSTACKSize
+    mul %ecx //multiply cpunum by stacksize => eax
+    mov %eax, %ecx
+    mov $KSTACKTOP,%eax
+    sub %ecx, %eax //KSTACKTOP - ( stacksize * cpunum ) => eax
+    mov %eax, %esp //Set kernel sp
+    //Now cal env_destroy
+    push %ebx
+    call env_destroy
+    //Now call sched_yield and never come back
+    push $0x0 //Calling convention (return address)
+    call sched_yield
 
 .globl _kern_thread_yield
 _kern_thread_yield:

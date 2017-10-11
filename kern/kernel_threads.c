@@ -59,6 +59,6 @@ void test_thread(env_t * tf) {
     cprintf("Hello, its me again! tf:%p\n", tf);
     
     /* Never ever return! */
-    while(1)
+    while(0)
         kern_thread_yield(tf);
 }
