@@ -31,7 +31,9 @@ KERN_SRCFILES :=	kern/entry.S \
 			lib/printfmt.c \
 			lib/readline.c \
 			lib/string.c \
-                        kern/vma.c
+                        kern/vma.c \
+                        kern/kernel_threads.c \
+                        kern/kernel_threads_entry.S
 
 # Source files for LAB5
 KERN_SRCFILES +=        kern/mpentry.S \

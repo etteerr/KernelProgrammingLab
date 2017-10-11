@@ -706,6 +706,18 @@ void env_pop_tf(struct trapframe *tf)
 {
     /* Record the CPU we are running on for user-space debugging */
     curenv->env_cpunum = cpunum();
+    
+    if (curenv->env_type == ENV_TYPE_KERNEL) {
+        /* Our env is a kernel thread */
+        __asm __volatile(
+        "mov %0, %%esp\n"
+        "popal\n"
+        "\tpopl %%es\n"
+        "\tpopl %%ds\n"
+        "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
+        "ret\n"
+        :: "g" (tf) : "memory");
+    }
 
     __asm __volatile("movl %0,%%esp\n"
         "\tpopal\n"

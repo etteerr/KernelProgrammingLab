@@ -18,6 +18,7 @@
 static void boot_aps(void);
 
 #include "vma.h"
+#include "kernel_threads.h"
 
 
 void i386_init(void)
@@ -60,8 +61,9 @@ void i386_init(void)
 #else
     /* Touch all you want. */
 //    ENV_CREATE(user_yield, ENV_TYPE_USER);
-    ENV_CREATE(user_yield, ENV_TYPE_USER);
-    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
+//    ENV_CREATE(user_yield, ENV_TYPE_USER);
+//    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
+    kern_thread_create(test_thread);
 #endif
 
     /* Schedule and run the first user environment! */
