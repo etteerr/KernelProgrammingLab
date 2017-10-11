@@ -62,8 +62,8 @@ void i386_init(void)
     /* Touch all you want. */
 //    ENV_CREATE(user_yield, ENV_TYPE_USER);
 //    ENV_CREATE(user_yield, ENV_TYPE_USER);
-//    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
-    kern_thread_create(test_thread);
+    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
+//    kern_thread_create(test_thread);
 #endif
 
     /* Schedule and run the first user environment! */

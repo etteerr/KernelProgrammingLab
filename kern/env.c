@@ -300,6 +300,14 @@ int env_alloc(struct env **newenv_store, envid_t parent_id, enum env_type envtyp
             /* Set kernel rights*/
             e->env_tf.tf_ds = GD_KD | 0;
             e->env_tf.tf_cs = GD_KT | 0;
+
+            /* Alloc 1 page for stack, so we can use it in env_pop_tf on initial run */
+            page_info_t *pp = page_alloc(ALLOC_ZERO);
+            if (!pp) {
+                panic("Page alloc for kernel env failed!");
+            }
+            page_insert(e->env_pgdir, pp, (void*) USTACKTOP-PGSIZE, PTE_BIT_RW);
+
             break;
         default:
             panic("Invalid env type %d", envtype);
@@ -710,13 +718,21 @@ void env_pop_tf(struct trapframe *tf)
     if (curenv->env_type == ENV_TYPE_KERNEL) {
         /* Our env is a kernel thread */
         __asm __volatile(
-        "mov %0, %%esp\n"
-        "popal\n"
-        "\tpopl %%es\n"
-        "\tpopl %%ds\n"
-        "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
-        "ret\n"
-        :: "g" (tf) : "memory");
+            "mov %0, %%esp\n" /* tf */
+            "subl $0x12, 0x3c(%%esp)\n" /* Reserve 12 more bytes on tf_esp */
+            "mov 0x30(%%esp), %%ecx\n" /* tf_eip */
+            "mov 0x3c(%%esp), %%edx\n" /* tf_esp */
+
+            "mov %%ecx, (%%edx)\n" /* Push tf_eip on tf_esp */
+            "mov 0x34(%%esp), %%ecx\n" /* tf_cs + padding */
+            "mov %%ecx, 0x04(%%edx)\n" /* Push tf_cs on tf_esp */
+            "mov 0x38(%%esp), %%ecx\n" /* tf_eflags */
+            "mov %%ecx, 0x08(%%edx)\n" /* Push tf_cs on tf_esp */
+
+            "popal\n" /* Reset registers to tf_regs */
+            "mov 0x1c(%%esp), %%esp\n" /* tf_esp -> esp */
+            "iret\n"
+            :: "g" (tf) : "memory");
     }
 
     __asm __volatile("movl %0,%%esp\n"
