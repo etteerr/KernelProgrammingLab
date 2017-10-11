@@ -590,17 +590,23 @@ void env_create(uint8_t *binary, enum env_type type)
 /*
  * Frees env e and all memory it uses.
  */
-void env_free(struct env *e)
+void env_free(struct env *envp)
 {
-    pte_t *pt;
-    uint32_t pdeno, pteno;
-    physaddr_t pa;
+    /* Static so that we can enter env_free from kernel threads
+     * from their own stack, without faulting because their stacks
+     * are being freed as this method goes on. */
+    static struct env *e;
+    static pte_t *pt;
+    static uint32_t pdeno, pteno;
+    static physaddr_t pa;
+
+    e = envp;
 
     /* If freeing the current environment, switch to kern_pgdir
      * before freeing the page directory, just in case the page
      * gets reused. */
-    if (e == curenv)
-        lcr3(PADDR(kern_pgdir));
+//    if (e == curenv)
+//        lcr3(PADDR(kern_pgdir));
 
     /* Note the environment's demise. */
     cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
@@ -719,7 +725,7 @@ void env_pop_tf(struct trapframe *tf)
         /* Our env is a kernel thread */
         __asm __volatile(
             "mov %0, %%esp\n" /* tf */
-            "subl $0x12, 0x3c(%%esp)\n" /* Reserve 12 more bytes on tf_esp */
+            "subl $0xc, 0x3c(%%esp)\n" /* Reserve 12 more bytes on tf_esp */
             "mov 0x30(%%esp), %%ecx\n" /* tf_eip */
             "mov 0x3c(%%esp), %%edx\n" /* tf_esp */
 

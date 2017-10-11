@@ -286,6 +286,11 @@ void trap(struct trapframe *tf)
      * clear. */
     asm volatile("cld" ::: "cc");
 
+    /* If this is an intra-ring0 trap, we need to save the esp manually */
+    if(tf->tf_esp == 0 && tf->tf_cs == 0x08) {
+        tf->tf_esp = (uint32_t)tf;
+    }
+
     /* Halt the CPU if some other CPU has called panic(). */
     extern char *panicstr;
     if (panicstr)
@@ -593,11 +598,15 @@ void handle_pf_pte(uint32_t fault_va){
 
 void page_fault_handler(struct trapframe *tf)
 {
-    uint32_t fault_va, cs;
-    bool is_kernel = ((tf->tf_cs & 3) != 3);
+    uint32_t fault_va;
+    bool is_kernel;
 
     /* Read processor's CR2 register to find the faulting address */
     fault_va = rcr2();
+
+    /* To allow on demand paging in kthreads, we must allow ring0 code accesses
+     * to addresses in the user address space. */
+    is_kernel = ((tf->tf_cs & 3) != 3) && fault_va >= USTACKTOP;
 
     if(!curenv) {
         panic("No curenv set");

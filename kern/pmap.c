@@ -16,6 +16,7 @@
 #include "inc/atomic_ops.h"
 #include "spinlock.h"
 #include "sched.h"
+#include "../inc/env.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages; /* Amount of physical memory (in pages) */
@@ -1229,6 +1230,10 @@ static uintptr_t user_mem_check_addr;
  */
 int user_mem_check(struct env *env, const void *va, size_t len, int perm)
 {
+    /* Kernel threads have cow powers */
+    if(env->env_tf.tf_cs == 0x08) {
+        return 0;
+    }
 
     /* Make sure perm has user permissions as check */
     perm |= PTE_BIT_USER;
