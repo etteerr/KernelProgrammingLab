@@ -304,7 +304,7 @@ void trap(struct trapframe *tf)
     cprintf("Incoming TRAP frame at %p\n", tf);
     dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
 
-//    if ((tf->tf_cs & 3) == 3) {
+    if ((tf->tf_cs & 3) == 3 || (tf->tf_cs == GD_KT && curenv)) {
         assert(curenv);
 
         /* Garbage collect if current environment is a zombie. */
@@ -320,7 +320,7 @@ void trap(struct trapframe *tf)
         curenv->env_tf = *tf;
         /* The trapframe on the stack should be ignored from here on. */
         tf = &curenv->env_tf;
-//    }
+    }
 
     /* Record that tf is the last real trapframe so print_trapframe can print
      * some additional information. */
