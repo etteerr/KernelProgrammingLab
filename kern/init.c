@@ -3,7 +3,7 @@
 #include <inc/stdio.h>
 #include <inc/string.h>
 #include <inc/assert.h>
-
+#include <kern/vma.h>
 #include <kern/monitor.h>
 #include <kern/console.h>
 #include <kern/pmap.h>
@@ -17,6 +17,9 @@
 #include <kern/ide.h>
 
 static void boot_aps(void);
+
+#include "vma.h"
+#include "kernel_threads.h"
 
 
 void i386_init(void)
@@ -35,6 +38,9 @@ void i386_init(void)
     /* Lab 1 and 2 memory management initialization functions. */
     mem_init();
 
+    /* Assertions */
+    assert(sizeof(struct vma_arr)<= PGSIZE);
+
     /* Lab 3 user environment initialization functions. */
     env_init();
     trap_init();
@@ -48,18 +54,22 @@ void i386_init(void)
 
     ide_init();
 
-    /* Acquire the big kernel lock before waking up APs.
-     * LAB 6: Your code here: */
-
     /* Starting non-boot CPUs */
+    dprintf("Bootcpu: Starting aps...\n");
     boot_aps();
+    dprintf("Bootcpu: Starting aps... done!\n");
 
 #if defined(TEST)
     /* Don't touch -- used by grading script! */
     ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
     /* Touch all you want. */
-    ENV_CREATE(user_divzero, ENV_TYPE_USER);
+//    ENV_CREATE(user_yield, ENV_TYPE_USER);
+    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
+
+//    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
+    kern_thread_create(test_thread);
+
 #endif
 
     /* Schedule and run the first user environment! */
@@ -93,6 +103,7 @@ static void boot_aps(void)
 
         /* Tell mpentry.S what stack to use */
         mpentry_kstack = percpu_kstacks[c - cpus] + KSTKSIZE;
+        dprintf("Stack: %p\n", mpentry_kstack);
         /* Start the CPU at mpentry_start */
         lapic_startap(c->cpu_id, PADDR(code));
         /* Wait for the CPU to finish some basic setup in mp_main() */
@@ -110,9 +121,13 @@ void mp_main(void)
     lcr3(PADDR(kern_pgdir));
     cprintf("SMP: CPU %d starting\n", cpunum());
 
+    dprintf("Init lapic (cpu %d)\n", cpunum());
     lapic_init();
+    dprintf("Init env (cpu %d)\n", cpunum());
     env_init_percpu();
+    dprintf("Init traps (cpu %d)\n", cpunum());
     trap_init_percpu();
+    dprintf("set status to CPU_STARTED (cpu %d)\n", cpunum());
     xchg(&thiscpu->cpu_status, CPU_STARTED); /* tell boot_aps() we're up */
 
     /*
@@ -120,8 +135,11 @@ void mp_main(void)
      * to start running processes on this CPU.  But make sure that
      * only one CPU can enter the scheduler at a time!
      *
-     * LAB 6: Your code here:
+     * Note Tom: our scheduler uses atomic cooperative iteration of the envs,
+     * So multiple cores can enter it concurrently safely.
      */
+    dprintf("CPU %d startup done, waiting for cpu0 to complete booting\n", cpunum());
+    sched_yield();
 
     /* Remove this after you initialize per-CPU trap information */
     for (;;);

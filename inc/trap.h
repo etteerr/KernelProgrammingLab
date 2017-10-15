@@ -45,33 +45,33 @@
 
 struct pushregs {
     /* registers as pushed by pusha */
-    uint32_t reg_edi;
-    uint32_t reg_esi;
-    uint32_t reg_ebp;
+    uint32_t reg_edi; //0
+    uint32_t reg_esi; //4
+    uint32_t reg_ebp; //8
     uint32_t reg_oesp;      /* Useless */
-    uint32_t reg_ebx;
-    uint32_t reg_edx;
-    uint32_t reg_ecx;
-    uint32_t reg_eax;
+    uint32_t reg_ebx; //16 (0x10)
+    uint32_t reg_edx; //20 (0x14)
+    uint32_t reg_ecx; //24 (0x18)
+    uint32_t reg_eax; //28 (0x1c)
 } __attribute__((packed));
 
 struct trapframe {
-    struct pushregs tf_regs;
-    uint16_t tf_es;
-    uint16_t tf_padding1;
-    uint16_t tf_ds;
-    uint16_t tf_padding2;
-    uint32_t tf_trapno;
+    struct pushregs tf_regs; //8 * 4 = 32 (0-28)
+    uint16_t tf_es;//32 (0x20)
+    uint16_t tf_padding1; 
+    uint16_t tf_ds;//36
+    uint16_t tf_padding2; 
+    uint32_t tf_trapno; //40 (0x28)
     /* below here defined by x86 hardware */
-    uint32_t tf_err;
-    uintptr_t tf_eip;
-    uint16_t tf_cs;
+    uint32_t tf_err; //44
+    uintptr_t tf_eip; //48 (0x30)
+    uint16_t tf_cs; //52 (0x34)
     uint16_t tf_padding3;
-    uint32_t tf_eflags;
+    uint32_t tf_eflags; //56 (0x38)
     /* below here only when crossing rings, such as from user to kernel */
-    uintptr_t tf_esp;
+    uintptr_t tf_esp; //60 (0x3c) 
     uint16_t tf_ss;
-    uint16_t tf_padding4;
+    uint16_t tf_padding4; //64
 } __attribute__((packed));
 
 struct u_trapframe {

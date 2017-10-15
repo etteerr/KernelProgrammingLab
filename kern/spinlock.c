@@ -8,15 +8,15 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 #include <kern/kdebug.h>
+#include "spinlock.h"
 
-#ifdef USE_BIG_KERNEL_LOCK
 /* The big kernel lock */
 struct spinlock kernel_lock = {
 #ifdef DEBUG_SPINLOCK
     .name = "kernel_lock"
 #endif
 };
-#else
+
 struct spinlock pagealloc_lock = {
 #ifdef DEBUG_SPINLOCK
     .name = "pagealloc_lock"
@@ -32,7 +32,6 @@ struct spinlock console_lock = {
     .name = "console_lock"
 #endif
 };
-#endif /* USE_BIG_KERNEL_LOCK */
 
 #ifdef DEBUG_SPINLOCK
 /*
@@ -88,8 +87,9 @@ void spin_lock(struct spinlock *lk)
     /* The xchg is atomic.
      * It also serializes, so that reads after acquire are not reordered before
      * it. */
-    while (xchg(&lk->locked, 1) != 0)
+    while (xchg(&lk->locked, 1) != 0) {
         asm volatile ("pause");
+    }
 
     /* Record info about lock acquisition for debugging. */
 #ifdef DEBUG_SPINLOCK
@@ -109,8 +109,12 @@ void spin_unlock(struct spinlock *lk)
         uint32_t pcs[10];
         /* Nab the acquiring EIP chain before it gets released */
         memmove(pcs, lk->pcs, sizeof pcs);
-        cprintf("CPU %d cannot release %s: held by CPU %d\nAcquired at:",
-            cpunum(), lk->name, lk->cpu->cpu_id);
+        if (lk->locked)
+            cprintf("CPU %d cannot release %s: held by CPU %d\nAcquired at:",
+                cpunum(), lk->name, lk->cpu->cpu_id);
+        else
+            cprintf("CPU %d cannot release %s: No cpu holds lock.\n",
+                cpunum(), lk->name);
         for (i = 0; i < 10 && pcs[i]; i++) {
             struct eip_debuginfo info;
             if (debuginfo_eip(pcs[i], &info) >= 0)

@@ -1,5 +1,7 @@
-#include <inc/assert.h>
-#include <inc/lib.h>
+#include "../inc/lib.h"
+#include "../inc/stdio.h"
+#include "../inc/types.h"
+#include "../inc/assert.h"
 
 #define TILE_SIZE	(4096)
 #define SWEEP_SPACE	(6 * TILE_SIZE)
