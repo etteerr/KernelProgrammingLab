@@ -1,4 +1,6 @@
 #include "inc/memlayout.h"
+#include "kernel_threads.h"
+#include "cpu.h"
 .text
 
 .align 4
@@ -26,14 +28,14 @@ _kernel_thread_start:
     //Good idea for quick launch and forget threads
     //Call env_destroy, *tf is on the stack
     pop %ebx
-    // Set kernel stack pointer
-    call   cpunum //only eax used
-    mov %eax, %ecx
-    mov $(0x8000), %eax //8*stacksize = KTSTACKSize
-    mul %ecx //multiply cpunum by stacksize => eax
-    mov %eax, %ecx
-    mov $KSTACKTOP,%eax
-    sub %ecx, %eax //KSTACKTOP - ( stacksize * cpunum ) => eax
+    /* Set kernel stack pointer */
+    call   cpunum //only eax used (cpunum: a)
+    mov $NCPU, %ebx //ncpu: b
+    mov $0x8000, %ecx //kstsize: c
+    mov $(percpu_kstacks), %edx //Address of stackbase: d
+    sub %eax, %ebx //b: NCPU - cpunum
+    imul %ecx, %ebx //b*c = offset from base
+    lea (%edx, %ebx, 1), %eax // d + b*1
     mov %eax, %esp //Set kernel sp
     //Now cal env_destroy
     push %ebx
@@ -61,15 +63,16 @@ _kern_thread_yield:
     mov %ecx, 0x3c(%eax) //save esp to tf esp
     mov $reentry, %ecx
     mov %ecx, 0x30(%eax) //save eip to eip (reentry)
-    // Set kernel stack pointer
-    call   cpunum
-    mov %eax, %ecx
-    mov $(0x8000), %eax //8*stacksize = KTSTACKSize
-    mul %ecx //multiply cpunum by stacksize => eax
-    mov %eax, %ecx
-    mov $KSTACKTOP,%eax
-    sub %ecx, %eax //KSTACKTOP - ( stacksize * cpunum ) => eax
+    /* Set kernel stack pointer */
+    call   cpunum //only eax used (cpunum: a)
+    mov $NCPU, %ebx //ncpu: b
+    mov $0x8000, %ecx //kstsize: c
+    mov $(percpu_kstacks), %edx //Address of stackbase: d
+    sub %eax, %ebx //b: NCPU - cpunum
+    imul %ecx, %ebx //b*c = offset from base
+    lea (%edx, %ebx, 1), %eax // d + b*1
     mov %eax, %esp //Set kernel sp
+    /* Call sched_yield as the kernel stack is initialized */
     push $0x0 //Calling convention (return address)
     call sched_yield
 reentry:

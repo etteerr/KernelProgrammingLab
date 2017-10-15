@@ -17,10 +17,13 @@
 #include "vma.h"
 #include "inc/x86.h"
 
-void kern_thread_create(void* entry) {
+int kern_thread_create(void* entry) {
         /* Allocate environment */
     struct env * e = 0;
-    assert(env_alloc(&e, 0, ENV_TYPE_KERNEL)==0);
+    if (env_alloc(&e, 0, ENV_TYPE_KERNEL)!=0) {
+        dprintf(KRED"Failed to allocate new env!\n");
+        return -1;
+    }
 
     /* Setup env */
     e->env_type = ENV_TYPE_KERNEL;
@@ -47,6 +50,8 @@ void kern_thread_create(void* entry) {
     /* Now its runnable, mark it as such */
     if (sync_bool_compare_and_swap(&e->env_status, ENV_NOT_RUNNABLE, ENV_RUNNABLE) == 0)
         panic("Set runnable failed!");
+    
+    return 0;
 }
 
 
@@ -59,6 +64,10 @@ void test_thread(env_t * tf) {
     cprintf("Hello, its me again! tf:%p\n", tf);
     
     /* Never ever return! */
-    while(0)
+    while(1) {
+        for(int i=0; i<100; i++) {
+            asm volatile("nop");
+        }
         kern_thread_yield(tf);
+    }
 }

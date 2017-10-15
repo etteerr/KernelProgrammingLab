@@ -13,17 +13,18 @@
 
 #ifndef KERNEL_THREADS_H
 #define KERNEL_THREADS_H
-#include "inc/env.h"
-
 #define KERNEL_THREAD_STACK_TOP 0x10000000
+#ifndef __ASSEMBLER__
+#include "inc/env.h"
 
 extern void _kernel_thread_start();
 extern void _kern_thread_yield(env_t * tf);
 
 #define kern_thread_yield(tf) _kern_thread_yield(tf);
 
-void kern_thread_create(void* entry);
+int kern_thread_create(void* entry);
 
 void test_thread(env_t * tf);
 
+#endif
 #endif /* KERNEL_THREADS_H */

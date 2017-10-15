@@ -61,8 +61,19 @@ void i386_init(void)
 #else
     /* Touch all you want. */
 //    ENV_CREATE(user_yield, ENV_TYPE_USER);
-//    ENV_CREATE(user_yield, ENV_TYPE_USER);
+    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
+    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
+    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
+    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
+    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
 //    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
+    kern_thread_create(test_thread);
+    kern_thread_create(test_thread);
+    kern_thread_create(test_thread);
+    kern_thread_create(test_thread);
+    kern_thread_create(test_thread);
+    kern_thread_create(test_thread);
+    kern_thread_create(test_thread);
     kern_thread_create(test_thread);
 #endif
 
@@ -97,6 +108,7 @@ static void boot_aps(void)
 
         /* Tell mpentry.S what stack to use */
         mpentry_kstack = percpu_kstacks[c - cpus] + KSTKSIZE;
+        dprintf("Stack: %p\n", mpentry_kstack);
         /* Start the CPU at mpentry_start */
         lapic_startap(c->cpu_id, PADDR(code));
         /* Wait for the CPU to finish some basic setup in mp_main() */
