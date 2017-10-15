@@ -27,7 +27,7 @@ _kernel_thread_start:
     //Lets, in this case, say the enviroment has ended
     //Good idea for quick launch and forget threads
     //Call env_destroy, *tf is on the stack
-    pop %ebx
+    pop %ebp //store *tf to base pointer
     /* Set kernel stack pointer */
     call   cpunum //only eax used (cpunum: a)
     mov $NCPU, %ebx //ncpu: b
@@ -38,7 +38,7 @@ _kernel_thread_start:
     lea (%edx, %ebx, 1), %eax // d + b*1
     mov %eax, %esp //Set kernel sp
     //Now cal env_destroy
-    push %ebx
+    push %ebp
     call env_destroy
     //Now call sched_yield and never come back
     push $0x0 //Calling convention (return address)

@@ -64,10 +64,12 @@ void test_thread(env_t * tf) {
     cprintf("Hello, its me again! tf:%p\n", tf);
     
     /* Never ever return! */
-    while(1) {
+    int j = 0;
+    while(j<100) {
         for(int i=0; i<100; i++) {
             asm volatile("nop");
         }
         kern_thread_yield(tf);
+        j++;
     }
 }
