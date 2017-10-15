@@ -66,8 +66,8 @@ _kern_thread_yield:
     /* Set kernel stack pointer */
     call   cpunum //only eax used (cpunum: a)
     mov $NCPU, %ebx //ncpu: b
-    mov $0x8000, %ecx //kstsize: c
-    mov $(percpu_kstacks), %edx //Address of stackbase: d
+    mov $0x9000, %ecx //kstsize: c
+    mov $(KSTACKTOP), %edx //Address of stackbase: d
     sub %eax, %ebx //b: NCPU - cpunum
     imul %ecx, %ebx //b*c = offset from base
     lea (%edx, %ebx, 1), %eax // d + b*1
