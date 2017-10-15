@@ -40,6 +40,8 @@ char *readline(const char *prompt);
 #define KMAG  "\x1B[35m"
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
+
+#define TRAPPRINT 0
 #ifndef DEBUGPRINT
 #define DEBUGPRINT 1
 #endif

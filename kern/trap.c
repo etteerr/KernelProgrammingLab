@@ -296,7 +296,7 @@ void trap(struct trapframe *tf)
      * in the interrupt path. */
     assert(!(read_eflags() & FL_IF));
 
-    cprintf("Incoming TRAP frame at %p\n", tf);
+    if (TRAPPRINT) cprintf("Incoming TRAP frame at %p\n", tf);
     dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
 
     if ((tf->tf_cs & 3) == 3) {
