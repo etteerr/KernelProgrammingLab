@@ -61,7 +61,8 @@ void i386_init(void)
 #else
     /* Touch all you want. */
 //    kern_thread_create(test_thread);
-//    ENV_CREATE(user_yield, ENV_TYPE_USER);
+    ENV_CREATE(user_yield, ENV_TYPE_USER);
+    ENV_CREATE(user_yield, ENV_TYPE_USER);
     ENV_CREATE(user_yield, ENV_TYPE_USER);
     ENV_CREATE(user_kenv_yield, ENV_TYPE_KERNEL_ENV);
 #endif

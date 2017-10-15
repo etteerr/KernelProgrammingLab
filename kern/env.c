@@ -586,6 +586,7 @@ void env_create(uint8_t *binary, enum env_type type)
     if (sync_bool_compare_and_swap(&e->env_status, ENV_NOT_RUNNABLE, ENV_RUNNABLE) == 0)
         panic("Set runnable failed!");
 
+    dprintf("Created env #%d at elf address %p\n", e - envs, binary);
 }
 
 /*
@@ -602,12 +603,6 @@ void env_free(struct env *envp)
     static physaddr_t pa;
 
     e = envp;
-
-    /* If freeing the current environment, switch to kern_pgdir
-     * before freeing the page directory, just in case the page
-     * gets reused. */
-//    if (e == curenv)
-//        lcr3(PADDR(kern_pgdir));
 
     /* Note the environment's demise. */
     cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
@@ -659,6 +654,12 @@ void env_free(struct env *envp)
         page_decref(page_of_table);
         
     }
+
+    /* If freeing the current environment, switch to kern_pgdir
+     * before freeing the page directory, just in case the page
+     * gets reused. */
+    if (e == curenv)
+        lcr3(PADDR(kern_pgdir));
 
     /* Free the page directory */
     pa = PADDR(e->env_pgdir);

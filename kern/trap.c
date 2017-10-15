@@ -296,13 +296,14 @@ void trap(struct trapframe *tf)
     if (panicstr)
         asm volatile("hlt");
 
+    dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
+
     /* Check that interrupts are disabled.
      * If this assertion fails, DO NOT be tempted to fix it by inserting a "cli"
      * in the interrupt path. */
     assert(!(read_eflags() & FL_IF));
 
-    cprintf("Incoming TRAP frame at %p\n", tf);
-    dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
+//    cprintf("Incoming TRAP frame at %p\n", tf);
 
     if ((tf->tf_cs & 3) == 3 || (tf->tf_cs == GD_KT && curenv)) {
         assert(curenv);
