@@ -20,13 +20,13 @@
 int kern_thread_create(void* entry) {
         /* Allocate environment */
     struct env * e = 0;
-    if (env_alloc(&e, 0, ENV_TYPE_KERNEL)!=0) {
-        dprintf(KRED"Failed to allocate new env!\n");
+    if (env_alloc(&e, 0, ENV_TYPE_KERNEL_THREAD)!=0) {
+        dprintf(KRED "Failed to allocate new env!\n");
         return -1;
     }
 
     /* Setup env */
-    e->env_type = ENV_TYPE_KERNEL;
+    e->env_type = ENV_TYPE_KERNEL_THREAD;
 
     /* Switch to user environment page directory */
     lcr3(PADDR(e->env_pgdir));
@@ -50,7 +50,7 @@ int kern_thread_create(void* entry) {
     /* Now its runnable, mark it as such */
     if (sync_bool_compare_and_swap(&e->env_status, ENV_NOT_RUNNABLE, ENV_RUNNABLE) == 0)
         panic("Set runnable failed!");
-    
+
     return 0;
 }
 

@@ -296,10 +296,19 @@ int env_alloc(struct env **newenv_store, envid_t parent_id, enum env_type envtyp
             /* Enable interrupts while in user mode. */
             e->env_tf.tf_eflags |= FL_IF;
             break;
-        case ENV_TYPE_KERNEL:
+        case ENV_TYPE_KERNEL_ENV:
+        case ENV_TYPE_KERNEL_THREAD:
             /* Set kernel rights*/
             e->env_tf.tf_ds = GD_KD | 0;
             e->env_tf.tf_cs = GD_KT | 0;
+
+            /* Alloc 1 page for stack, so we can use it in env_pop_tf on initial run */
+            page_info_t *pp = page_alloc(ALLOC_ZERO);
+            if (!pp) {
+                panic("Page alloc for kernel env failed!");
+            }
+            page_insert(e->env_pgdir, pp, (void*) USTACKTOP-PGSIZE, PTE_BIT_RW);
+
             break;
         default:
             panic("Invalid env type %d", envtype);
@@ -577,22 +586,23 @@ void env_create(uint8_t *binary, enum env_type type)
     if (sync_bool_compare_and_swap(&e->env_status, ENV_NOT_RUNNABLE, ENV_RUNNABLE) == 0)
         panic("Set runnable failed!");
 
+    dprintf("Created env #%d at elf address %p\n", e - envs, binary);
 }
 
 /*
  * Frees env e and all memory it uses.
  */
-void env_free(struct env *e)
+void env_free(struct env *envp)
 {
-    pte_t *pt;
-    uint32_t pdeno, pteno;
-    physaddr_t pa;
+    /* Static so that we can enter env_free from kernel threads
+     * from their own stack, without faulting because their stacks
+     * are being freed as this method goes on. */
+    static struct env *e;
+    static pte_t *pt;
+    static uint32_t pdeno, pteno;
+    static physaddr_t pa;
 
-    /* If freeing the current environment, switch to kern_pgdir
-     * before freeing the page directory, just in case the page
-     * gets reused. */
-    if (e == curenv)
-        lcr3(PADDR(kern_pgdir));
+    e = envp;
 
     /* Note the environment's demise. */
     cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
@@ -644,6 +654,12 @@ void env_free(struct env *e)
         page_decref(page_of_table);
         
     }
+
+    /* If freeing the current environment, switch to kern_pgdir
+     * before freeing the page directory, just in case the page
+     * gets reused. */
+    if (e == curenv)
+        lcr3(PADDR(kern_pgdir));
 
     /* Free the page directory */
     pa = PADDR(e->env_pgdir);
@@ -707,26 +723,46 @@ void env_pop_tf(struct trapframe *tf)
     /* Record the CPU we are running on for user-space debugging */
     curenv->env_cpunum = cpunum();
     
-    if (curenv->env_type == ENV_TYPE_KERNEL) {
+    if (curenv->env_type == ENV_TYPE_KERNEL_ENV) {
+        /* Our env is a kernel env */
+        __asm __volatile(
+            "mov %0, %%esp\n" /* tf */
+            "subl $0xc, 0x3c(%%esp)\n" /* Reserve 12 more bytes on tf_esp */
+            "mov 0x30(%%esp), %%ecx\n" /* tf_eip */
+            "mov 0x3c(%%esp), %%edx\n" /* tf_esp */
+
+            "mov %%ecx, (%%edx)\n" /* Push tf_eip on tf_esp */
+            "mov 0x34(%%esp), %%ecx\n" /* tf_cs + padding */
+            "mov %%ecx, 0x04(%%edx)\n" /* Push tf_cs on tf_esp */
+            "mov 0x38(%%esp), %%ecx\n" /* tf_eflags */
+            "mov %%ecx, 0x08(%%edx)\n" /* Push tf_cs on tf_esp */
+
+            "popal\n" /* Reset registers to tf_regs */
+            "mov 0x1c(%%esp), %%esp\n" /* tf_esp -> esp */
+            "iret\n"
+        :: "g" (tf) : "memory");
+    } else if (curenv->env_type == ENV_TYPE_KERNEL_THREAD) {
         /* Our env is a kernel thread */
         __asm __volatile(
         "mov %0, %%esp\n"
-        "popal\n"
-        "\tpopl %%es\n"
-        "\tpopl %%ds\n"
-        "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
-        "ret\n"
+            "popal\n"
+            "\tpopl %%es\n"
+            "\tpopl %%ds\n"
+            "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
+            "ret\n"
         :: "g" (tf) : "memory");
+    } else {
+        __asm __volatile("movl %0,%%esp\n"
+            "\tpopal\n"
+            "\tpopl %%es\n"
+            "\tpopl %%ds\n"
+            "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
+            "\tiret"
+        : : "g" (tf) : "memory");
+        panic("iret failed");  /* mostly to placate the compiler */
     }
 
-    __asm __volatile("movl %0,%%esp\n"
-        "\tpopal\n"
-        "\tpopl %%es\n"
-        "\tpopl %%ds\n"
-        "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
-        "\tiret"
-        : : "g" (tf) : "memory");
-    panic("iret failed");  /* mostly to placate the compiler */
+    panic("env_pop_tf() should not return");
 }
 
 /*

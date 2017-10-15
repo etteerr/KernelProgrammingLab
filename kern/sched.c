@@ -84,30 +84,37 @@ void sched_yield(void)
      ***************************************/
 
 
-    env_t *cur = (env_t *)curenv; /* For IDE autocompletion, macro unfolding is b0rked */
+    volatile int cpun = cpunum();
+    volatile struct cpuinfo *curcpu = thiscpu;
+    volatile struct env *cur = curenv; /* For IDE autocompletion, macro unfolding is b0rked */
     uint64_t since_last_yield = read_tsc() - last_ran;
     last_ran = read_tsc();
+
+    dprintf("curcpu %p curcpuenv %p curenv %p\n", curcpu, curcpu->cpu_env, curenv);
 
     /*
      * If we have a current enviroment
      * It is considered locked for us!
      */
     if(curenv) {
-        curenv_i = (cur - envs);
+        curenv_i = (curenv - envs);
         /* If current env has CPU time left in its slice, run it again */
         if(cur->env_status == ENV_RUNNING && (cur->remain_cpu_time > since_last_yield)) {
             cur->remain_cpu_time -= since_last_yield;
-            dprintf("------------> Continue %d at %p (CPU %d) remaining time: %u\n",
-                    curenv_i,
-                    envs[curenv_i].env_tf.tf_eip,
+            dprintf("------------> Continuing %s (%d) at %p (CPU %d) remaining time: %u\n",
+                    cur->env_tf.tf_cs == GD_KT ? "kernel env" : "user env",
+                    cur->env_id,
+                    cur->env_tf.tf_eip,
                     thiscpu->cpu_id,
                     cur->remain_cpu_time
                     );
-            env_run(cur);
+            env_run(curenv);
         } else {
             cur->remain_cpu_time = MAX_TIME_SLICE;
-            dprintf("------------> End of Timeslice %d at %p\n", curenv_i, envs[curenv_i].env_tf.tf_eip);
+            dprintf("------------> End of Timeslice %d at %p\n", curenv->env_id, curenv->env_tf.tf_eip);
         }
+    } else {
+        dprintf("No current env\n");
     }
 
     /* Iterates over envs, starting at curenv's index, wrapping
@@ -118,7 +125,7 @@ void sched_yield(void)
 
         /* Try to acquire lock (tests if runnable) */
         if(idle && shared_sched_do_run(idle)) {
-            /* Free enviroment from our grasp by setting ENV_RUNNING to ENV_RUNNABLE */
+            /* Free environment from our grasp by setting ENV_RUNNING to ENV_RUNNABLE */
             /* Enviroment might be dying though... */
             if (curenv) {
                 if (curenv->env_status == ENV_RUNNING)
@@ -127,9 +134,10 @@ void sched_yield(void)
             }
 
             /* Run new curenv */
-            dprintf("------------> running %d at %p (CPU %d).\n",
-                    curenv_i,
-                    envs[curenv_i].env_tf.tf_eip,
+            dprintf("------------> running %s (%d) at %p (CPU %d).\n",
+                    idle->env_tf.tf_cs == GD_KT ? "kernel env" : "user env",
+                    idle->env_id,
+                    idle->env_tf.tf_eip,
                     thiscpu->cpu_id
                     );
             assert(idle->env_tf.tf_eip);
@@ -140,8 +148,8 @@ void sched_yield(void)
     /* If no eligible envs found above, we can continue running curenv if it is still marked as running */
     if(curenv && curenv->env_status == ENV_RUNNING) {
         dprintf("------------> continue %d at %p (CPU %d).\n",
-                    curenv_i,
-                    envs[curenv_i].env_tf.tf_eip,
+                    curenv->env_id,
+                    curenv->env_tf.tf_eip,
                     thiscpu->cpu_id
                     );
         env_run(curenv);

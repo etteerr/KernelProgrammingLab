@@ -18,6 +18,7 @@
 #include "../inc/memlayout.h"
 #include "../inc/mmu.h"
 #include "../inc/atomic_ops.h"
+#include "cpu.h"
 
 
 /*
@@ -113,6 +114,12 @@ static int sys_vma_destroy(void *va, size_t size)
  */
 static void sys_yield(void)
 {
+    /* Set ESP to KSTACKTOP for current CPU */
+    volatile uint32_t kstacktop_i = KSTACKTOP - cpunum() * (KSTKSIZE + KSTKGAP);
+    asm volatile (
+    "mov %0, %%esp\n"
+    :: "a" (kstacktop_i));
+
     sched_yield();
 }
 
