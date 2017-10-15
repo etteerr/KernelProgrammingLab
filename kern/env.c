@@ -545,7 +545,7 @@ static void load_icode(struct env *e, uint8_t *binary)
     /* Map end of code to stack as heap. Stack and heap get merged */
 //    vma_new(e, (void*)(eoc_mem + PGSIZE), 4<<20, VMA_PERM_READ | VMA_PERM_WRITE, VMA_ANON); //heap
 
-    vma_dump_all(e);
+//    vma_dump_all(e);
 
     /* Restore curenv */
     curenv = prev_curenv;

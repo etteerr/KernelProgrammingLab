@@ -312,7 +312,7 @@ static int sys_fork(void)
     tlbflush();
     
     /* Dump child vma */
-    vma_dump_all(newenv);
+//    vma_dump_all(newenv);
     
     /* Child is now runnable! */
     if (sync_bool_compare_and_swap(&newenv->env_status, ENV_NOT_RUNNABLE, ENV_RUNNABLE)==0)
