@@ -33,7 +33,8 @@ KERN_SRCFILES :=	kern/entry.S \
 			lib/string.c \
                         kern/vma.c \
                         kern/kernel_threads.c \
-                        kern/kernel_threads_entry.S
+                        kern/kernel_threads_entry.S \
+                        kern/swappy.c
 
 # Source files for LAB5
 KERN_SRCFILES +=        kern/mpentry.S \

@@ -47,5 +47,7 @@ char *readline(const char *prompt);
 #endif
 #define dprintf(fmt, ...) \
         if (DEBUGPRINT) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+#define eprintf(fmt, ...) \
+        cprintf("%s[%s%d%s|%s%s%s]%s " KRED fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
 
 #endif /* !JOS_INC_STDIO_H */
