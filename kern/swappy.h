@@ -22,4 +22,10 @@ void swappy_set_swappyness(float swappyness);
 int swappy_status();
 void swappy_stop();
 void swappy_start();
+/**
+ * Sets the amount of pages to be processed each timeslice
+ * @param new
+ * @return the old value
+ */
+uint32_t swappy_set_pages_per_slice(uint32_t new);
 #endif /* SWAPPY_H */

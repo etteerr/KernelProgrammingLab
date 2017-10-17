@@ -53,7 +53,11 @@ _kern_thread_yield:
     //sub $4 to stack (for some reason... its 2:28PM)
     sub $4, %esp
     //save basepointer on stack
+    //And store non-free to use registers
     push %ebp
+    push %ebx
+    push %edi
+    push %esi
     //Now save stack pointer to ecx
     mov %esp, %ecx
 ######## NO MORE STACK OPERATIONS ############
@@ -84,6 +88,10 @@ reentry:
     mov %edx, %esp
 ######### STACK OPERATIONS RESTORED ################
     //restore basepointer (bp - 4 => ebp
+    // And non-free to use registers
+    pop %esi
+    pop %edi
+    pop %ebx
     pop %ebp
     //push return value on stack
     pushl %ecx

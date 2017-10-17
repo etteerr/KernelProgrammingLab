@@ -30,6 +30,8 @@ typedef struct {
 static volatile int swappy_status_ = 0;
 //Describes swappyness (same as in linux), when to start swapping (.6 => start at 60% mem usage)
 static volatile int swappy_swappyness = 0.6; //swapping starts at 60% usage
+//Number of pages to check each slice
+static uint32_t swappy_pages_per_slice = 50;
 
 
 /* swappy_service variables */
@@ -41,7 +43,11 @@ static uint32_t nsectors = 0;
 static volatile env_t *swappy_tf = 0;
 static volatile uint32_t swappy_lock = 0;
 
-
+uint32_t swappy_set_pages_per_slice(uint32_t new) {
+    uint32_t pages_per_slice = swappy_pages_per_slice;
+    swappy_pages_per_slice = new;
+    return pages_per_slice;
+}
 
 void swappy_spin_lock() {
     while(sync_bool_compare_and_swap(&swappy_lock, 0, 1)) 
@@ -98,6 +104,7 @@ int swappy_setup_memory(env_t* tf){
     return 0;
 }
 
+
 /**
  * The kernel thread swappy service
  * @param tf
@@ -113,6 +120,30 @@ void swappy_service(env_t *tf) {
     swappy_unlock();
     
     /* Do swappy things */
+    
+    /* Clock */
+    
+    /* Make a local variables (faster) */
+    register page_info_t * lpages = pages;
+    register uint32_t lnpages = npages;
+    register uint32_t iter = 0;
+    
+    /* main swap loop */
+    while (1) {
+        for(int i = 0; i<swappy_pages_per_slice; i++) {
+            /* Only if allocated */
+            if (lpages[iter].pp_ref == 0)
+                continue;
+            
+            /* Find references to page by deep search */
+            uint64_t deep_iter = 0;
+            
+            iter = (iter + 1) % lnpages;
+        }
+        
+        /* End of a service iteration */
+        kern_thread_yield(tf);
+    }
 }
 
 void swappy_set_swappyness(float swappyness) {

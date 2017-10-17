@@ -50,9 +50,9 @@ struct pushregs {
     uint32_t reg_ebp; //8
     uint32_t reg_oesp;      /* Useless */
     uint32_t reg_ebx; //16 (0x10)
-    uint32_t reg_edx; //20 (0x14)
-    uint32_t reg_ecx; //24 (0x18)
-    uint32_t reg_eax; //28 (0x1c)
+    uint32_t reg_edx; //20 (0x14) clob
+    uint32_t reg_ecx; //24 (0x18) clob
+    uint32_t reg_eax; //28 (0x1c) clob
 } __attribute__((packed));
 
 struct trapframe {
