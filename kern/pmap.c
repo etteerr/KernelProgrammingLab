@@ -790,8 +790,21 @@ void page_free(struct page_info *pp) {
  * freeing it if there are no more refs.
  */
 void page_decref(struct page_info *pp) {
+    
+    if (pp->c0.reg.IOhole || pp->c0.reg.kernelPage || pp->c0.reg.bios) {
+        eprintf("Invalid decref on reserved page (p_info->pa) (%p->%p).\n", pp, (pp - pages) << PGSHIFT);
+        if (pp->c0.reg.IOhole)
+            eprintf("Page flagged as IO hole\n");
+        if (pp->c0.reg.kernelPage)
+            eprintf("Page flagged as kernel page\n");
+        if (pp->c0.reg.bios)
+            eprintf("Page flagged as bios\n");
+        
+        return;
+    }
+    
     dprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), page_get_ref(pp) - 1, pp->c0.reg.huge);
-
+    
     lock_pagealloc();
 
     assert(page_get_ref(pp) > 0);
