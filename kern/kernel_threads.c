@@ -17,6 +17,10 @@
 #include "vma.h"
 #include "inc/x86.h"
 
+uint32_t kern_get_percpu_stack_pointer() {
+    return (uint32_t)&percpu_kstacks[8-cpunum()][KSTKSIZE];
+}
+
 int kern_thread_create(void* entry) {
         /* Allocate environment */
     struct env * e = 0;

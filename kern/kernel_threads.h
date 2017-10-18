@@ -26,5 +26,7 @@ int kern_thread_create(void* entry);
 
 void test_thread(env_t * tf);
 
+uint32_t kern_get_percpu_stack_pointer();
+
 #endif
 #endif /* KERNEL_THREADS_H */

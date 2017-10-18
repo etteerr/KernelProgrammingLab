@@ -29,14 +29,8 @@ _kernel_thread_start:
     //Call env_destroy, *tf is on the stack
     pop %ebp //store *tf to base pointer
     /* Set kernel stack pointer */
-    call   cpunum //only eax used (cpunum: a)
-    mov $NCPU, %ebx //ncpu: b
-    mov $0x9000, %ecx //kstsize: c
-    mov $(KSTACKTOP), %edx //Address of stackbase: d
-    sub %eax, %ebx //b: NCPU - cpunum
-    imul %ecx, %ebx //b*c = offset from base
-    lea (%edx, %ebx, 1), %eax // d + b*1
-    mov %eax, %esp //Set kernel sp
+    call kern_get_percpu_stack_pointer
+    mov %eax, %esp
     //Now cal env_destroy
     push %ebp
     call env_destroy
@@ -68,14 +62,8 @@ _kern_thread_yield:
     mov $reentry, %ecx
     mov %ecx, 0x30(%eax) //save eip to eip (reentry)
     /* Set kernel stack pointer */
-    call   cpunum //only eax used (cpunum: a)
-    mov $NCPU, %ebx //ncpu: b
-    mov $0x9000, %ecx //kstsize: c
-    mov $(KSTACKTOP), %edx //Address of stackbase: d
-    sub %eax, %ebx //b: NCPU - cpunum
-    imul %ecx, %ebx //b*c = offset from base
-    lea (%edx, %ebx, 1), %eax // d + b*1
-    mov %eax, %esp //Set kernel sp
+    call kern_get_percpu_stack_pointer
+    mov %eax, %esp
     /* Call sched_yield as the kernel stack is initialized */
     push $0x0 //Calling convention (return address)
     call sched_yield
