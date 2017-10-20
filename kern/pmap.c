@@ -283,9 +283,12 @@ void mem_init(void) {
 
     /* Enable Page Size Extensions for huge page support */
     lcr4(rcr4() | CR4_PSE);
-
+    
     /* Initialize the SMP-related parts of the memory map. */
     mem_init_mp();
+    
+    /* If MEMERROR: Comment me! */
+    boot_low_mem = 0;
 
     /* Check that the initial page directory has been set up correctly. */
     check_kern_pgdir();
@@ -699,7 +702,7 @@ struct page_info *page_alloc(int alloc_flags) {
         p = &page_free_list;
         for(i=page_free_list; i!=NULL; i=i->pp_link) {
             uint32_t pa = page2pa(i);
-
+            
             if (pa < 4<<20) {
                 //Our page in low VM
                 assert(i->c0.reg.free);
