@@ -15,7 +15,7 @@
 #include "reverse_pagetable.h"
 
 #define swappy_lock_aquire(LOCK) while(!sync_val_compare_and_swap(&LOCK, 0, 1)) asm volatile("pause"); sync_barrier()
-#define swappy_lock_free(LOCK) while(!sync_val_compare_and_swap(&LOCK, 1, 0)) asm volatile("pause"); sync_barrier()
+#define swappy_lock_release(LOCK) while(!sync_val_compare_and_swap(&LOCK, 1, 0)) asm volatile("pause"); sync_barrier()
 
 #define swappy_queue_size (PGSIZE/sizeof(uint32_t))
 
@@ -43,8 +43,8 @@ static volatile int swappy_swap_lock = 0;
 /* Swappy queue which holds pages to be swapped */
 static uint32_t * swappy_swap_queue = 0;
 static uint32_t swappy_queue_poslock = 0;
-static volatile uint32_t swappy_swap_queue_read_pos = 0;
-static volatile uint32_t swappy_swap_queue_items = 0;
+static volatile uint32_t swappy_queue_read_pos = 0;
+static volatile uint32_t swappy_queue_items = 0;
 
 int swappy_allocate_descriptor(uint32_t descArrBytes, uint32_t required_pages){
     if (swappy_desc_arr==0) {
@@ -163,7 +163,7 @@ int swappy_retrieve_page(uint16_t page_id, page_info_t *pp){
     swappy_decref(page_id);
     
     /* Release lock */
-    swappy_lock_free(swappy_swap_lock);
+    swappy_lock_release(swappy_swap_lock);
     return 0;
 }
 
@@ -239,7 +239,7 @@ int swappy_swap_out(page_info_t * pp) {
     swappy_RemRef_mpage(pp, free_index);
     
     /* Free lock */
-    swappy_lock_free(swappy_swap_lock);
+    swappy_lock_release(swappy_swap_lock);
     
     return 0;
 }
@@ -253,25 +253,25 @@ void swappy_queue_insert(page_info_t* pp){
     dprintf("Swapping page %p (pa: %p; num: %d)\n", pp, page2pa(pp), PGNUM(page2pa(pp)));
     
     /* Check if there is space in the queue */
-    while(swappy_swap_queue_items >= swappy_queue_size)
+    while(swappy_queue_items >= swappy_queue_size)
         asm volatile("pause");
     
     /* get write position from read position + items left */
     swappy_lock_aquire(swappy_queue_poslock);
-    uint32_t writepos = swappy_swap_queue_items + swappy_swap_queue_read_pos;
-    swappy_lock_free(swappy_queue_poslock);
+    uint32_t writepos = swappy_queue_items + swappy_queue_read_pos;
+    swappy_lock_release(swappy_queue_poslock);
     writepos %= swappy_queue_size;
     
     /* Write to queue */
     swappy_swap_queue[writepos] = (uint32_t) pp;
     
     /* Add to n items */
-    uint32_t nitems = sync_fetch_and_add(&swappy_swap_queue_items, 1);
+    uint32_t nitems = sync_fetch_and_add(&swappy_queue_items, 1);
     
     dprintf("swap queue length: %n", nitems);
     
     /* Unlock */
-    swappy_lock_free(lock);
+    swappy_lock_release(lock);
 }
 
 int swappy_swap_page(page_info_t * pp, int flags){
@@ -286,4 +286,58 @@ int swappy_swap_page(page_info_t * pp, int flags){
     swappy_queue_insert(pp);
     
     return 0;
+}
+
+/* Swappy service running variable */
+static int running = 0;
+
+void swappy_service(env_t * tf) {
+    static int lock = 0;
+    
+    dprintf("Swappy service started as env %d.\n", tf->env_id);
+    
+    while(running) {
+        /* No items, nothing to swap */
+        if (!swappy_queue_items)
+            kern_thread_yield(tf);
+        
+        /* Aquire locks */
+        swappy_lock_aquire(lock);
+        swappy_lock_aquire(swappy_queue_poslock);
+        
+        /* Get first in line in queue */
+        page_info_t * pp = (page_info_t *)swappy_swap_queue[swappy_queue_read_pos];
+        sync_sub_and_fetch(&swappy_queue_items, 1);
+        sync_add_and_fetch(&swappy_queue_read_pos, 1);
+        
+        /* Release position lock, we have our page data */
+        swappy_lock_aquire(swappy_queue_poslock);
+        
+        /* Swap out */
+        if (swappy_swap_out(pp)) {
+            eprintf("Error while swapping page %p!\n", pp);
+            panic("Error while swapping!");
+        }
+        
+        /* release lock */
+        swappy_lock_release(lock);
+        
+        /* yield */
+        kern_thread_yield(tf);
+        
+    }
+    
+    dprintf("Swappy service stopped\n");
+}
+
+void swappy_start_service(){
+    dprintf("Starting swappy service...\n");
+    
+    running = 1;
+    
+    kern_thread_create(swappy_service);
+}
+void swappy_stop_service(){
+    dprintf("Stopping swappy service\n");
+    running = 0;
 }

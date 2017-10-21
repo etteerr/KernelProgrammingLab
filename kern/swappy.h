@@ -22,4 +22,7 @@ enum {
 int swappy_retrieve_page(uint16_t page_id, page_info_t *pp);
 int swappy_swap_page(page_info_t * pp, int swappy_swap_flag);
 int swappy_init();
+
+void swappy_start_service();
+void swappy_stop_service();
 #endif /* SWAPPY_H */
