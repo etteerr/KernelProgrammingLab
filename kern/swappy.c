@@ -174,14 +174,17 @@ int swappy_retrieve_page(uint16_t page_id, page_info_t *pp){
     swappy_lock_aquire(swappy_swap_lock);
     
     /* We offset pageid by +1 outside swappy to ensure pte never becomes 0x0 */
-    if (page_id==0)
+    if (page_id==0) {
+        eprintf("Swappy received invalid page_id!\n");
         return swappy_error_invalidId;
+    }
     /* So set page id back to internal level */
     page_id--;
     
     /* load page from disk if it was referenced */
      if (!swappy_desc_arr[page_id].ref){
          /* No reference */
+         eprintf("No reference to swap id %d found!\n", page_id);
          swappy_lock_release(swappy_swap_lock);
          return swappy_error_noRef;
      }
@@ -224,7 +227,7 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index){
     while ((pte=reverse_pte_lookup(pp, &it))!=0) {
         swappy_incref(index);
         *pte &= 0x1E; //reset address, preserve settings, except present
-        *pte |= (index+1) << 11; //set address of pte to index of swap
+        *pte |= (index+1) << 12; //set address of pte to index of swap
         page_decref(pp);
     }
 }
@@ -428,7 +431,7 @@ void swappy_unit_test_case(){
     
     /* retrieve page */
     dprintf("Retreive page from swap.\n");
-    uint32_t id = PTE_GET_PHYS_ADDRESS(pte);
+    uint32_t id = PTE_GET_PHYS_ADDRESS(pte) >> 12;
     if (swappy_retrieve_page(id, pp))
         panic("Swappy returned a error!");
     

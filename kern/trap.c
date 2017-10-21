@@ -22,6 +22,7 @@
 #include "syscall.h"
 #include "spinlock.h"
 #include "kdebug.h"
+#include "swappy.h"
 
 static struct taskstate ts;
 
@@ -602,6 +603,34 @@ void handle_pf_pte(uint32_t fault_va){
 }
 
 int handle_swap_fault(uint32_t fault_va) {
+    /* Prepare pte */
+    env_t * e = curenv;
+    pte_t * pte = pgdir_walk(e->env_pgdir, (void*)fault_va, 0);
+    
+    /* Try to alloc a new page */
+    page_info_t * pp = page_alloc(0); //we overwrite the whole page
+    if (!pp) {
+        eprintf("Failed to allocate page\n");
+        return -1;
+    }
+    
+    /* Try to retrieve page */
+    uint32_t pageid = PTE_GET_PHYS_ADDRESS(*pte) >> 12;
+    uint32_t res;
+    if ((res = swappy_retrieve_page(pageid, pp))) {
+        page_free(pp);
+        eprintf("Error: Swappy returned %d\n", res);
+        return -1;
+    }
+    
+    /* Insert new page */
+    pte_t old_pte = *pte;
+    if (page_insert(e->env_pgdir, pp, (void*)fault_va, old_pte & 0x1F)) {
+        pp->pp_ref = 0;
+        page_free(pp);
+        eprintf("Page insert failed!\n");
+        return -1;
+    }
     
     return 0;
 }
@@ -629,7 +658,7 @@ void page_fault_handler(struct trapframe *tf)
 
     switch (pf_type) {
         case PAGEFAULT_TYPE_KERNEL:
-            eprintf("Kernel pagefault.\n")
+            eprintf("Kernel pagefault.\n");
             murder_env(curenv, fault_va);
             break;
         case PAGEFAULT_TYPE_OUTSIDE_USER_RANGE:
