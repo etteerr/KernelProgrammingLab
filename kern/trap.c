@@ -545,7 +545,7 @@ int trap_handle_backed_memory(uint32_t fault_va){
  */
 int determine_pagefault(uint32_t fault_va, bool is_kernel){
     env_t * e = curenv;
-
+    
     /* Determine if this is the kernel */
     if (is_kernel)
         return PAGEFAULT_TYPE_KERNEL;
@@ -572,6 +572,9 @@ int determine_pagefault(uint32_t fault_va, bool is_kernel){
             return PAGEFAULT_TYPE_INVALID_PERMISSION;
     }else{
         /* Condition page not present */
+        if (pte)
+            return PAGEFAULT_TYPE_SWAP;
+        
         if (!pte && vma->backed_addr)
             return PAGEFAULT_TYPE_FILEBACKED;
 
@@ -598,6 +601,11 @@ void handle_pf_pte(uint32_t fault_va){
     }
 }
 
+int handle_swap_fault(uint32_t fault_va) {
+    
+    return 0;
+}
+
 void page_fault_handler(struct trapframe *tf)
 {
     uint32_t fault_va;
@@ -621,26 +629,27 @@ void page_fault_handler(struct trapframe *tf)
 
     switch (pf_type) {
         case PAGEFAULT_TYPE_KERNEL:
+            eprintf("Kernel pagefault.\n")
             murder_env(curenv, fault_va);
             break;
         case PAGEFAULT_TYPE_OUTSIDE_USER_RANGE:
-            cprintf("[PAGEFAULT] Page outside user accessable range.\n");
+            eprintf("Page outside user accessable range.\n");
             murder_env(curenv, fault_va);
             break;
         case PAGEFAULT_TYPE_INVALID_PERMISSION:
-            cprintf("[PAGEFAULT] Page permissions insufficient.\n");
+            eprintf("Page permissions insufficient.\n");
             murder_env(curenv, fault_va);
             break;
         case PAGEFAULT_TYPE_NO_PTE:
-            cprintf("[PAGEFAULT] No page entry exists at %p.\n", fault_va);
+            eprintf("No page entry exists at %p.\n", fault_va);
             handle_pf_pte(fault_va);
             break;
         case PAGEFAULT_TYPE_NO_VMA:
-            cprintf("[PAGEFAULT] Va outside VMA ranges.\n");
+            eprintf("Va outside VMA ranges.\n");
             murder_env(curenv, fault_va);
             break;
         case PAGEFAULT_TYPE_UNUSED_VMA:
-            cprintf("[PAGEFAULT] VA inside unused VMA range.\n");
+            eprintf("VA inside unused VMA range.\n");
             murder_env(curenv, fault_va);
             break;
         case PAGEFAULT_TYPE_COW:
@@ -648,7 +657,7 @@ void page_fault_handler(struct trapframe *tf)
                 return;
             uint32_t preval = *(uint32_t * ) fault_va;
             if (trap_handle_cow(fault_va)) {
-                cprintf("[PAGEFAULT] COW failed.\n");
+                eprintf("COW failed.\n");
                 murder_env(curenv, fault_va);
             }
             uint32_t postval =*(uint32_t * ) fault_va;
@@ -656,12 +665,18 @@ void page_fault_handler(struct trapframe *tf)
             break;
         case PAGEFAULT_TYPE_FILEBACKED:
             if (trap_handle_backed_memory(fault_va)) {
-                cprintf("[PAGEFAULT] file backing failed.\n");
+                eprintf("file backing failed.\n");
+                murder_env(curenv, fault_va);
+            }
+            break;
+        case PAGEFAULT_TYPE_SWAP:
+            if (handle_swap_fault(fault_va)){
+                eprintf("file backing failed.\n");
                 murder_env(curenv, fault_va);
             }
             break;
         case PAGEFAULT_TYPE_NONE:
-            cprintf("[PAGEFAULT] No pagefault!\n");
+            eprintf("No pagefault!\n");
         default:
             panic("Unhandled pagefault type %d", pf_type);
     }

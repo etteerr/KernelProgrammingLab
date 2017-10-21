@@ -173,6 +173,12 @@ int swappy_retrieve_page(uint16_t page_id, page_info_t *pp){
     /* Aquire lock */
     swappy_lock_aquire(swappy_swap_lock);
     
+    /* We offset pageid by +1 outside swappy to ensure pte never becomes 0x0 */
+    if (page_id==0)
+        return swappy_error_invalidId;
+    /* So set page id back to internal level */
+    page_id--;
+    
     /* load page from disk if it was referenced */
      if (!swappy_desc_arr[page_id].ref){
          /* No reference */
@@ -218,7 +224,7 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index){
     while ((pte=reverse_pte_lookup(pp, &it))!=0) {
         swappy_incref(index);
         *pte &= 0x1E; //reset address, preserve settings, except present
-        *pte |= index << 11; //set address of pte to index of swap
+        *pte |= (index+1) << 11; //set address of pte to index of swap
         page_decref(pp);
     }
 }
