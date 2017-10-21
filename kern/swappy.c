@@ -13,6 +13,7 @@
 #include "inc/atomic_ops.h"
 #include "inc/string.h"
 #include "reverse_pagetable.h"
+#include "vma.h"
 
 #define swappy_lock_aquire(LOCK) while(!sync_val_compare_and_swap(&LOCK, 0, 1)) asm volatile("pause"); sync_barrier()
 #define swappy_lock_release(LOCK) while(!sync_val_compare_and_swap(&LOCK, 1, 0)) asm volatile("pause"); sync_barrier()
@@ -313,7 +314,7 @@ void swappy_queue_insert(page_info_t* pp){
     /* Add to n items */
     uint32_t nitems = sync_fetch_and_add(&swappy_queue_items, 1);
     
-    dprintf("swap queue length: %n", nitems);
+    dprintf("swap queue length: %d\n", nitems);
     
     /* Unlock */
     swappy_lock_release(lock);
@@ -341,6 +342,9 @@ void swappy_service(env_t * tf) {
     dprintf("Swappy service started as env %d.\n", tf->env_id);
     
     while(running) {
+        /* yield */
+        kern_thread_yield(tf);
+        
         /* No items, nothing to swap */
         if (!swappy_queue_items)
             continue;
@@ -368,10 +372,6 @@ void swappy_service(env_t * tf) {
         
         /* release lock */
         swappy_lock_release(lock);
-        
-        /* yield */
-        kern_thread_yield(tf);
-        
     }
     
     dprintf("Swappy service stopped\n");

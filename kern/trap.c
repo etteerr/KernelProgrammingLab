@@ -305,7 +305,7 @@ void trap(struct trapframe *tf)
     assert(!(read_eflags() & FL_IF));
 
     if (TRAPPRINT) cprintf("Incoming TRAP frame at %p\n", tf);
-    dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
+//    dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
 
     if ((tf->tf_cs & 3) == 3 || (tf->tf_cs == GD_KT && curenv)) {
         assert(curenv);

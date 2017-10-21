@@ -72,11 +72,11 @@ void i386_init(void)
 #else
     /* Touch all you want. */
 //    ENV_CREATE(user_yield, ENV_TYPE_USER);
-    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
+//    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
 
 //    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
-    kern_thread_create(test_thread);
-
+//    kern_thread_create(test_thread);
+    swappy_start_service();
 #endif
 
     /* Schedule and run the first user environment! */

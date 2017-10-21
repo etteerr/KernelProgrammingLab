@@ -33,7 +33,7 @@ _kernel_thread_start:
     mov %eax, %esp
     //Now cal env_destroy
     push %ebp
-    call env_destroy
+    call env_free
     //Now call sched_yield and never come back
     push $0x0 //Calling convention (return address)
     call sched_yield
