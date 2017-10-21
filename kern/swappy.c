@@ -12,26 +12,35 @@
 #include "pmap.h"
 #include "inc/atomic_ops.h"
 #include "inc/string.h"
+#include "reverse_pagetable.h"
 
 #define swappy_lock_aquire(LOCK) while(!sync_val_compare_and_swap(&LOCK, 0, 1)) asm volatile("pause"); sync_barrier()
 #define swappy_lock_free(LOCK) while(!sync_val_compare_and_swap(&LOCK, 1, 0)) asm volatile("pause"); sync_barrier()
 
 #define swappy_queue_size (PGSIZE/sizeof(uint32_t))
 
-/* number of bits for ID and REF in swappy_swap_descriptor */
-//Max swap pages supported = 2<<(SWAPPY_ID_BIT_SIZE - 1) -1
-#define SWAPPY_ID_BIT_SIZE 16
+#define swappy_sectors_per_page (PGSIZE/SECTSIZE)
+#define swappy_index_to_sector(IDX) (IDX * swappy_sectors_per_page)
+
+
+/* number of bits for REF in swappy_swap_descriptor */
 //Max references to a single swapped page = 2<<(SWAPPY_REF_BIT_SIZE - 1) -1
 #define SWAPPY_REF_BIT_SIZE 8
 
+
 /* swapped id Page structures */
 typedef struct {
-    unsigned page_id:SWAPPY_ID_BIT_SIZE;
-    unsigned ref:SWAPPY_REF_BIT_SIZE;
+    volatile uint8_t ref; /* Set SWAPPY_REF_BIT_SIZE acordingly */
 }__attribute__((packed)) swappy_swap_descriptor ;
 
+/* Swappy descriptor (memory that describes what is on the swap disk) */
 static swappy_swap_descriptor * swappy_desc_arr = 0;
+static uint32_t descArrSize = 0;
 
+/* Swappy lock for descriptor and writing operations */
+static volatile int swappy_swap_lock = 0;
+
+/* Swappy queue which holds pages to be swapped */
 static uint32_t * swappy_swap_queue = 0;
 static uint32_t swappy_queue_poslock = 0;
 static volatile uint32_t swappy_swap_queue_read_pos = 0;
@@ -99,14 +108,12 @@ int swappy_init() {
     /* Setup swappy */
     dprintf("Setting up swap enviroment...\n");
     uint32_t numsec = ide_num_sectors();
-    uint32_t sectorsPerPage = PGSIZE/SECTSIZE;
-    uint32_t descArrSize = numsec/sectorsPerPage;
+    descArrSize = numsec/swappy_sectors_per_page;
     uint32_t descArrBytes = descArrSize * sizeof(swappy_swap_descriptor);
     uint32_t required_pages = (descArrBytes / PGSIZE) + ((descArrBytes % PGSIZE) > 0);
     dprintf("Found %d sectors on disk\n", numsec);
-    dprintf("Sectors per page required: %d\n", sectorsPerPage);
+    dprintf("Sectors per page required: %d\n", swappy_sectors_per_page);
     dprintf("Page space in SWAP storage: %d\n", descArrSize);
-    dprintf("Supported number of pages in swap: %d\n", (2<<(SWAPPY_ID_BIT_SIZE-1))-1);
     dprintf("Supported number of references per swapped page: %d\n", (2<<(SWAPPY_REF_BIT_SIZE-1))-1);
     dprintf("Descriptor size for SWAP storage: %d Bytes\n", descArrBytes);
     
@@ -125,6 +132,84 @@ page_info_t * swappy_retrieve_page(uint16_t page_id){
     
     return 0;
 }
+
+uint32_t swappy_find_free_descriptor(){
+    uint32_t i = 0;
+    for(; i < descArrSize; i++) {
+        if (swappy_desc_arr[i].ref == 0)
+            return i;
+    }
+    
+    return -1;
+}
+
+void swappy_write_page(page_info_t* pp, uint32_t free_index){
+    ide_start_write(swappy_index_to_sector(free_index), swappy_sectors_per_page);
+    char * buffer = page2kva(pp);
+    for(int w=0; w<swappy_sectors_per_page; w++)
+        ide_write_sector(buffer+(w*SECTSIZE));
+}
+
+uint32_t swappy_incref(uint32_t index){
+    return sync_add_and_fetch(&swappy_desc_arr[index].ref, 1);
+}
+
+/**
+ * Removes all references in page tables to page and decrefs pages for each
+ * pte set to swap
+ * @param pp
+ * @param index index of swap descriptor
+ */
+void swappy_RemRef_mpage(page_info_t* pp, uint32_t index){
+    uint64_t it = 0;
+    pte_t * pte;
+    while ((pte=reverse_pte_lookup(pp, &it))!=0) {
+        swappy_incref(index);
+        *pte &= 0x1E; //reset address, preserve settings, except present
+        *pte |= index << 11; //set address of pte to index of swap
+        page_decref(pp);
+    }
+}
+
+int swappy_do_swap_page(page_info_t * pp) {    
+    /* Aquire lock */
+    swappy_lock_aquire(swappy_swap_lock);
+    
+    /* To ensure successfull workings, this order is used:
+     * 
+     * Try to write a page to disk
+     *  - Return on failure
+     * Try set all pte_t's to disk id
+     *  - panic on failure
+     * Finally dealloc page
+     *  - panic on failure
+     * 
+     * This ensures that...
+     *  - when a page is written to disk it is still available 
+     *    in memory as the pte_t are still pointing to the oirginal page in mem.
+     *  - That all pte_t's are set to swap state before the page is deallocated.
+     *  - When one pte_t is set to swap, there is a valid swap entry.
+     */
+    
+    /* Find a free spot */
+    uint32_t free_index = swappy_find_free_descriptor();
+    if (free_index == (uint32_t)-1) {
+        eprintf("No free index found\n");
+        return swappy_error_noFreeSwapIndex;
+    }
+    
+    /* Try to write page to disk (Cannot fail?) */
+    swappy_write_page(pp, free_index);
+    
+    /* set all pte_t's to 0 */
+    swappy_RemRef_mpage(pp, free_index);
+    
+    /* Free lock */
+    swappy_lock_free(swappy_swap_lock);
+    
+    return 0;
+}
+
 void swappy_queue_insert(page_info_t* pp){
     static volatile int lock = 0;
     

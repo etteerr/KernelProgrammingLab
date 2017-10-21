@@ -12,6 +12,7 @@ enum {
     swappy_error_noerror=0,
     swappy_error_invaliddisk,
     swappy_error_allocation,
+    swappy_error_noFreeSwapIndex,
 };
 
 #define SWAPPY_SWAP_QUEUE 0
