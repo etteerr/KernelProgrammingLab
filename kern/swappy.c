@@ -135,7 +135,7 @@ void swappy_read_page(uint16_t page_id, page_info_t* pp){
         ide_read_sector(buffer+(SECTSIZE*i));
 }
 
-void swappy_decref(){
+void swappy_decref(uint32_t index){
     sync_sub_and_fetch(&swappy_desc_arr[index].ref, 1);
 }
 
@@ -160,7 +160,7 @@ int swappy_retrieve_page(uint16_t page_id, page_info_t *pp){
     swappy_read_page(page_id, pp);
     
     /* decref swap reference */
-    swappy_decref();
+    swappy_decref(page_id);
     
     /* Release lock */
     swappy_lock_free(swappy_swap_lock);
