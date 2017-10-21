@@ -128,13 +128,22 @@ int swappy_init() {
     return swappy_error_noerror;
 }
 
-
-void swappy_write_page(page_info_t* pp, uint32_t page_id){
+/**
+ * Writes a page out to disk
+ * @param pp
+ * @param page_id
+ * @param tf enviroment pointer, if set, causes write page to call kern_yield
+ */
+void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf){
     dprintf("Swapping %p to swap index %d\n", pp, page_id);
     ide_start_write(swappy_index_to_sector(page_id), swappy_sectors_per_page);
     char * buffer = page2kva(pp);
     for(int w=0; w<swappy_sectors_per_page; w++) {
-        while(!ide_is_ready()) asm volatile("pause");
+        if (tf) {
+            kern_thread_yield(tf);
+        }else
+            while(!ide_is_ready()) asm volatile("pause");
+        
         ide_write_sector(buffer+(w*SECTSIZE));
     }
 }
@@ -214,7 +223,7 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index){
     }
 }
 
-int swappy_swap_out(page_info_t * pp) {    
+int swappy_swap_out(page_info_t * pp, env_t * tf) {    
     /* Aquire lock */
     swappy_lock_aquire(swappy_swap_lock);
     
@@ -250,7 +259,7 @@ int swappy_swap_out(page_info_t * pp) {
     }
     
     /* Try to write page to disk (Cannot fail?) */
-    swappy_write_page(pp, free_index);
+    swappy_write_page(pp, free_index, 0);
     
     /* set all pte_t's to 0 */
     swappy_RemRef_mpage(pp, free_index);
@@ -295,7 +304,7 @@ int swappy_swap_page(page_info_t * pp, int flags){
     
     /* Direct swapping if needed */
     if (flags & SWAPPY_SWAP_DIRECT) {
-        return swappy_swap_out(pp);
+        return swappy_swap_out(pp, 0);
     }
     
     /* Normal swapping (Give to a queue) */
@@ -331,7 +340,7 @@ void swappy_service(env_t * tf) {
         
         /* Swap out */
         if (pp) {
-            if (swappy_swap_out(pp)) {
+            if (swappy_swap_out(pp, tf)) {
                 eprintf("Error while swapping page %p!\n", pp);
                 panic("Error while swapping!");
             }

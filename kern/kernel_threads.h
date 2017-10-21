@@ -20,7 +20,7 @@
 extern void _kernel_thread_start();
 extern void _kern_thread_yield(env_t * tf);
 
-#define kern_thread_yield(tf) _kern_thread_yield(tf);
+#define kern_thread_yield(tf) _kern_thread_yield(tf)
 
 int kern_thread_create(void* entry);
 
