@@ -153,6 +153,7 @@ int swappy_retrieve_page(uint16_t page_id, page_info_t *pp){
     /* load page from disk if it was referenced */
      if (!swappy_desc_arr[page_id].ref){
          /* No reference */
+         swappy_lock_release(swappy_swap_lock);
          return swappy_error_noRef;
      }
     
@@ -229,6 +230,7 @@ int swappy_swap_out(page_info_t * pp) {
     uint32_t free_index = swappy_find_free_descriptor();
     if (free_index == (uint32_t)-1) {
         eprintf("No free index found\n");
+        swappy_lock_release(swappy_swap_lock);
         return swappy_error_noFreeSwapIndex;
     }
     
@@ -278,7 +280,7 @@ int swappy_swap_page(page_info_t * pp, int flags){
     
     /* Direct swapping if needed */
     if (flags & SWAPPY_SWAP_DIRECT) {
-        
+        swappy_swap_out(pp);
         return 0;
     }
     
@@ -299,7 +301,7 @@ void swappy_service(env_t * tf) {
     while(running) {
         /* No items, nothing to swap */
         if (!swappy_queue_items)
-            kern_thread_yield(tf);
+            continue;
         
         /* Aquire locks */
         swappy_lock_aquire(lock);
@@ -311,13 +313,16 @@ void swappy_service(env_t * tf) {
         sync_add_and_fetch(&swappy_queue_read_pos, 1);
         
         /* Release position lock, we have our page data */
-        swappy_lock_aquire(swappy_queue_poslock);
+        swappy_lock_release(swappy_queue_poslock);
         
         /* Swap out */
-        if (swappy_swap_out(pp)) {
-            eprintf("Error while swapping page %p!\n", pp);
-            panic("Error while swapping!");
-        }
+        if (pp) {
+            if (swappy_swap_out(pp)) {
+                eprintf("Error while swapping page %p!\n", pp);
+                panic("Error while swapping!");
+            }
+        }else
+            eprintf("0 pointer in queue!\n");
         
         /* release lock */
         swappy_lock_release(lock);
