@@ -128,8 +128,42 @@ int swappy_init() {
     return swappy_error_noerror;
 }
 
-page_info_t * swappy_retrieve_page(uint16_t page_id){
+void swappy_read_page(uint16_t page_id, page_info_t* pp){
+    char * buffer = page2kva(pp);
+    ide_start_read(swappy_index_to_sector(page_id), swappy_sectors_per_page);
+    for(int i = 0; i < swappy_sectors_per_page; i++)
+        ide_read_sector(buffer+(SECTSIZE*i));
+}
+
+void swappy_decref(){
+    sync_sub_and_fetch(&swappy_desc_arr[index].ref, 1);
+}
+
+/**
+ * Retrieves page from swap and stores it in pp
+ *  Does not touch the page_info reference counter!
+ * @param page_id the descriptor index
+ * @param pp a free allocated page to store the page
+ * @return swappy_error
+ */
+int swappy_retrieve_page(uint16_t page_id, page_info_t *pp){
+    /* Aquire lock */
+    swappy_lock_aquire(swappy_swap_lock);
     
+    /* load page from disk if it was referenced */
+     if (!swappy_desc_arr[page_id].ref){
+         /* No reference */
+         return swappy_error_noRef;
+     }
+    
+    /* Read from disk */
+    swappy_read_page(page_id, pp);
+    
+    /* decref swap reference */
+    swappy_decref();
+    
+    /* Release lock */
+    swappy_lock_free(swappy_swap_lock);
     return 0;
 }
 
