@@ -144,7 +144,7 @@ void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf){
             kern_thread_yield(tf);
         }else
             while(!ide_is_ready()) asm volatile("pause");
-        
+
         ide_write_sector(buffer+(w*SECTSIZE));
     }
 }
@@ -229,6 +229,8 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index){
         swappy_incref(index);
         *pte &= 0x1E; //reset address, preserve settings, except present
         *pte |= (index+1) << 12; //set address of pte to index of swap
+        /* TODO: this should probably call page_remove(), since the page is swapped
+         * out for all envs, and thus all references are void */
         page_decref(pp);
     }
 }
