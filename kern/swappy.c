@@ -171,7 +171,7 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index){
     }
 }
 
-int swappy_do_swap_page(page_info_t * pp) {    
+int swappy_swap_out(page_info_t * pp) {    
     /* Aquire lock */
     swappy_lock_aquire(swappy_swap_lock);
     
