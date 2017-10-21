@@ -9,23 +9,12 @@
 #define SWAPPY_H
 #include "kern/env.h"
 enum {
-    swappy_status_uninitialized = 0,
-    swappy_status_stopped,
-    swappy_status_stopping,
-    swappy_status_starting,
-    swappy_status_started,
-    swappy_status_crashed
+    swappy_error_noerror=0,
+    swappy_error_invaliddisk,
+    swappy_error_allocation,
 };
 
 page_info_t * swappy_retrieve_page(uint16_t page_id);
-void swappy_set_swappyness(float swappyness);
-int swappy_status();
-void swappy_stop();
-void swappy_start();
-/**
- * Sets the amount of pages to be processed each timeslice
- * @param new
- * @return the old value
- */
-uint32_t swappy_set_pages_per_slice(uint32_t new);
+int swappy_swap_page(page_info_t * pp);
+int swappy_init();
 #endif /* SWAPPY_H */

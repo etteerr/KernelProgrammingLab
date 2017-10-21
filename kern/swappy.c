@@ -11,165 +11,93 @@
 #include "inc/assert.h"
 #include "pmap.h"
 #include "inc/atomic_ops.h"
+#include "inc/string.h"
 
+/* number of bits for ID and REF in swappy_swap_descriptor */
+//Max swap pages supported = 2<<(SWAPPY_ID_BIT_SIZE - 1) -1
+#define SWAPPY_ID_BIT_SIZE 16
+//Max references to a single swapped page = 2<<(SWAPPY_REF_BIT_SIZE - 1) -1
+#define SWAPPY_REF_BIT_SIZE 8
 
 /* swapped id Page structures */
 typedef struct {
-    unsigned page_id:16;
-    unsigned next:16;
-    unsigned free:1;
-    //Hellopadding
-} swappy_swap_descriptor ;
+    unsigned page_id:SWAPPY_ID_BIT_SIZE;
+    unsigned ref:SWAPPY_REF_BIT_SIZE;
+}__attribute__((packed)) swappy_swap_descriptor ;
 
-/* Global variables */
-/* These variables are volatile and thus omit the buffer 
- * Thus they should be nearly atomic and thats enough
- */
+static swappy_swap_descriptor * swappy_desc_arr = 0;
+static volatile int swappy_lock = 0;
 
-//Describes the current status of the service (started, stopped, etc)
-static volatile int swappy_status_ = 0;
-//Describes swappyness (same as in linux), when to start swapping (.6 => start at 60% mem usage)
-static volatile int swappy_swappyness = 0.6; //swapping starts at 60% usage
-//Number of pages to check each slice
-static uint32_t swappy_pages_per_slice = 50;
-
-
-/* swappy_service variables */
-static page_info_t * allocated_page = 0;
-static uint8_t nallocated_pages = 0;
-static const swappy_swap_descriptor * swap_desc = (swappy_swap_descriptor *) 0x4000;
-static uint32_t nsectors = 0;
-//Swappy tapframe
-static volatile env_t *swappy_tf = 0;
-static volatile uint32_t swappy_lock = 0;
-
-uint32_t swappy_set_pages_per_slice(uint32_t new) {
-    uint32_t pages_per_slice = swappy_pages_per_slice;
-    swappy_pages_per_slice = new;
-    return pages_per_slice;
-}
-
-void swappy_spin_lock() {
-    while(sync_bool_compare_and_swap(&swappy_lock, 0, 1)) 
-        asm volatile("nop\n");
-}
-
-void swappy_unlock() {
-    while(sync_bool_compare_and_swap(&swappy_lock, 1, 0)) 
-        asm volatile("nop\n");
-}
-
-void swappy_yield_lock(env_t *tf) {
-    while(sync_bool_compare_and_swap(&swappy_lock, 0, 1)) 
-        kern_thread_yield(tf);
-}
-
-/**
- * Initializes the swappy pgdir by inserting pages
- * @param tf
- */
-int swappy_insert_pages(env_t* tf){
-    for(int i = 0; i<nallocated_pages; i++)
-        if (page_insert(tf->env_pgdir, allocated_page+i, (void*)(swap_desc) + i*PGSIZE, PTE_BIT_RW))
+int swappy_allocate_descriptor(uint32_t descArrBytes, uint32_t required_pages){
+    if (swappy_desc_arr==0) {
+        dprintf("Allocating %d bytes (%d pages) for swap descriptor...\n", descArrBytes, required_pages);
+        
+        /* Allocate and reference */
+        page_info_t *pp = alloc_consecutive_pages(required_pages, 0);
+        
+        if (!pp) {
+            eprintf("Allocation failed\n");
             return -1;
+        }
+            
+        for(int i = 0; i < required_pages; i++)
+            page_inc_ref(pp+i);
+        
+        /* Get kernel address to beginning of allocated space */
+        swappy_desc_arr = page2kva(pp);
+        
+        
+        /* Test access to memory (set to 0, not done in allocation) */
+        dprintf("Testing write to allocated memory...\n");
+        memset((void*)swappy_desc_arr, 0, required_pages * PGSIZE);
+        
+        dprintf("Allocation successfull!\n");
+        
+    }else
+        eprintf("Swap descriptor already allocated\n");
     
     return 0;
 }
 
-int swappy_setup_memory(env_t* tf){
-    if (!allocated_page || !nallocated_pages) {
-        if (allocated_page || nallocated_pages)
-            eprintf("Unclean swappy state! There may be a memory leak!\n");
-        
-        /* Determine number of pages to alloc */
-        nsectors = ide_num_sectors();
-        uint32_t size = nsectors * sizeof(swappy_swap_descriptor);
-        npages = size / PGSIZE + (size % PGSIZE != 0);
-        allocated_page = alloc_consecutive_pages(npages, ALLOC_ZERO);
-        
-        if (allocated_page==0) {
-            npages = 0;
-            eprintf("Failed to allocate %u pages!\n", npages);
-            swappy_unlock();
-            return -1;
-        }
-    }
+int swappy_init() {
+    dprintf("Swapper initializing...\n");
     
-    if (swappy_insert_pages(tf)) {
-        eprintf("Failed to insert swappy pages during initialization\n");
-        return -1;
+    /* Test disk */
+    ide_start_read(0,1);
+    char buff[SECTSIZE];
+    ide_read_sector(buff);
+    if (strcmp(buff, "SWAP")==0) {
+        eprintf("Invalid disk image: SWAP keyword not found!\n");
+        return swappy_error_invaliddisk;
     }
+    dprintf("Found valid diskimage\n");
     
-    dprintf("%u page(s) successfully allocated and inserted!\n", npages);
+    /* Setup swappy */
+    dprintf("Setting up swap enviroment...\n");
+    uint32_t numsec = ide_num_sectors();
+    uint32_t sectorsPerPage = PGSIZE/SECTSIZE;
+    uint32_t descArrSize = numsec/sectorsPerPage;
+    uint32_t descArrBytes = descArrSize * sizeof(swappy_swap_descriptor);
+    uint32_t required_pages = (descArrBytes / PGSIZE) + ((descArrBytes % PGSIZE) > 0);
+    dprintf("Found %d sectors on disk\n", numsec);
+    dprintf("Sectors per page required: %d\n", sectorsPerPage);
+    dprintf("Page space in SWAP storage: %d\n", descArrSize);
+    dprintf("Supported number of pages in swap: %d\n", (2<<(SWAPPY_ID_BIT_SIZE-1))-1);
+    dprintf("Supported number of references per swapped page: %d\n", (2<<(SWAPPY_REF_BIT_SIZE-1))-1);
+    dprintf("Descriptor size for SWAP storage: %d Bytes\n", descArrBytes);
+    
+    /* Allocate memory for swap descriptor */
+    if (swappy_allocate_descriptor(descArrBytes, required_pages))
+        return swappy_error_allocation;
+    
+    return swappy_error_noerror;
+}
+
+page_info_t * swappy_retrieve_page(uint16_t page_id){
+    
     return 0;
 }
-
-
-/**
- * The kernel thread swappy service
- * @param tf
- */
-void swappy_service(env_t *tf) {
-    /* Lock during init */
-    swappy_yield_lock(tf);
-    
-    /* Init swappy service */
-    swappy_setup_memory(tf);
-    
-    /* unlock */
-    swappy_unlock();
-    
-    /* Do swappy things */
-    
-    /* Clock */
-    
-    /* Make a local variables (faster) */
-    register page_info_t * lpages = pages;
-    register uint32_t lnpages = npages;
-    register uint32_t iter = 0;
-    
-    /* main swap loop */
-    while (1) {
-        for(int i = 0; i<swappy_pages_per_slice; i++) {
-            /* Only if allocated */
-            if (lpages[iter].pp_ref == 0)
-                continue;
-            
-            /* Find references to page by deep search */
-            uint64_t deep_iter = 0;
-            
-            iter = (iter + 1) % lnpages;
-        }
-        
-        /* End of a service iteration */
-        kern_thread_yield(tf);
-    }
-}
-
-void swappy_set_swappyness(float swappyness) {
-    assert(swappyness >= 0);
-    assert(swappyness <= 1);
-    swappy_swappyness = swappyness;
-}
-
-int swappy_status() {
-    return swappy_status_;
-}
-void swappy_stop() {
-    
-}
-void swappy_start() {
-    if (swappy_status_ == swappy_status_uninitialized) {
-        ide_init();
-    }
-    
-    /* Create service */
-    swappy_status_ = swappy_status_starting;
-    kern_thread_create(swappy_service);
-}
-
-page_info_t * swappy_retrieve_page(uint16_t page_id) {
-    
+int swappy_swap_page(page_info_t * pp){
     
     return 0;
 }

@@ -20,6 +20,7 @@ static void boot_aps(void);
 
 #include "vma.h"
 #include "kernel_threads.h"
+#include "swappy.h"
 
 
 void i386_init(void)
@@ -53,6 +54,9 @@ void i386_init(void)
     pic_init();
 
     ide_init();
+    
+    /* Initialize swappy (global space) */
+    swappy_init();
 
     /* Starting non-boot CPUs */
     dprintf("Bootcpu: Starting aps...\n");
