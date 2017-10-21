@@ -13,8 +13,8 @@
 #include "inc/atomic_ops.h"
 #include "inc/string.h"
 
-#define swappy_lock_aquire(LOCK) while(!sync_val_compare_and_swap(&LOCK, 0, 1)) asm volatile("pause")
-#define swappy_lock_free(LOCK) while(!sync_val_compare_and_swap(&LOCK, 1, 0)) asm volatile("pause")
+#define swappy_lock_aquire(LOCK) while(!sync_val_compare_and_swap(&LOCK, 0, 1)) asm volatile("pause"); sync_barrier()
+#define swappy_lock_free(LOCK) while(!sync_val_compare_and_swap(&LOCK, 1, 0)) asm volatile("pause"); sync_barrier()
 
 #define swappy_queue_size (PGSIZE/sizeof(uint32_t))
 
@@ -33,6 +33,7 @@ typedef struct {
 static swappy_swap_descriptor * swappy_desc_arr = 0;
 
 static uint32_t * swappy_swap_queue = 0;
+static uint32_t swappy_queue_poslock = 0;
 static volatile uint32_t swappy_swap_queue_read_pos = 0;
 static volatile uint32_t swappy_swap_queue_items = 0;
 
@@ -133,12 +134,13 @@ void swappy_queue_insert(page_info_t* pp){
     dprintf("Swapping page %p (pa: %p; num: %d)\n", pp, page2pa(pp), PGNUM(page2pa(pp)));
     
     /* Check if there is space in the queue */
-    uint32_t items;
-    while((items=swappy_swap_queue_items) >= swappy_queue_size)
+    while(swappy_swap_queue_items >= swappy_queue_size)
         asm volatile("pause");
     
     /* get write position from read position + items left */
-    uint32_t writepos = items + swappy_swap_queue_read_pos;
+    swappy_lock_aquire(swappy_queue_poslock);
+    uint32_t writepos = swappy_swap_queue_items + swappy_swap_queue_read_pos;
+    swappy_lock_free(swappy_queue_poslock);
     writepos %= swappy_queue_size;
     
     /* Write to queue */
