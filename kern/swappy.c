@@ -222,8 +222,18 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index){
         page_decref(pp);
     }
 }
-
+/**
+ * Swaps out a page
+ *  if tf is set to a ENV_TYPE_KERNEL_THREAD type env
+ *  makes use of kern_yield_thread while writing to disk
+ * @param pp
+ * @param tf
+ * @return 
+ */
 int swappy_swap_out(page_info_t * pp, env_t * tf) {    
+    if (tf)
+        if (tf->env_type != ENV_TYPE_KERNEL_THREAD)
+            tf = 0;
     /* Aquire lock */
     swappy_lock_aquire(swappy_swap_lock);
     
@@ -259,7 +269,7 @@ int swappy_swap_out(page_info_t * pp, env_t * tf) {
     }
     
     /* Try to write page to disk (Cannot fail?) */
-    swappy_write_page(pp, free_index, 0);
+    swappy_write_page(pp, free_index, tf);
     
     /* set all pte_t's to 0 */
     swappy_RemRef_mpage(pp, free_index);
