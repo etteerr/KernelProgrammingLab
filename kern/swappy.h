@@ -25,4 +25,6 @@ int swappy_init();
 
 void swappy_start_service();
 void swappy_stop_service();
+
+void swappy_unit_test_case();
 #endif /* SWAPPY_H */

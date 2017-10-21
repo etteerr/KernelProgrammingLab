@@ -96,14 +96,14 @@ int swappy_init() {
     dprintf("Swapper initializing...\n");
     
     /* Test disk */
-    ide_start_read(0,1);
-    char buff[SECTSIZE];
-    ide_read_sector(buff);
-    if (strcmp(buff, "SWAP")==0) {
-        eprintf("Invalid disk image: SWAP keyword not found!\n");
-        return swappy_error_invaliddisk;
-    }
-    dprintf("Found valid diskimage\n");
+//    ide_start_read(0,1);
+//    char buff[SECTSIZE];
+//    ide_read_sector(buff);
+//    if (strcmp(buff, "SWAP")==0) {
+//        eprintf("Invalid disk image: SWAP keyword not found!\n");
+//        return swappy_error_invaliddisk;
+//    }
+//    dprintf("Found valid diskimage\n");
     
     /* Setup swappy */
     dprintf("Setting up swap enviroment...\n");
@@ -226,6 +226,13 @@ int swappy_swap_out(page_info_t * pp) {
      *  - When one pte_t is set to swap, there is a valid swap entry.
      */
     
+    /* Check if pp is referenced */
+    if (!pp->pp_ref) {
+        eprintf("Not allowed to swap unreferenced page!\n");
+        swappy_lock_release(swappy_swap_lock);
+        return swappy_error_noRef;
+    }        
+    
     /* Find a free spot */
     uint32_t free_index = swappy_find_free_descriptor();
     if (free_index == (uint32_t)-1) {
@@ -280,8 +287,7 @@ int swappy_swap_page(page_info_t * pp, int flags){
     
     /* Direct swapping if needed */
     if (flags & SWAPPY_SWAP_DIRECT) {
-        swappy_swap_out(pp);
-        return 0;
+        return swappy_swap_out(pp);
     }
     
     /* Normal swapping (Give to a queue) */
@@ -345,4 +351,56 @@ void swappy_start_service(){
 void swappy_stop_service(){
     dprintf("Stopping swappy service\n");
     running = 0;
+}
+
+
+void swappy_unit_test_case(){
+    dprintf("Starting test...\n");
+    /* Alloc page and insert */
+    dprintf("Allocate and insert page.\n");
+    page_info_t * pp = page_alloc(ALLOC_ZERO);
+    page_insert(kern_pgdir, pp, (void*) 0x1000, PTE_BIT_RW);
+    
+    /* assert page is present */
+    dprintf("Assert page is present.\n");
+    assert(*pgdir_walk(kern_pgdir, (void*) 0x1000, 0) && PTE_BIT_PRESENT);
+    
+    /* Write test value to page */
+    dprintf("Write to allocated memory.\n");
+    uint32_t * mem = (uint32_t * ) 0x1000;
+    *mem = 0xDEADBEEF;
+    
+    /* Swap out */
+    dprintf("Swap page.\n");
+    if (swappy_swap_page(pp, SWAPPY_SWAP_DIRECT))
+        panic("Swappy returned error!");
+    
+    /* Assert page is swapped */
+    dprintf("Assert page is swapped.\n");
+    assert(pp->pp_ref==0);
+    assert((*pgdir_walk(kern_pgdir, (void*)0x1000, 0) && PTE_BIT_PRESENT)==0);
+    
+    /* Alloc page again */
+    dprintf("Allocate new page & insert.\n");
+    pp = page_alloc(ALLOC_ZERO);
+    page_insert(kern_pgdir, pp, (void*)0x1000, 0);
+    
+    /* retrieve page */
+    dprintf("Retreive page from swap.\n");
+    pte_t pte = *pgdir_walk(kern_pgdir, (void*)0x1000, 0);
+    uint32_t id = PTE_GET_PHYS_ADDRESS(pte);
+    if (swappy_retrieve_page(id, pp))
+        panic("Swappy returned a error!");
+    
+    /* Check if mem is still valid */
+    dprintf("Check memory is still the same.\n");
+    assert(*mem == 0xDEADBEEF);
+    
+    /* REstore pte to 0 */
+    dprintf("Cleaning...\n");
+    *pgdir_walk(kern_pgdir, (void*)0x1000, 0) = 0;
+    
+    /* Free page */
+    page_decref(pp);
+    dprintf("Test successfull!.\n");
 }

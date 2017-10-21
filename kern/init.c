@@ -57,7 +57,10 @@ void i386_init(void)
     
     /* Initialize swappy (global space) */
     swappy_init();
-
+    
+    /* Test swap */
+    swappy_unit_test_case();
+    
     /* Starting non-boot CPUs */
     dprintf("Bootcpu: Starting aps...\n");
     boot_aps();
