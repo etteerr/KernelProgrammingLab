@@ -14,6 +14,8 @@
 #include "reverse_pagetable.h"
 
 
+volatile int reverse_pagetable_look_kern = 0;
+
 /**
  * Looksup a given physical page [page] entry in given pagetable [pd]
  *  To enable repeated coninued iterations and returns (yield in python)
@@ -43,7 +45,7 @@ pte_t * reverse_pte_lookup_pgdir(pde_t * pd, page_info_t* page, uint16_t* pgdir_
         }
         
         /* Enter pgtable */
-        pte_t * pt = (pte_t * )PDE_GET_ADDRESS(pd[*pgdir_i]);
+        pte_t * pt = (pte_t * )KADDR(PDE_GET_ADDRESS(pd[*pgdir_i]));
         for(; *pte_i < 1024; (*pte_i)++) {
             uint32_t pa = PTE_GET_PHYS_ADDRESS(pt[*pte_i]);
             if (pa && pa2page(pa) == page) {
@@ -103,6 +105,19 @@ pte_t * reverse_pte_lookup(page_info_t * page, uint64_t * iter) {
         
         /* Iterate its pgdir */
         pte_t * res = reverse_pte_lookup_pgdir(envs[*env_i].env_pgdir,page, pgdir_i, pte_i);
+        if (res)
+            return res;
+        
+        /* Reset iterators */
+        *pgdir_i = 0;
+        *pte_i = 0;
+    }
+    
+    /* Search kernel page directory*/
+    if (reverse_pagetable_look_kern) {
+        
+        pte_t * res = reverse_pte_lookup_pgdir(kern_pgdir,page, pgdir_i, pte_i);
+        
         if (res)
             return res;
         

@@ -12,6 +12,9 @@
 #include "env.h"
 
 
+/* if set to 1, makes reverse_pte_lookup look in the kernel pgdir */
+extern volatile int reverse_pagetable_look_kern;
+
 /**
  * Find a pte that references the physical page described by [page]
  *  This function can be called repeatedly untill it returns 0 for incremental results
