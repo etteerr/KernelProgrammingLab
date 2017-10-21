@@ -384,6 +384,9 @@ void swappy_stop_service(){
 void swappy_unit_test_case(){
     dprintf("Starting test...\n");
     
+    /* store first kern_pgdir entry */
+    pde_t kpde = kern_pgdir[0];
+    
     /* Set hack to include kernel pgdir */
     reverse_pagetable_look_kern = 1;
     
@@ -437,5 +440,9 @@ void swappy_unit_test_case(){
     /* REstore hack */
     reverse_pagetable_look_kern = 0;
     
+    /* Clean the pgdir at 0x1000 */
+    page_info_t* addr = pa2page(PDE_GET_ADDRESS(kern_pgdir[0]));
+    page_decref(addr);
+    kern_pgdir[0] =  kpde;
     dprintf("Test successfull!.\n");
 }
