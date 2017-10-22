@@ -40,6 +40,7 @@ enum {
     ENV_RUNNABLE,
     ENV_RUNNING,
     ENV_WAITING,
+    ENV_WAITING_SWAP,
     ENV_NOT_RUNNABLE
 };
 

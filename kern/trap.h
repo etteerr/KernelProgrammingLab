@@ -8,6 +8,7 @@
 
 #include <inc/trap.h>
 #include <inc/mmu.h>
+#include <kern/env.h>
 
 #define IA32_SYSENTER_CS 0x0174
 #define IA32_SYSENTER_ESP 0x0175
@@ -84,4 +85,6 @@ enum {
     PAGEFAULT_TYPE_SWAP,
 };
 
+
+void murder_env(env_t *env, uint32_t fault_va);
 #endif /* JOS_KERN_TRAP_H */

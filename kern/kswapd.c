@@ -26,7 +26,7 @@ void kswapd_try_swap(page_info_t *pInfo);
 int get_mem_rss() {
     int i, rss_pages = 0;
     for(i = 0; i < npages; i++) {
-        page_info *page = &pages[i];
+        page_info_t *page = &pages[i];
         if(page->pp_ref > 0) {
             rss_pages++;
         }
@@ -56,7 +56,7 @@ int clear_last_access(page_info_t *page) {
     return was_accessed;
 }
 
-void *kswapd_service(env_t * tf) {
+void kswapd_service(env_t * tf) {
     page_info_t *first = &pages[0];
     page_info_t *head = first;
     dprintf("Kswapd service started as env %d.\n", tf->env_id);
@@ -104,17 +104,23 @@ void kswapd_try_swap(page_info_t *page) {
             return;
         }
 
-        swappy_swap_page(page, 0);
+        swappy_swap_page_out(page, 0);
 
     } while ((env = env->env_link));
 }
 
-void *kswapd_stop_service() {
+void kswapd_start_service() {
+    dprintf("Starting kswapd service...\n");
+    running = 1;
+    kern_thread_create(kswapd_service);
+}
+
+void kswapd_stop_service() {
     running = 0;
 }
 
 /* Allows configuring the threshold above which swapping will trigger.
  * Traps when called from non-priviliged code, because of permission pagefault. */
-void *kwswapd_set_threshold(float threshold) {
+void kwswapd_set_threshold(float threshold) {
     mem_press_thresh = threshold;
 }
