@@ -361,7 +361,13 @@ void swappy_thread_retreive_page(env_t* tf, swappy_swapin_task task) {
 
     /* Allocate page for env */
     dprintf("Allocating page for env %d...\n", task.env->env_id);
-    page_info_t * pp = page_alloc(0); //will be overwritten so no zero
+    page_info_t *pp; //will be overwritten so no zero
+    while( (pp = page_alloc(0)) == 0) {
+        if (tf)
+            kern_thread_yield(tf);
+        else
+            asm volatile("pause");
+    }
 
     /* Swap in */
     if (pp) {
