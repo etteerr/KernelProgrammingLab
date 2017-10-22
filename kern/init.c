@@ -19,8 +19,10 @@
 static void boot_aps(void);
 
 #include "vma.h"
-#include "kernel_threads.h"
 #include "swappy.h"
+#include "kswapd.h"
+#include "kernel_threads.h"
+#include "../inc/stdio.h"
 
 
 void i386_init(void)
@@ -66,17 +68,20 @@ void i386_init(void)
     boot_aps();
     dprintf("Bootcpu: Starting aps... done!\n");
 
+    /* Start essential kernel services */
+    swappy_start_service();
+//    kswapd_start_service();
+
 #if defined(TEST)
     /* Don't touch -- used by grading script! */
     ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
     /* Touch all you want. */
-//    ENV_CREATE(user_yield, ENV_TYPE_USER);
-//    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
+    ENV_CREATE(user_yield, ENV_TYPE_USER);
+    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
 
-//    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
-//    kern_thread_create(test_thread);
-    swappy_start_service();
+    ENV_CREATE(user_faultreadkernel, ENV_TYPE_KERNEL);
+    kern_thread_create(test_thread);
 #endif
 
     /* Schedule and run the first user environment! */
