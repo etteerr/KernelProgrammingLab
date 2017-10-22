@@ -1,16 +1,27 @@
-#include <inc/lib.h>
-#include <inc/assert.h>
-#include <inc/string.h>
+#include "../inc/lib.h"
+#include "../inc/mmu.h"
+#include "../inc/types.h"
+#include "../inc/stdio.h"
+#include "../inc/assert.h"
+#include "../inc/string.h"
 
-#define MEM_BLOCK_SIZE  (128 *  1024 * 1024)
+#define MEM_BLOCK_SIZE  ((size_t)(128 *  1024 * 1024))
 #define PRINT(...)      cprintf(__VA_ARGS__);
 
-char gigs[MEM_BLOCK_SIZE];
+//char gigs[MEM_BLOCK_SIZE];
 
 void umain(int argc, char **argv)
 {
 
     int i;
+
+    /* Since our on-demand ELF section loading wasn't working in the lab about envs,
+     * we modified this test to use anonymous memory instead of using the bss region.
+     * This allows us to not have to introduce new bugs, or spend a lot of time, fixing this
+     * artifact from previous labs. */
+    char *gigs = (char *)sys_vma_create(MEM_BLOCK_SIZE, PERM_W, 0);
+
+    assert(gigs);
 
     /* Write to all of available physical memory (and more) */
     memset(gigs, 0xd0, sizeof(char) * MEM_BLOCK_SIZE);
