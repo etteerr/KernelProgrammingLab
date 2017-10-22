@@ -347,7 +347,7 @@ void swappy_queue_insert_swapout(page_info_t* pp) {
     swappy_lock_release(lock);
 }
 
-int swappy_thread_retreive_page(env_t* tf, swappy_swapin_task task) {
+void swappy_thread_retreive_page(env_t* tf, swappy_swapin_task task) {
     static volatile int lock = 0;
 
     swappy_lock_aquire(lock);
@@ -361,12 +361,12 @@ int swappy_thread_retreive_page(env_t* tf, swappy_swapin_task task) {
 
     /* Allocate page for env */
     dprintf("Allocating page for env %d...\n", task.env->env_id);
-    page_info_t * pp = page_alloc(0); //will be overwritten so no zero
-    
-    if (!pp) {
-        dprintf("Out of memory, delaying swapin...\n");
-        swappy_lock_release(lock);
-        return 1;
+    page_info_t *pp; //will be overwritten so no zero
+    while( (pp = page_alloc(0)) == 0) {
+        if (tf)
+            kern_thread_yield(tf);
+        else
+            asm volatile("pause");
     }
 
     /* Swap in */
@@ -388,8 +388,6 @@ int swappy_thread_retreive_page(env_t* tf, swappy_swapin_task task) {
     }
 
     swappy_lock_release(lock);
-    
-    return 0;
 }
 
 void swappy_queue_insert_swapin(swappy_swapin_task task) {
@@ -521,22 +519,14 @@ void swappy_service_swapin(env_t * tf) {
 
         /* Get first in line in queue */
         swappy_swapin_task task = swappy_swap_queue_in[swappy_queue_read_pos_in];
-        
+        sync_sub_and_fetch(&swappy_queue_items_in, 1);
+        sync_add_and_fetch(&swappy_queue_read_pos_in, 1);
+
         /* Release position lock, we have our page data */
         swappy_lock_release(swappy_queue_poslock_in);
 
-        /* get retreive page */
-        int res = swappy_thread_retreive_page(tf, task);
-        
-        /* Task done, free task */
-        if (res==0) {
-            swappy_lock_aquire(swappy_queue_poslock_in);
-            sync_sub_and_fetch(&swappy_queue_items_in, 1);
-            sync_add_and_fetch(&swappy_queue_read_pos_in, 1);
-            swappy_lock_release(swappy_queue_poslock_in);
-        }
-
-        
+        /* get pte */
+        swappy_thread_retreive_page(tf, task);
 
         /* release lock */
         swappy_lock_release(lock);
