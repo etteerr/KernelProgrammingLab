@@ -11,17 +11,20 @@
  * Created on October 10, 2017, 11:55 PM
  */
 
-#include "kernel_threads.h"
-#include "pmap.h"
-#include "inc/atomic_ops.h"
 #include "vma.h"
-#include "inc/x86.h"
+#include "pmap.h"
+#include "kernel_threads.h"
+
+#include "../inc/x86.h"
+#include "../inc/env.h"
+#include "../inc/types.h"
+#include "../inc/atomic_ops.h"
 
 uint32_t kern_get_percpu_stack_pointer() {
     return KSTACKTOP-((KSTKSIZE+KSTKGAP)*cpunum());
 }
 
-int kern_thread_create(void* entry) {
+int kern_thread_create(void (*entry)(env_t *)) {
         /* Allocate environment */
     struct env * e = 0;
     if (env_alloc(&e, 0, ENV_TYPE_KERNEL_THREAD)!=0) {
