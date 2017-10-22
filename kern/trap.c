@@ -617,7 +617,7 @@ int handle_swap_fault(uint32_t fault_va) {
     /* Try to retrieve page */
     uint32_t pageid = PTE_GET_PHYS_ADDRESS(*pte) >> 12;
     uint32_t res;
-    if ((res = swappy_retrieve_page(pageid, pp))) {
+    if ((res = swappy_retrieve_page(pageid, pp, 0))) {
         page_free(pp);
         eprintf("Error: Swappy returned %d\n", res);
         return -1;

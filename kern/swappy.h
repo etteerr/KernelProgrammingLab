@@ -8,6 +8,9 @@
 #ifndef SWAPPY_H
 #define SWAPPY_H
 #include "kern/env.h"
+
+#define SWAPPY_PTE_TO_PAGEID(PTE) ((PTE - 1) >> 12)
+
 enum {
     swappy_error_noerror=0,
     swappy_error_invaliddisk,
@@ -20,8 +23,8 @@ enum {
 #define SWAPPY_SWAP_QUEUE 0
 #define SWAPPY_SWAP_DIRECT 1
 
-int swappy_retrieve_page(uint16_t page_id, page_info_t *pp);
-int swappy_swap_page(page_info_t * pp, int swappy_swap_flag);
+int swappy_retrieve_page(uint16_t page_id, page_info_t *pp, env_t * tf);
+int swappy_swap_page_out(page_info_t * pp, int swappy_swap_flag);
 int swappy_init();
 
 void swappy_start_service();
