@@ -347,7 +347,7 @@ void swappy_queue_insert_swapout(page_info_t* pp) {
     swappy_lock_release(lock);
 }
 
-void swappy_thread_retreive_page(env_t* tf, swappy_swapin_task task) {
+void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
     static volatile int lock = 0;
 
     swappy_lock_aquire(lock);
@@ -440,7 +440,7 @@ int swappy_swap_page_in(uint32_t pageid, env_t * env, void * fault_va, int flags
 
     /* Direct swapping if needed */
     if (flags & SWAPPY_SWAP_DIRECT) {
-        swappy_thread_retreive_page((env_t*) 0, task);
+        swappy_thread_retrieve_page((env_t*) 0, task);
         return 0;
     }
 
@@ -526,7 +526,7 @@ void swappy_service_swapin(env_t * tf) {
         swappy_lock_release(swappy_queue_poslock_in);
 
         /* get pte */
-        swappy_thread_retreive_page(tf, task);
+        swappy_thread_retrieve_page(tf, task);
 
         /* release lock */
         swappy_lock_release(lock);
@@ -589,7 +589,7 @@ void swappy_unit_test_case() {
     page_insert(kern_pgdir, pp, (void*) 0x1000, 0);
 
     /* retrieve page */
-    dprintf("Retreive page from swap.\n");
+    dprintf("retrieve page from swap.\n");
     uint32_t id = PTE_GET_PHYS_ADDRESS(pte) >> 12;
     if (swappy_retrieve_page(id, pp, 0))
         panic("Swappy returned a error!");
