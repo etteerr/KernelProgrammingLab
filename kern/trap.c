@@ -328,7 +328,7 @@ void trap(struct trapframe *tf)
     /* Record that tf is the last real trapframe so print_trapframe can print
      * some additional information. */
     last_tf = tf;
-
+    
     /* Dispatch based on what type of trap occurred */
     trap_dispatch(tf);
     
@@ -604,33 +604,18 @@ void handle_pf_pte(uint32_t fault_va){
 
 int handle_swap_fault(uint32_t fault_va) {
     /* Prepare pte */
+    dprintf("Swapped page fault %p: Queuing env %d for swaping...\n", fault_va, curenv->env_id);
     env_t * e = curenv;
     pte_t * pte = pgdir_walk(e->env_pgdir, (void*)fault_va, 0);
     
-    /* Try to alloc a new page */
-    page_info_t * pp = page_alloc(0); //we overwrite the whole page
-    if (!pp) {
-        eprintf("Failed to allocate page\n");
-        return -1;
-    }
-    
     /* Try to retrieve page */
     uint32_t pageid = PTE_GET_PHYS_ADDRESS(*pte) >> 12;
-    uint32_t res;
-    if ((res = swappy_retrieve_page(pageid, pp, 0))) {
-        page_free(pp);
-        eprintf("Error: Swappy returned %d\n", res);
-        return -1;
-    }
+    swappy_swap_page_in(pageid, e, (void*)fault_va, 0);
     
-    /* Insert new page */
-    pte_t old_pte = *pte;
-    if (page_insert(e->env_pgdir, pp, (void*)fault_va, old_pte & 0x1F)) {
-        pp->pp_ref = 0;
-        page_free(pp);
-        eprintf("Page insert failed!\n");
-        return -1;
-    }
+    /* Deschedule env */
+    e->env_status = ENV_WAITING_SWAP;
+    
+    sched_yield();
     
     return 0;
 }

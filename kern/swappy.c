@@ -92,7 +92,7 @@ int swappy_allocate_descriptor(uint32_t descArrBytes, uint32_t required_pages){
 }
 
 int swappy_allocate_queue(){
-    dprintf("Initializing swapout queue, allocating 1 page...\n");
+    dprintf("Initializing swapout queue, allocating 1 page (%d items)...\n", swappy_queue_size_swapout);
     page_info_t *pp = page_alloc(ALLOC_ZERO);
     
     if (!pp) {
@@ -103,7 +103,7 @@ int swappy_allocate_queue(){
     page_inc_ref(pp);
     swappy_swap_queue_out = page2kva(pp);
     
-    dprintf("Initializing swapin queue, allocating 1 page...\n");
+    dprintf("Initializing swapin queue, allocating 1 page (%d items)...\n", swappy_queue_size_swapin);
     pp = page_alloc(ALLOC_ZERO);
     
     if (!pp) {
@@ -356,7 +356,7 @@ void swappy_thread_retreive_page(env_t* tf, swappy_swapin_task task){
     uint32_t pageId = SWAPPY_PTE_TO_PAGEID(opte);
     
     /*  asserts  */
-    assert(task.env->env_status == ENV_WAITING);
+    assert(task.env->env_status == ENV_WAITING_SWAP);
     assert((opte & PTE_BIT_PRESENT) == 0);
     
     /* Allocate page for env */
