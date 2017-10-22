@@ -13,7 +13,7 @@
 #define SWAPPY_PTE_TO_PAGEID(PTE) ((PTE_GET_PHYS_ADDRESS(PTE) - 1) >> 12)
 
 enum {
-    swappy_error_noerror=0,
+    swappy_error_noerror = 0,
     swappy_error_invaliddisk,
     swappy_error_allocation,
     swappy_error_noFreeSwapIndex,
