@@ -35,6 +35,7 @@ KERN_SRCFILES :=	kern/entry.S \
                         kern/kernel_threads.c \
                         kern/kernel_threads_entry.S \
                         kern/swappy.c \
+                        kern/kswapd.c \
                         kern/reverse_pagetable.c
 
 # Source files for LAB5
