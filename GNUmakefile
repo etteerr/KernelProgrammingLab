@@ -230,7 +230,7 @@ endif
 		echo "*** Hand-in: Tagging your solution failed. Please retry."; \
 		false; \
 	fi;
-	@echo "Your commit was tagged successfully: [ ${COMMIT} : ${TAG_LAB_SOLN} ]";
+	@echo "Your commit was tagged successfuly: [ ${COMMIT} : ${TAG_LAB_SOLN} ]";
 
 handin-bonus: handin-check
 ifeq (${COMMIT}, "")
@@ -253,7 +253,7 @@ endif
 		echo "*** Hand-in BONUS: Tagging your solution failed. Please retry."; \
 		false; \
 	fi;
-	@echo "Bonus commit tagged successfully: [ ${COMMIT} : ${TAG_LAB_BONUS} ]";
+	@echo "Bonus commit tagged successfuly: [ ${COMMIT} : ${TAG_LAB_BONUS} ]";
 
 handin-check:
 	@if test "$$(git symbolic-ref HEAD)" != refs/heads/lab$(LAB); then \

@@ -83,7 +83,7 @@ int swappy_allocate_descriptor(uint32_t descArrBytes, uint32_t required_pages) {
         dprintf("Testing write to allocated memory...\n");
         memset((void*) swappy_desc_arr, 0, required_pages * PGSIZE);
 
-        dprintf("Allocation successfull!\n");
+        dprintf("Allocation successful!\n");
 
     } else
         eprintf("Swap descriptor already allocated\n");
@@ -274,7 +274,7 @@ int swappy_swap_out(page_info_t * pp, env_t * tf) {
     /* Aquire lock */
     swappy_lock_aquire(swappy_swap_lock);
 
-    /* To ensure successfull workings, this order is used:
+    /* To ensure successful workings, this order is used:
      * 
      * Try to write a page to disk
      *  - Return on failure
@@ -371,14 +371,14 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
 
     /* Swap in */
     if (pp) {
-        dprintf("Allocation successfull, swapping in page...\n");
+        dprintf("Allocation successful, swapping in page...\n");
         if (swappy_retrieve_page(pageId, pp, tf)) {
             eprintf("Error while swapping page %p!\n", pp);
             panic("Error while swapping!");
         }
 
         /* Insert page and make env runnable */
-        dprintf("Page swapin for env %d successfull, inserting and finishing request...\n", task.env->env_id);
+        dprintf("Page swapin for env %d successful, inserting and finishing request...\n", task.env->env_id);
         page_insert(task.env->env_pgdir, pp, task.fault_va, 0);
         task.env->env_status = ENV_RUNNABLE;
 
@@ -612,5 +612,5 @@ void swappy_unit_test_case() {
     page_info_t* addr = pa2page(PDE_GET_ADDRESS(kern_pgdir[0]));
     page_decref(addr);
     kern_pgdir[0] = kpde;
-    dprintf("Test successfull!.\n");
+    dprintf("Test successful!.\n");
 }
