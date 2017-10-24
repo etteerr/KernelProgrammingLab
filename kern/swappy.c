@@ -506,6 +506,7 @@ void swappy_service_swapout(env_t * tf) {
                 eprintf("Error while swapping page %p!\n", pp);
                 panic("Error while swapping!");
             }
+            dprintf("%d items remaining in swapout queue\n", swappy_queue_items_out);
         } else {
             eprintf("0 pointer in queue at index %d!\n", swappy_queue_read_pos_out);
             //Todo: remove panic
