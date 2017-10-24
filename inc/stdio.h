@@ -51,11 +51,11 @@ static char loglevel = 1;
 #endif
 
 #define dprintf(fmt, ...) \
-        if (DEBUGPRINT && loglevel >= 1) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+        {if (DEBUGPRINT && loglevel >= 1) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__);}
 #define ddprintf(fmt, ...) \
-        if (DEBUGPRINT && loglevel >= 2) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+        {if (DEBUGPRINT && loglevel >= 2) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__);}
 #define dddprintf(fmt, ...) \
-        if (DEBUGPRINT && loglevel >= 3) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+        {if (DEBUGPRINT && loglevel >= 3) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__);}
 #define eprintf(fmt, ...) \
         cprintf("%s[%s%d%s|%s%s%s]%s " KRED fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
 
