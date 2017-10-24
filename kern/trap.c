@@ -605,7 +605,6 @@ void handle_pf_pte(uint32_t fault_va){
         //Schedule emergency swap
         //But swapper is probably already busy, so just halt this env
         //Than it will just keep trapping untill alloc works :)
-        eprintf("Cannot allocate page, yielding...\n");
         sched_yield();
     }
 
