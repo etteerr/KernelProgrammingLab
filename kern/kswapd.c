@@ -66,7 +66,6 @@ void kswapd_service(env_t * tf) {
         /* Set new head */
         headi = (headi+1) % npages;
         page_info_t * head = &pages[headi];
-        dprintf("New head: %d (%p), %d refs\n", headi, head, head->pp_ref);
 
         /* If page was accessed since last time we saw it, or it is free, skip it */
         /* Note: This is a short unintensive loop, loop for atleast 1000 iterations
@@ -82,6 +81,9 @@ void kswapd_service(env_t * tf) {
         }
         
         check_ref_loop_iter = 0;
+        /* Small loop finished, now yield before the big work */
+        kern_thread_yield(tf);
+
         
         if (!clear_last_access(head))
             continue;
@@ -93,6 +95,7 @@ void kswapd_service(env_t * tf) {
 
         kswapd_try_swap(head);
         
+        /* Big work finished, yield */
         kern_thread_yield(tf);
     }
 
