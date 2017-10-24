@@ -60,19 +60,28 @@ void kswapd_service(env_t * tf) {
     page_info_t *first = &pages[0];
     size_t headi = 0;
     dprintf("Kswapd service started as env %d.\n", tf->env_id);
-
-    while(running) {
-        kern_thread_yield(tf);
-        
+    uint32_t check_ref_loop_iter = 0;
+    
+    while(running) {     
         /* Set new head */
         headi = (headi+1) % npages;
         page_info_t * head = &pages[headi];
         dprintf("New head: %d (%p), %d refs\n", headi, head, head->pp_ref);
 
         /* If page was accessed since last time we saw it, or it is free, skip it */
+        /* Note: This is a short unintensive loop, loop for atleast 1000 iterations
+         * or this loop's yield overhead will be enormous.
+         */
         if(!head->pp_ref) {
+            check_ref_loop_iter++;
+            if (check_ref_loop_iter>1000) {
+                check_ref_loop_iter = 0;
+                kern_thread_yield(tf);
+            }
             continue;
         }
+        
+        check_ref_loop_iter = 0;
         
         if (!clear_last_access(head))
             continue;
@@ -83,6 +92,8 @@ void kswapd_service(env_t * tf) {
         }
 
         kswapd_try_swap(head);
+        
+        kern_thread_yield(tf);
     }
 
     dprintf("Kswapd service stopped.\n");
