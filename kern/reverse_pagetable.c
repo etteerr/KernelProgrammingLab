@@ -50,7 +50,9 @@ pte_t * reverse_pte_lookup_pgdir(pde_t * pd, page_info_t* page, uint16_t* pgdir_
             uint32_t pa = PTE_GET_PHYS_ADDRESS(pt[*pte_i]);
             if (pa && pa2page(pa) == page) {
                 //Our page, return pte
-                return &pt[*pte_i];
+                pte_t * ourpte = &pt[*pte_i];
+                (*pte_i)++;
+                return ourpte;
             }
         }
     }
@@ -74,10 +76,10 @@ pte_t * reverse_pte_lookup(page_info_t * page, uint64_t * iter) {
     /* Make 3 iters of iter */
     uint32_t *env_i;
     uint16_t *pgdir_i, *pte_i;
+    env_i =   (uint32_t *) ((void*)iter);
+    pgdir_i = (uint16_t *) ((void*)iter+sizeof(uint32_t));
+    pte_i =   (uint16_t *) ((void*)iter+sizeof(uint32_t) + sizeof(uint16_t));
     
-    env_i = ((uint32_t*)iter); //0-32 bits
-    pgdir_i = (((uint16_t*)iter)+2); //32-48 bits
-    pte_i = (((uint16_t*)iter)+3); //48 to 64 bits
     
     /* Iterate */
     /* Always reset iterators on continue (except for the current forloop or higher)*/

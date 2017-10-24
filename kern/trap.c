@@ -298,7 +298,7 @@ void trap(struct trapframe *tf)
         asm volatile("hlt");
 
     if(tf->tf_trapno != IRQ_OFFSET + IRQ_TIMER) {
-        dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
+        if (tf->tf_trapno != 14) dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
     }
 
     /* Check that interrupts are disabled.
@@ -601,7 +601,13 @@ void handle_pf_pte(uint32_t fault_va){
     page_info_t * pp = page_alloc(ALLOC_ZERO);
 
     /* TODO: remove debug statement */
-    assert(pp);
+    if (!pp) {
+        //Schedule emergency swap
+        //But swapper is probably already busy, so just halt this env
+        //Than it will just keep trapping untill alloc works :)
+        eprintf("Cannot allocate page, yielding...\n");
+        sched_yield();
+    }
 
     if (!pp) {
         cprintf("[PAGEFAULT] Dynamic allocation for %p failed.\n", fault_va);

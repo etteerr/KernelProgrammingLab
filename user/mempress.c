@@ -19,11 +19,13 @@ void umain(int argc, char **argv)
      * we modified this test to use anonymous memory instead of using the bss region.
      * This allows us to not have to introduce new bugs, or spend a lot of time, fixing this
      * artifact from previous labs. */
+    PRINT("Allocating memory as VMA\n");
     char *gigs = (char *)sys_vma_create(MEM_BLOCK_SIZE, PERM_W, 0);
 
     assert(gigs);
 
     /* Write to all of available physical memory (and more) */
+    PRINT("Memsetting to 0xd0...\n");
     memset(gigs, 0xd0, sizeof(char) * MEM_BLOCK_SIZE);
     assert(gigs[10] == (char) 0xd0);
     PRINT("Memory of size %d bytes set to: %x\n", MEM_BLOCK_SIZE, gigs[10]);

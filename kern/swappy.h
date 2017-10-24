@@ -19,11 +19,13 @@ enum {
     swappy_error_noFreeSwapIndex,
     swappy_error_noRef,
     swappy_error_invalidId,
+    swappy_error_queue_full,
 } swappy_error;
 
 /* Swappy_swap_flags */
 #define SWAPPY_SWAP_QUEUE 0
 #define SWAPPY_SWAP_DIRECT 1
+#define SWAPPY_SWAP_BLOCKING 2
 
 /**
  * Queues a page for swapping (or direct swapping if SWAPPY_SWAP_DIRECT is given)
