@@ -297,7 +297,9 @@ void trap(struct trapframe *tf)
     if (panicstr)
         asm volatile("hlt");
 
-    dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
+    if(tf->tf_trapno != IRQ_OFFSET + IRQ_TIMER) {
+        dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
+    }
 
     /* Check that interrupts are disabled.
      * If this assertion fails, DO NOT be tempted to fix it by inserting a "cli"
@@ -583,10 +585,10 @@ int determine_pagefault(uint32_t fault_va, bool is_kernel){
             return PAGEFAULT_TYPE_INVALID_PERMISSION;
     }else{
         /* Condition page not present */
-        if (pte)
+        if (pte && *pte)
             return PAGEFAULT_TYPE_SWAP;
         
-        if (!pte && vma->backed_addr)
+        if ((!pte || !*pte) && vma->backed_addr)
             return PAGEFAULT_TYPE_FILEBACKED;
 
         return PAGEFAULT_TYPE_NO_PTE;
@@ -618,7 +620,7 @@ void handle_pf_pte(uint32_t fault_va){
 
 int handle_swap_fault(uint32_t fault_va) {
     /* Prepare pte */
-    dprintf("Swapped page fault %p: Queuing env %d for swapping...\n", fault_va, curenv->env_id);
+    ddprintf("Swapped page fault %p: Queuing env %d for swapping...\n", fault_va, curenv->env_id);
     env_t * e = curenv;
     pte_t * pte = pgdir_walk(e->env_pgdir, (void*)fault_va, 0);
     
@@ -669,7 +671,7 @@ void page_fault_handler(struct trapframe *tf)
             murder_env(curenv, fault_va);
             break;
         case PAGEFAULT_TYPE_NO_PTE:
-            eprintf("No page entry exists at %p.\n", fault_va);
+            ddprintf("No page entry exists at %p.\n", fault_va);
             handle_pf_pte(fault_va);
             break;
         case PAGEFAULT_TYPE_NO_VMA:
@@ -711,7 +713,7 @@ void page_fault_handler(struct trapframe *tf)
 
 
     /* If we've reached this point, the memory fault should have been addressed properly */
-    dprintf("Page fault at (%#08x) should be fixed\n", fault_va);
+    ddprintf("Page fault at (%#08x) should be fixed\n", fault_va);
 }
 
 void breakpoint_handler(struct trapframe *tf) {

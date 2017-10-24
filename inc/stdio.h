@@ -31,6 +31,8 @@ int vfprintf(int fd, const char *fmt, va_list);
 /* lib/readline.c */
 char *readline(const char *prompt);
 
+static char loglevel = 1;
+
 /* Debug print */
 #define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"
@@ -45,8 +47,13 @@ char *readline(const char *prompt);
 #ifndef DEBUGPRINT
 #define DEBUGPRINT 1
 #endif
+
 #define dprintf(fmt, ...) \
-        if (DEBUGPRINT) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+        if (DEBUGPRINT && loglevel >= 1) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+#define ddprintf(fmt, ...) \
+        if (DEBUGPRINT && loglevel >= 2) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+#define dddprintf(fmt, ...) \
+        if (DEBUGPRINT && loglevel >= 3) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
 #define eprintf(fmt, ...) \
         cprintf("%s[%s%d%s|%s%s%s]%s " KRED fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
 

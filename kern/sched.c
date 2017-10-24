@@ -90,8 +90,6 @@ void sched_yield(void)
     uint64_t since_last_yield = read_tsc() - last_ran;
     last_ran = read_tsc();
 
-    dprintf("curcpu %p curcpuenv %p curenv %p\n", curcpu, curcpu->cpu_env, curenv);
-
     /*
      * If we have a current enviroment
      * It is considered locked for us!
@@ -101,7 +99,7 @@ void sched_yield(void)
         /* If current env has CPU time left in its slice, run it again */
         if(cur->env_status == ENV_RUNNING && (cur->remain_cpu_time > since_last_yield)) {
             cur->remain_cpu_time -= since_last_yield;
-            dprintf("------------> Continuing %s (%d) at %p (CPU %d) remaining time: %u\n",
+            dddprintf("------------> Continuing %s (%d) at %p (CPU %d) remaining time: %u\n",
                     cur->env_tf.tf_cs == GD_KT ? "kernel env" : "user env",
                     cur->env_id,
                     cur->env_tf.tf_eip,
@@ -111,7 +109,7 @@ void sched_yield(void)
             env_run(curenv);
         } else {
             cur->remain_cpu_time = MAX_TIME_SLICE;
-            dprintf("------------> End of Timeslice %d at %p\n", curenv->env_id, curenv->env_tf.tf_eip);
+            dddprintf("------------> End of Timeslice %d at %p\n", curenv->env_id, curenv->env_tf.tf_eip);
         }
     } else {
         dprintf("No current env\n");
@@ -134,7 +132,7 @@ void sched_yield(void)
             }
 
             /* Run new curenv */
-            dprintf("------------> running %s (%d) at %p (CPU %d).\n",
+            dddprintf("------------> running %s (%d) at %p (CPU %d).\n",
                     idle->env_tf.tf_cs == GD_KT ? "kernel env" : "user env",
                     idle->env_id,
                     idle->env_tf.tf_eip,
@@ -147,7 +145,7 @@ void sched_yield(void)
 
     /* If no eligible envs found above, we can continue running curenv if it is still marked as running */
     if(curenv && curenv->env_status == ENV_RUNNING) {
-        dprintf("------------> continue %d at %p (CPU %d).\n",
+        dddprintf("------------> continue %d at %p (CPU %d).\n",
                     curenv->env_id,
                     curenv->env_tf.tf_eip,
                     thiscpu->cpu_id
