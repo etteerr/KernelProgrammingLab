@@ -599,14 +599,23 @@ int determine_pagefault(uint32_t fault_va, bool is_kernel){
 
 void handle_pf_pte(uint32_t fault_va){
     page_info_t * pp = page_alloc(ALLOC_ZERO);
+    page_info_t * pp2 = page_alloc(ALLOC_ZERO);
 
-    /* TODO: remove debug statement */
-    if (!pp) {
+    /* Check if we can allocate atleast 2 pages, as that is the minimum required
+     * if the page table is not allocated either
+     */
+    if (!pp || !pp2) {
         //Schedule emergency swap
         //But swapper is probably already busy, so just halt this env
         //Than it will just keep trapping untill alloc works :)
+        if (pp)
+            page_free(pp);
+        if (pp2)
+            page_free(pp2);
         sched_yield();
     }
+    /* Free the test page pp2 such that it can be used for page_insert */
+    page_free(pp2);
 
     if (!pp) {
         cprintf("[PAGEFAULT] Dynamic allocation for %p failed.\n", fault_va);
