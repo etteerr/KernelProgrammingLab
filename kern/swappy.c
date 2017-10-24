@@ -260,7 +260,7 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index) {
         numref++;
     }
     if (numref){
-        dprintf("Page swapped and %d references where found.\n", numref);
+        ddprintf("Page swapped and %d references where found.\n", numref);
     }else{ 
         eprintf("Page swapped and %d references where found.\n", numref);
     }
@@ -330,28 +330,29 @@ int swappy_queue_insert_swapout(page_info_t* pp, int blocking) {
     /* Aquire lock (only one queue'er should be writing) */
     swappy_lock_aquire(lock);
 
-    dprintf("Swapping page %p (pa: %p; num: %d)\n", pp, page2pa(pp), PGNUM(page2pa(pp)));
+    ddprintf("Swapping page %p (pa: %p; num: %d)\n", pp, page2pa(pp), PGNUM(page2pa(pp)));
 
     /* Check if there is space in the queue */
     if (blocking) {
         while (swappy_queue_items_out >= swappy_queue_size_swapout)
             asm volatile("pause");
     }else if (swappy_queue_items_out >= swappy_queue_size_swapout) {
-        dprintf("Swappy queue full\n");
+        eprintf("Swappy queue full\n");
         return swappy_error_queue_full;
     }
 
     /* get write position from read position + items left */
     swappy_lock_aquire(swappy_queue_poslock_out);
+    /* Get current writing pos */
     uint32_t writepos = swappy_queue_items_out + swappy_queue_read_pos_out;
+    /* Add to n items */
+    uint32_t nitems = sync_add_and_fetch(&swappy_queue_items_out, 1);
     swappy_lock_release(swappy_queue_poslock_out);
     writepos %= swappy_queue_size_swapout;
 
     /* Write to queue */
     swappy_swap_queue_out[writepos] = (uint32_t) pp;
 
-    /* Add to n items */
-    uint32_t nitems = sync_fetch_and_add(&swappy_queue_items_out, 1);
 
     dprintf("swapout queue length: %d\n", nitems);
 
@@ -494,7 +495,7 @@ void swappy_service_swapout(env_t * tf) {
 
         /* Get first in line in queue */
         page_info_t * pp = (page_info_t *) swappy_swap_queue_out[swappy_queue_read_pos_out];
-        sync_sub_and_fetch(&swappy_queue_items_out, 1);
+        uint32_t items_remain = sync_sub_and_fetch(&swappy_queue_items_out, 1);
         swappy_queue_read_pos_out = (swappy_queue_read_pos_out+1) % swappy_queue_size_swapout;
 
         /* Release position lock, we have our page data */
@@ -506,7 +507,7 @@ void swappy_service_swapout(env_t * tf) {
                 eprintf("Error while swapping page %p!\n", pp);
                 panic("Error while swapping!");
             }
-            dprintf("%d items remaining in swapout queue\n", swappy_queue_items_out);
+            ddprintf("%d items remaining in swapout queue\n", items_remain);
         } else {
             eprintf("0 pointer in queue at index %d!\n", swappy_queue_read_pos_out);
             //Todo: remove panic
