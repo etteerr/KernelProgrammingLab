@@ -35,6 +35,7 @@ static char loglevel = 1;
 
 /* Debug print */
 #define KNRM  "\x1B[0m"
+#define KBLK  "\x1B[30m"
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
 #define KYEL  "\x1B[33m"
@@ -42,6 +43,7 @@ static char loglevel = 1;
 #define KMAG  "\x1B[35m"
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
+#define KBSD  "\x1B[44m"
 
 #define TRAPPRINT 0
 #ifndef DEBUGPRINT

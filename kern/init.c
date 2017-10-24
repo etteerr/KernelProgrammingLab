@@ -81,7 +81,7 @@ void i386_init(void)
 //    ENV_CREATE(user_cowforktest, ENV_TYPE_USER);
     kern_thread_create(test_thread);
 #endif
-
+    
     /* Schedule and run the first user environment! */
     sched_yield();
 }
@@ -177,9 +177,9 @@ void _panic(const char *file, int line, const char *fmt,...)
     __asm __volatile("cli; cld");
 
     va_start(ap, fmt);
-    cprintf("kernel panic on CPU %d at %s:%d: ", cpunum(), file, line);
+    cprintf(KBSD KBLK"kernel panic on CPU %d at %s:%d: ", cpunum(), file, line);
     vcprintf(fmt, ap);
-    cprintf("\n");
+    cprintf("\n"KNRM);
     va_end(ap);
 
 dead:
