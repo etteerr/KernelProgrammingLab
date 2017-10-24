@@ -58,22 +58,24 @@ int clear_last_access(page_info_t *page) {
 
 void kswapd_service(env_t * tf) {
     page_info_t *first = &pages[0];
-    page_info_t *head = first;
+    size_t headi = 0;
     dprintf("Kswapd service started as env %d.\n", tf->env_id);
 
     while(running) {
         kern_thread_yield(tf);
-
-        /* If we've reached the end, start at the beginning again */
-        if(!head) {
-            head = first;
-            continue;
-        }
+        
+        /* Set new head */
+        headi = (headi+1) % npages;
+        page_info_t * head = &pages[headi];
+        dprintf("New head: %d (%p), %d refs\n", headi, head, head->pp_ref);
 
         /* If page was accessed since last time we saw it, or it is free, skip it */
-        if(clear_last_access(head) || !head->pp_ref) {
+        if(!head->pp_ref) {
             continue;
         }
+        
+        if (!clear_last_access(head))
+            continue;
 
         /* Don't do anything if memory pressure is low */
         if((get_mem_rss() / (float)npages) < mem_press_thresh) {
@@ -81,9 +83,6 @@ void kswapd_service(env_t * tf) {
         }
 
         kswapd_try_swap(head);
-
-        /* Move to next page */
-        head = head->pp_link;
     }
 
     dprintf("Kswapd service stopped.\n");
@@ -92,11 +91,12 @@ void kswapd_service(env_t * tf) {
 void kswapd_try_swap(page_info_t *page) {
     pte_t *pte;
     env_t *env = &envs[0];
-    uint16_t pgdir_i = 0, pte_i = 0;
 
     do {
         assert(env);
 
+        //Set iterators to 0 for reverse pte
+        uint16_t pgdir_i = 0, pte_i = 0;
         /* If any kernel thread/env holds this page in their pgdir, skip swapping it */
         if((env->env_type == ENV_TYPE_KERNEL_ENV ||
                 env->env_type == ENV_TYPE_KERNEL_THREAD) &&
@@ -104,9 +104,15 @@ void kswapd_try_swap(page_info_t *page) {
             return;
         }
 
-        swappy_swap_page_out(page, 0);
-
     } while ((env = env->env_link));
+    
+    /* Call swappy to page out page
+     * Swappy will queue your request and remove page and all its references
+     * And store the swapped page (not in that order)
+     * 
+     * can return swappy_error_queue_full
+     */
+    swappy_swap_page_out(page, 0);
 }
 
 void kswapd_start_service() {
