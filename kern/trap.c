@@ -297,8 +297,8 @@ void trap(struct trapframe *tf)
     if (panicstr)
         asm volatile("hlt");
 
-    if(tf->tf_trapno != IRQ_OFFSET + IRQ_TIMER) {
-        if (tf->tf_trapno != 14) dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
+    if(tf->tf_trapno != IRQ_OFFSET + IRQ_TIMER && tf->tf_trapno != 14 ) {
+        dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
     }
 
     /* Check that interrupts are disabled.
@@ -621,6 +621,10 @@ void handle_pf_pte(uint32_t fault_va){
         cprintf("[PAGEFAULT] Dynamic allocation for %p failed.\n", fault_va);
         murder_env(curenv, fault_va);
     }
+    
+    /* Set user allocated page (vma_anon) to be swappable */
+    pp->c0.reg.swappable = 1;
+    
     vma_t * vma = vma_lookup(curenv, (void*)fault_va, 0);
     int perm = PTE_BIT_PRESENT | PTE_BIT_USER;
     perm |= vma->perm & VMA_PERM_WRITE ? PTE_BIT_RW : 0;
@@ -640,7 +644,7 @@ int handle_swap_fault(uint32_t fault_va) {
     
     /* Try to retrieve page */
     uint32_t pageid = PTE_GET_PHYS_ADDRESS(*pte) >> 12;
-    swappy_swap_page_in(pageid, e, (void*)fault_va, 0);
+    swappy_swap_page_in(e, (void*)fault_va, 0);
     
     /* Deschedule env */
     e->env_status = ENV_WAITING_SWAP;

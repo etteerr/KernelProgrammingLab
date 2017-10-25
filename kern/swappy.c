@@ -201,14 +201,6 @@ int swappy_retrieve_page(uint16_t page_id, page_info_t *pp, env_t * tf) {
     /* Aquire lock */
     swappy_lock_aquire(swappy_swap_lock);
 
-    /* We offset pageid by +1 outside swappy to ensure pte never becomes 0x0 */
-    if (page_id == 0) {
-        eprintf("Swappy received invalid page_id!\n");
-        return swappy_error_invalidId;
-    }
-    /* So set page id back to internal level */
-    page_id--;
-
     /* load page from disk if it was referenced */
     if (!swappy_desc_arr[page_id].ref) {
         /* No reference */
@@ -216,6 +208,9 @@ int swappy_retrieve_page(uint16_t page_id, page_info_t *pp, env_t * tf) {
         swappy_lock_release(swappy_swap_lock);
         return swappy_error_noRef;
     }
+    
+    /* Check page id */
+    assert(page_id != (uint16_t) (-1));
 
     /* Read from disk */
     swappy_read_page(pp, page_id, tf);
@@ -260,9 +255,9 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index) {
         numref++;
     }
     if (numref){
-        ddprintf("Page swapped and %d references where found.\n", numref);
+        ddprintf("Page swapped and %d references were found.\n", numref);
     }else{ 
-        eprintf("Page swapped and %d references where found.\n", numref);
+        eprintf("Page swapped and %d references were found.\n", numref);
     }
 }
 
@@ -278,6 +273,11 @@ int swappy_swap_out(page_info_t * pp, env_t * tf) {
     if (tf)
         if (tf->env_type != ENV_TYPE_KERNEL_THREAD)
             tf = 0;
+    
+    if (!pp->c0.reg.swappable) {
+        eprintf("Unswappable page: %p\n", page2pa(pp));
+        return swappy_error_unswappable_page;
+    }
     /* Aquire lock */
     swappy_lock_aquire(swappy_swap_lock);
 
@@ -327,6 +327,7 @@ int swappy_swap_out(page_info_t * pp, env_t * tf) {
 int swappy_queue_insert_swapout(page_info_t* pp, int blocking) {
     static volatile int lock = 0;
 
+    assert(pp->c0.reg.swappable);
     /* Aquire lock (only one queue'er should be writing) */
     swappy_lock_aquire(lock);
 
@@ -387,6 +388,8 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
     /* Swap in */
     if (pp) {
         dprintf("Allocation successfull, swapping in page...\n");
+        /* Allocation succesfull, set page to be swappable */
+        pp->c0.reg.swappable = 1;
         if (swappy_retrieve_page(pageId, pp, tf)) {
             eprintf("Error while swapping page %p!\n", pp);
             panic("Error while swapping!");
@@ -394,7 +397,7 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
 
         /* Insert page and make env runnable */
         dprintf("Page swapin for env %d successfull, inserting and finishing request...\n", task.env->env_id);
-        page_insert(task.env->env_pgdir, pp, task.fault_va, 0);
+        page_insert(task.env->env_pgdir, pp, task.fault_va, opte & 0x1FF);
         task.env->env_status = ENV_RUNNABLE;
 
     } else {
@@ -454,7 +457,7 @@ int swappy_swap_page_out(page_info_t * pp, int flags) {
     return swappy_queue_insert_swapout(pp, flags & SWAPPY_SWAP_BLOCKING);
 }
 
-int swappy_swap_page_in(uint32_t pageid, env_t * env, void * fault_va, int flags) {
+int swappy_swap_page_in(env_t * env, void * fault_va, int flags) {
     /* Assemble task */
     swappy_swapin_task task;
     task.env = env;
@@ -585,6 +588,7 @@ void swappy_unit_test_case() {
     /* Alloc page and insert */
     dprintf("Allocate and insert page.\n");
     page_info_t * pp = page_alloc(ALLOC_ZERO);
+    pp->c0.reg.swappable = 1;
     page_insert(kern_pgdir, pp, (void*) 0x1000, PTE_BIT_RW);
 
     /* assert page is present */
@@ -614,7 +618,7 @@ void swappy_unit_test_case() {
 
     /* retrieve page */
     dprintf("retrieve page from swap.\n");
-    uint32_t id = PTE_GET_PHYS_ADDRESS(pte) >> 12;
+    uint32_t id = SWAPPY_PTE_TO_PAGEID(pte);
     if (swappy_retrieve_page(id, pp, 0))
         panic("Swappy returned a error!");
 

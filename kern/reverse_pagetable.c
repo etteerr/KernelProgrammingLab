@@ -47,12 +47,14 @@ pte_t * reverse_pte_lookup_pgdir(pde_t * pd, page_info_t* page, uint16_t* pgdir_
         /* Enter pgtable */
         pte_t * pt = (pte_t * )KADDR(PDE_GET_ADDRESS(pd[*pgdir_i]));
         for(; *pte_i < 1024; (*pte_i)++) {
-            uint32_t pa = PTE_GET_PHYS_ADDRESS(pt[*pte_i]);
-            if (pa && pa2page(pa) == page) {
-                //Our page, return pte
-                pte_t * ourpte = &pt[*pte_i];
-                (*pte_i)++;
-                return ourpte;
+            if (pt[*pte_i] & PTE_BIT_PRESENT) {
+                uint32_t pa = PTE_GET_PHYS_ADDRESS(pt[*pte_i]);
+                if (pa && pa2page(pa) == page) {
+                    //Our page, return pte
+                    pte_t * ourpte = &pt[*pte_i];
+                    (*pte_i)++;
+                    return ourpte;
+                }
             }
         }
     }

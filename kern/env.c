@@ -403,15 +403,17 @@ static void region_alloc(struct env *e, void *va, size_t len)
     i *= 1024;
 
     //i == number of 4k pages mapped via 4M, iterate till all leftovers are done
-    for(; i<pages4K; i++)
+    for(; i<pages4K; i++) {
         res |= page_insert(
                     e->env_pgdir, //the env pgdir
                     pp+i, //origin address of pp + offset 4M pages
                     (void*)(rva + (i*PGSIZE)),
                     PDE_BIT_RW | PDE_BIT_USER | PDE_BIT_PRESENT
                     );
+        (pp+i)->c0.reg.swappable = 0;
+    }
 
-    //Check if there where any errors
+    //Check if there were any errors
     assert(res==0);
     dprintf("Success!\n");
 

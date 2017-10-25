@@ -41,12 +41,17 @@ int get_mem_rss() {
  * @param page
  * @return int{0|1}
  */
-int clear_last_access(page_info_t *page) {
+int clear_last_access(page_info_t *page, int* hasRefs) {
     pte_t *pte;
     uint64_t iter = 0;
     int was_accessed = 0;
+    if (hasRefs)
+        *hasRefs = 0;
 
     while((pte = reverse_pte_lookup(page, &iter))) {
+        if (hasRefs)
+            *hasRefs = 1;
+        
         if(*pte & PTE_BIT_ACCESSED) {
             was_accessed = 1;
             *pte ^= PTE_BIT_ACCESSED; /* Clear access bit */
@@ -64,29 +69,42 @@ void kswapd_service(env_t * tf) {
     
     while(running) {     
         /* Set new head */
+        check_ref_loop_iter++;
         headi = (headi+1) % npages;
         page_info_t * head = &pages[headi];
+        
+        if(check_ref_loop_iter > 1000) {
+            check_ref_loop_iter = 0;
+            kern_thread_yield(tf);
+        }
 
         /* If page was accessed since last time we saw it, or it is free, skip it */
         /* Note: This is a short unintensive loop, loop for atleast 1000 iterations
          * or this loop's yield overhead will be enormous.
          */
         if(!head->pp_ref) {
-            check_ref_loop_iter++;
-            if (check_ref_loop_iter>1000) {
-                check_ref_loop_iter = 0;
-                kern_thread_yield(tf);
-            }
             continue;
         }
         
-        check_ref_loop_iter = 0;
-        /* Small loop finished, now yield before the big work */
-        kern_thread_yield(tf);
-
-        
-        if (!clear_last_access(head))
+        if (!head->c0.reg.swappable) {
             continue;
+        }
+        
+        /* Found a page, get ready for big work and reset small loop iter */
+        check_ref_loop_iter = 0;
+        kern_thread_yield(tf);
+        
+        int hasRefs = 0;
+        
+        if (clear_last_access(head, &hasRefs)) {
+            kern_thread_yield(tf);
+            continue;
+        }
+        
+        if (!hasRefs) {
+            kern_thread_yield(tf);
+            continue;
+        }
 
         /* Don't do anything if memory pressure is low */
         if((get_mem_rss() / (float)npages) < mem_press_thresh) {

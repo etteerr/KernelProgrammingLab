@@ -782,6 +782,8 @@ void page_free(struct page_info *pp) {
         current->c0.reg.huge = 0;
         //remove reference counter
         current->pp_ref = 0;
+        //Remove swappable
+        current->c0.reg.swappable = 0;
     }
 
     if (warn)
