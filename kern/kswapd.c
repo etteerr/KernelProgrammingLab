@@ -27,7 +27,7 @@ int get_mem_rss() {
     int i, rss_pages = 0;
     for(i = 0; i < npages; i++) {
         page_info_t *page = &pages[i];
-        if(page->pp_ref > 0) {
+        if(page->pp_ref > 0 || !page->c0.reg.free) {
             rss_pages++;
         }
     }
@@ -73,7 +73,7 @@ void kswapd_service(env_t * tf) {
         headi = (headi+1) % npages;
         page_info_t * head = &pages[headi];
         
-        if(check_ref_loop_iter > 1000) {
+        if(check_ref_loop_iter > 5000) {
             check_ref_loop_iter = 0;
             kern_thread_yield(tf);
         }
@@ -92,7 +92,19 @@ void kswapd_service(env_t * tf) {
         
         /* Found a page, get ready for big work and reset small loop iter */
         check_ref_loop_iter = 0;
-        kern_thread_yield(tf);
+        
+        /* Check amount of free pages */
+        uint32_t used_pages = get_mem_rss();
+        
+        /* Don't do anything if memory pressure is low */
+        if((used_pages / (float)npages) < mem_press_thresh) {
+            kern_thread_yield(tf);
+            continue;
+        }
+        
+        /* If there are less than 10 free pages, dont yield. */
+        if ((npages - used_pages) >= 10)
+            kern_thread_yield(tf);
         
         int hasRefs = 0;
         
@@ -103,11 +115,6 @@ void kswapd_service(env_t * tf) {
         
         if (!hasRefs) {
             kern_thread_yield(tf);
-            continue;
-        }
-
-        /* Don't do anything if memory pressure is low */
-        if((get_mem_rss() / (float)npages) < mem_press_thresh) {
             continue;
         }
 
