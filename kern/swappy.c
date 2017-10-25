@@ -376,7 +376,7 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
     assert((opte & PTE_BIT_PRESENT) == 0);
 
     /* Allocate page for env */
-    dprintf("Allocating page for env %d...\n", task.env->env_id);
+    dprintf("Allocating page for env %d: va %p...\n", task.env->env_id, task.fault_va);
     page_info_t *pp; //will be overwritten so no zero
     while( (pp = page_alloc(0)) == 0) {
         if (tf)
@@ -396,7 +396,7 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
         }
 
         /* Insert page and make env runnable */
-        dprintf("Page swapin for env %d successfull, inserting and finishing request...\n", task.env->env_id);
+        dprintf("Page swapin for env %d: %p successfull, inserting and finishing request...\n", task.env->env_id, task.fault_va);
         page_insert(task.env->env_pgdir, pp, task.fault_va, opte & 0x1FF);
         task.env->env_status = ENV_RUNNABLE;
 

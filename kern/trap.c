@@ -612,6 +612,11 @@ void handle_pf_pte(uint32_t fault_va){
             page_free(pp);
         if (pp2)
             page_free(pp2);
+        /* Make it yield completely by de-setting runnable */
+        if (curenv->env_status ==  ENV_RUNNING)
+            curenv->env_status = ENV_RUNNABLE;
+       
+        /* sched_yield */
         sched_yield();
     }
     /* Free the test page pp2 such that it can be used for page_insert */
