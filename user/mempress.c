@@ -27,8 +27,8 @@ void umain(int argc, char **argv)
     /* Write to all of available physical memory (and more) */
     PRINT("Memsetting to 0xd0...\n");
     //memset(gigs, 0xd0, sizeof(char) * MEM_BLOCK_SIZE);
-    for(uint32_t i = 0; i<sizeof(char) * MEM_BLOCK_SIZE; i++) {
-        gigs[i] = 0xd0;
+    for(uint32_t i = 0; i<sizeof(char) * MEM_BLOCK_SIZE; i+=sizeof(uint32_t)) {
+        *((uint32_t*)(gigs+i)) = 0xd0d0d0d0;
         if (i%(1<<20)==0)
             cprintf("User memset %d of %d bytes\n", i, sizeof(char) * MEM_BLOCK_SIZE);
 
