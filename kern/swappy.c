@@ -432,7 +432,7 @@ int swappy_queue_insert_swapin(swappy_swapin_task task, int blocking) {
     swappy_swap_queue_in[writepos] = task;
 
     /* Add to n items */
-    uint32_t nitems = sync_fetch_and_add(&swappy_queue_items_in, 1);
+    uint32_t nitems = sync_add_and_fetch(&swappy_queue_items_in, 1);
 
     dprintf("swapin queue length: %d\n", nitems);
 
