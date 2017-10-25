@@ -30,7 +30,7 @@ void umain(int argc, char **argv)
     for(uint32_t i = 0; i<sizeof(char) * MEM_BLOCK_SIZE; i+=sizeof(uint32_t)) {
         *((uint32_t*)(gigs+i)) = 0xd0d0d0d0;
         if (i%(1<<20)==0)
-            cprintf("User memset %d of %d bytes\n", i, sizeof(char) * MEM_BLOCK_SIZE);
+            cprintf("User memset %d of %d MiB\n", i>>20, (sizeof(char) * MEM_BLOCK_SIZE)>>20);
 
     }
     assert(gigs[10] == (char) 0xd0);
