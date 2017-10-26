@@ -15,6 +15,7 @@
 #include "reverse_pagetable.h"
 #include "vma.h"
 #include "trap.h"
+#include "sched.h"
 
 typedef struct {
     void * fault_va;
@@ -174,7 +175,7 @@ void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf) {
 }
 
 void swappy_read_page(page_info_t* pp, uint16_t page_id, env_t* tf) {
-    dprintf("Unswapping index %d to page %p\n", page_id, pp);
+    dddprintf("Unswapping index %d to page %p\n", page_id, pp);
     char * buffer = page2kva(pp);
     ide_start_read(swappy_index_to_sector(page_id), swappy_sectors_per_page);
     for (int i = 0; i < swappy_sectors_per_page; i++) {
@@ -376,29 +377,32 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
     assert((opte & PTE_BIT_PRESENT) == 0);
 
     /* Allocate page for env */
-    dprintf("Allocating page for env %d: va %p...\n", task.env->env_id, task.fault_va);
+    dddprintf("Allocating page for env %d: va %p...\n", task.env->env_id, task.fault_va);
     page_info_t *pp; //will be overwritten so no zero
     while( (pp = page_alloc(0)) == 0) {
-        if (tf)
+        if (tf) {
             kern_thread_yield(tf);
-        else
-            asm volatile("pause");
+        }else{
+            task.env->env_status = ENV_RUNNABLE;
+            swappy_lock_release(lock);
+            sched_yield();
+        }
     }
 
     /* Swap in */
     if (pp) {
-        dprintf("Allocation successfull, swapping in page...\n");
+        dddprintf("Allocation successfull, swapping in page...\n");
         /* Allocation succesfull, set page to be swappable */
-        pp->c0.reg.swappable = 1;
         if (swappy_retrieve_page(pageId, pp, tf)) {
             eprintf("Error while swapping page %p!\n", pp);
             panic("Error while swapping!");
         }
 
         /* Insert page and make env runnable */
-        dprintf("Page swapin for env %d: %p successfull, inserting and finishing request...\n", task.env->env_id, task.fault_va);
+        dddprintf("Page swapin for env %d: %p successfull, inserting and finishing request...\n", task.env->env_id, task.fault_va);
         page_insert(task.env->env_pgdir, pp, task.fault_va, opte & 0x1FF);
         task.env->env_status = ENV_RUNNABLE;
+        pp->c0.reg.swappable = 1;
 
     } else {
         eprintf("Failed to allocate new page for env %d!\n", task.env->env_id);
