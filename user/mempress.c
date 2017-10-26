@@ -42,7 +42,7 @@ void umain(int argc, char **argv)
     /* Read every page so that they get swapped back again */
     for(i = 37; i < MEM_BLOCK_SIZE; i+= PGSIZE) { 
         assert(gigs[i] == (char) 0xd0);
-        if (i%(1<<20)==0) {
+        if (i%((1<<20)+37)==0) {
             cprintf("User read %d of %d MiB\n", i>>20, (sizeof(char) * MEM_BLOCK_SIZE)>>20);
         }
     }
