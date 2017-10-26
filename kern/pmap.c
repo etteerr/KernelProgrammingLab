@@ -17,6 +17,8 @@
 #include "spinlock.h"
 #include "sched.h"
 #include "../inc/env.h"
+#include "kswapd.h"
+#include "oom.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages; /* Amount of physical memory (in pages) */
@@ -750,8 +752,21 @@ struct page_info *page_alloc_crit(int alloc_flags) {
     page_info *result;
 
     while(!(result = page_alloc(alloc_flags))) {
-
+        if(kswapd_direct_reclaim() != 0) {
+            break;
+        }
     }
+
+    if(!result) {
+        oom_kill();
+        result = page_alloc(alloc_flags);
+    }
+
+    if(!result) {
+        panic("Unable to alloc page for kernel, even after OOM killing");
+    }
+
+    return result;
 }
 
 /*

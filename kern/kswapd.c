@@ -95,7 +95,7 @@ void kswapd_service(env_t * tf) {
             continue;
         }
 
-        /* If there are less than 10 free pages, dont yield. */
+        /* If there are less than 10 free pages, don't yield. */
         if ((npages - used_pages) >= 10) {
             kern_thread_yield(tf);
         }
@@ -118,7 +118,7 @@ void kswapd_service(env_t * tf) {
     dprintf("Kswapd service stopped.\n");
 }
 
-void kswapd_try_swap(page_info_t *page, int blocking) {
+int kswapd_try_swap(page_info_t *page, int blocking) {
     pte_t *pte;
     env_t *env = &envs[0];
 
@@ -131,7 +131,7 @@ void kswapd_try_swap(page_info_t *page, int blocking) {
         if((env->env_type == ENV_TYPE_KERNEL_ENV ||
                 env->env_type == ENV_TYPE_KERNEL_THREAD) &&
                 reverse_pte_lookup_pgdir(env->env_pgdir, page, &pgdir_i, &pte_i)) {
-            return;
+            return KSWAP_ERR_NOT_ELIGIBLE;
         }
 
     } while ((env = env->env_link));
@@ -142,8 +142,12 @@ void kswapd_try_swap(page_info_t *page, int blocking) {
      *
      * can return swappy_error_queue_full
      */
-    if (swappy_swap_page_out(page, 0)==0)
+    if (swappy_swap_page_out(page, 0)==0) {
         page->c0.reg.swappable = 0;
+        return 0;
+    }
+
+    return KSWAP_ERR_SWAP_FAULT;
 }
 
 void kswapd_start_service() {
@@ -163,5 +167,14 @@ void kwswapd_set_threshold(float threshold) {
 }
 
 int kswapd_direct_reclaim() {
-
+    int i, swap_result;
+    page_info_t *page;
+    for(i = 0; i < npages; i++) {
+        page = &pages[i];
+        swap_result = kswapd_try_swap(page, SWAPPY_SWAP_DIRECT);
+        if(swap_result != KSWAP_ERR_NOT_ELIGIBLE) {
+            return swap_result;
+        }
+    }
+    return -1;
 }
