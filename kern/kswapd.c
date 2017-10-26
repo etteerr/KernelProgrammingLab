@@ -17,23 +17,6 @@
 static char running = 1;
 static float mem_press_thresh = 0.8;
 
-void kswapd_try_swap(page_info_t *pInfo);
-
-/**
- * Counts the amount of physical pages currently in use.
- * @return int
- */
-int get_mem_rss() {
-    int i, rss_pages = 0;
-    for(i = 0; i < npages; i++) {
-        page_info_t *page = &pages[i];
-        if(page->pp_ref > 0 || !page->c0.reg.free) {
-            rss_pages++;
-        }
-    }
-    return rss_pages;
-}
-
 /**
  * Clears last access bit in all env PTEs for given physical page,
  * and returns 1 if at least one PTE had the page marked as accessed,
@@ -51,7 +34,7 @@ int clear_last_access(page_info_t *page, int* hasRefs) {
     while((pte = reverse_pte_lookup(page, &iter))) {
         if (hasRefs)
             *hasRefs = 1;
-        
+
         if(*pte & PTE_BIT_ACCESSED) {
             was_accessed = 1;
             *pte ^= PTE_BIT_ACCESSED; /* Clear access bit */
@@ -68,14 +51,14 @@ void kswapd_service(env_t * tf) {
     uint32_t check_ref_loop_iter = 0;
     uint32_t noRefCounter = 0;
     uint32_t used_pages_ = 0;
-    while(running) {     
+    while(running) {
         /* Set new head */
         check_ref_loop_iter++;
-        headi = (headi+1) % npages;
-        page_info_t * head = &pages[headi];
-        
-        
-        if(check_ref_loop_iter > 5000) {
+        headi = (headi + 1) % npages;
+        page_info_t *head = &pages[headi];
+
+
+        if (check_ref_loop_iter > 5000) {
             check_ref_loop_iter = 0;
             kern_thread_yield(tf);
         }
@@ -84,56 +67,50 @@ void kswapd_service(env_t * tf) {
         /* Note: This is a short unintensive loop, loop for atleast 1000 iterations
          * or this loop's yield overhead will be enormous.
          */
-        if(!head->pp_ref) {
+        if (!head->pp_ref || !head->c0.reg.swappable || head->c0.reg.free) {
             continue;
         }
-        
-        if (!head->c0.reg.swappable) {
-            continue;
-        }
-        
-        if (head->c0.reg.free)
-            continue;
-        
+
         /* Found a page, get ready for big work and reset small loop iter */
         check_ref_loop_iter = 0;
-        
+
         /* Check and unset access bits */
         int hasRefs = 0;
-        
+
         if (clear_last_access(head, &hasRefs)) {
             kern_thread_yield(tf);
             continue;
         }
 
         /* Check amount of free pages */
-        uint32_t used_pages = get_mem_rss();
+        int used_pages = get_mem_rss();
         if (used_pages_ != used_pages) {
             dddprintf("Usaged pages: %d\n", used_pages);
-            used_pages_ = used_pages;
+            used_pages_ = (uint32_t)used_pages;
         }
-        
+
         /* Don't do anything if memory pressure is low */
         if((used_pages / (float)npages) < mem_press_thresh) {
             kern_thread_yield(tf);
             continue;
         }
-        
-        /* If there are less than 10 free pages, dont yield. */
-        if ((npages - used_pages) >= 10)
+
+        /* If there are less than 10 free pages, don't yield. */
+        if ((npages - used_pages) >= 10) {
             kern_thread_yield(tf);
-        
+        }
+
         if (!hasRefs) {
             noRefCounter++;
             kern_thread_yield(tf);
             continue;
         }
-        
+
         if (noRefCounter) eprintf("%d pages had no references!\n", noRefCounter);
         noRefCounter = 0;
-        
-        kswapd_try_swap(head);
-        
+
+        kswapd_try_swap(head, 0);
+
         /* Big work finished, yield */
         kern_thread_yield(tf);
     }
@@ -141,7 +118,7 @@ void kswapd_service(env_t * tf) {
     dprintf("Kswapd service stopped.\n");
 }
 
-void kswapd_try_swap(page_info_t *page) {
+int kswapd_try_swap(page_info_t *page, int blocking) {
     pte_t *pte;
     env_t *env = &envs[0];
 
@@ -154,19 +131,23 @@ void kswapd_try_swap(page_info_t *page) {
         if((env->env_type == ENV_TYPE_KERNEL_ENV ||
                 env->env_type == ENV_TYPE_KERNEL_THREAD) &&
                 reverse_pte_lookup_pgdir(env->env_pgdir, page, &pgdir_i, &pte_i)) {
-            return;
+            return KSWAP_ERR_NOT_ELIGIBLE;
         }
 
     } while ((env = env->env_link));
-    
+
     /* Call swappy to page out page
      * Swappy will queue your request and remove page and all its references
      * And store the swapped page (not in that order)
-     * 
+     *
      * can return swappy_error_queue_full
      */
-    if (swappy_swap_page_out(page, 0)==0)
+    if (swappy_swap_page_out(page, 0)==0) {
         page->c0.reg.swappable = 0;
+        return 0;
+    }
+
+    return KSWAP_ERR_SWAP_FAULT;
 }
 
 void kswapd_start_service() {
@@ -183,4 +164,17 @@ void kswapd_stop_service() {
  * Traps when called from non-priviliged code, because of permission pagefault. */
 void kwswapd_set_threshold(float threshold) {
     mem_press_thresh = threshold;
+}
+
+int kswapd_direct_reclaim() {
+    int i, swap_result;
+    page_info_t *page;
+    for(i = 0; i < npages; i++) {
+        page = &pages[i];
+        swap_result = kswapd_try_swap(page, SWAPPY_SWAP_DIRECT);
+        if(swap_result != KSWAP_ERR_NOT_ELIGIBLE) {
+            return swap_result;
+        }
+    }
+    return -1;
 }

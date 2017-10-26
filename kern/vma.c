@@ -35,7 +35,7 @@ int vma_array_init(env_t* e) {
     assert(e->vma_list == 0);
     
     /* page allocation and mapping */
-    struct page_info * pp = page_alloc(ALLOC_ZERO);
+    struct page_info * pp = page_alloc_crit(ALLOC_ZERO);
     
     if (!pp)
         return -1;

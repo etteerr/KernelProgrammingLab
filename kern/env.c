@@ -192,7 +192,7 @@ static int env_setup_vm(struct env *e)
     struct page_info *p = NULL;
 
     /* Allocate a page for the page directory */
-    if (!(p = page_alloc(ALLOC_ZERO)))
+    if (!(p = page_alloc_crit(ALLOC_ZERO)))
         return -E_NO_MEM;
 
     /*
@@ -303,7 +303,7 @@ int env_alloc(struct env **newenv_store, envid_t parent_id, enum env_type envtyp
             e->env_tf.tf_cs = GD_KT | 0;
 
             /* Alloc 1 page for stack, so we can use it in env_pop_tf on initial run */
-            page_info_t *pp = page_alloc(ALLOC_ZERO);
+            page_info_t *pp = page_alloc_crit(ALLOC_ZERO);
             if (!pp) {
                 panic("Page alloc for kernel env failed!");
             }

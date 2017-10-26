@@ -150,6 +150,7 @@ void mem_init(void);
 
 void page_init(void);
 struct page_info *page_alloc(int alloc_flags);
+struct page_info *page_alloc_crit(int alloc_flags);
 void page_free(struct page_info *pp);
 int page_insert(pde_t *pgdir, struct page_info *pp, void *va, int perm);
 void page_remove(pde_t *pgdir, void *va);
@@ -200,5 +201,7 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
 struct page_info* alloc_consecutive_pages(uint16_t amount, int alloc_flags);
 
 static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm);
+
+int get_mem_rss();
 
 #endif /* !JOS_KERN_PMAP_H */

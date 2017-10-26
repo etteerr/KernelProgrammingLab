@@ -1,22 +1,24 @@
 /* See COPYRIGHT for copyright information. */
 
+#include "../inc/env.h"
 #include "../inc/x86.h"
 #include "../inc/mmu.h"
 #include "../inc/types.h"
 #include "../inc/error.h"
 #include "../inc/string.h"
 #include "../inc/assert.h"
+#include "../inc/atomic_ops.h"
 #include "../inc/memlayout.h"
 
-#include "pmap.h"
-#include "kclock.h"
 #include "env.h"
-#include "buddydef.h"
 #include "cpu.h"
-#include "inc/atomic_ops.h"
-#include "spinlock.h"
+#include "oom.h"
+#include "pmap.h"
 #include "sched.h"
-#include "../inc/env.h"
+#include "kswapd.h"
+#include "kclock.h"
+#include "spinlock.h"
+#include "buddydef.h"
 
 /* These variables are set by i386_detect_memory() */
 size_t npages; /* Amount of physical memory (in pages) */
@@ -740,6 +742,33 @@ struct page_info *page_alloc(int alloc_flags) {
     return page;
 }
 
+/**
+ * Use only in kernel: calls page_alloc, and on fail attempts to do direct reclaiming
+ * through swapping or OOM killing if necessary.
+ * @param alloc_flags
+ * @return
+ */
+struct page_info *page_alloc_crit(int alloc_flags) {
+    page_info_t *result;
+
+    while(!(result = page_alloc(alloc_flags))) {
+        if(kswapd_direct_reclaim() != 0) {
+            break;
+        }
+    }
+
+    if(!result) {
+        oom_kill();
+        result = page_alloc(alloc_flags);
+    }
+
+    if(!result) {
+        panic("Unable to alloc page for kernel, even after OOM killing");
+    }
+
+    return result;
+}
+
 /*
  * Return a page to the free list.
  * (This function should only be called when pp->pp_ref reaches 0.)
@@ -1224,6 +1253,21 @@ void *mmio_map_region(physaddr_t pa, size_t size)
     boot_map_region(kern_pgdir, base, size, pa, PTE_BIT_RW | PTE_BIT_PRESENT | PTE_BIT_WRITETHROUGH | PTE_BIT_DISABLECACHE);
     base += size;
     return (void*)base - size;
+}
+
+/**
+ * Counts the amount of physical pages currently in use.
+ * @return int
+ */
+int get_mem_rss() {
+    int i, rss_pages = 0;
+    for(i = 0; i < npages; i++) {
+        page_info_t *page = &pages[i];
+        if(page->pp_ref > 0 || !page->c0.reg.free) {
+            rss_pages++;
+        }
+    }
+    return rss_pages;
 }
 
 static uintptr_t user_mem_check_addr;
