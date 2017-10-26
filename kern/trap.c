@@ -645,14 +645,15 @@ int handle_swap_fault(uint32_t fault_va) {
     /* Prepare pte */
     ddprintf("Swapped page fault %p: Queuing env %d for swapping...\n", fault_va, curenv->env_id);
     env_t * e = curenv;
-    pte_t * pte = pgdir_walk(e->env_pgdir, (void*)fault_va, 0);
-    
-    /* Try to retrieve page */
-    uint32_t pageid = PTE_GET_PHYS_ADDRESS(*pte) >> 12;
-    swappy_swap_page_in(e, (void*)fault_va, 0);
     
     /* Deschedule env */
     e->env_status = ENV_WAITING_SWAP;
+    
+    /* Try to retrieve page */
+    if (swappy_swap_page_in(e, (void*)fault_va, SWAPPY_SWAP_DIRECT)) {
+        /* Queue was full, so reset envs status and trigger this trap again */
+        e->env_status = ENV_RUNNABLE; //runnable so other envs get a chance
+    }
     
     sched_yield();
     
