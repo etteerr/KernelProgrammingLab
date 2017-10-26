@@ -297,7 +297,7 @@ void trap(struct trapframe *tf)
     if (panicstr)
         asm volatile("hlt");
 
-    if(tf->tf_trapno != IRQ_OFFSET + IRQ_TIMER) {
+    if(tf->tf_trapno != IRQ_OFFSET + IRQ_TIMER && tf->tf_trapno != 14 ) {
         dprintf("Trapframe for cpu %d, trapno: %d\n", thiscpu->cpu_id, tf->tf_trapno);
     }
 
@@ -599,14 +599,34 @@ int determine_pagefault(uint32_t fault_va, bool is_kernel){
 
 void handle_pf_pte(uint32_t fault_va){
     page_info_t * pp = page_alloc(ALLOC_ZERO);
+    page_info_t * pp2 = page_alloc(ALLOC_ZERO);
 
-    /* TODO: remove debug statement */
-    assert(pp);
+    /* Check if we can allocate atleast 2 pages, as that is the minimum required
+     * if the page table is not allocated either
+     */
+    if (!pp || !pp2) {
+        //Schedule emergency swap
+        //But swapper is probably already busy, so just halt this env
+        //Than it will just keep trapping untill alloc works :)
+        if (pp)
+            page_free(pp);
+        if (pp2)
+            page_free(pp2);
+        /* Make it yield completely by de-setting runnable */
+        if (curenv->env_status ==  ENV_RUNNING)
+            curenv->env_status = ENV_RUNNABLE;
+       
+        /* sched_yield */
+        sched_yield();
+    }
+    /* Free the test page pp2 such that it can be used for page_insert */
+    page_free(pp2);
 
     if (!pp) {
         cprintf("[PAGEFAULT] Dynamic allocation for %p failed.\n", fault_va);
         murder_env(curenv, fault_va);
     }
+    
     vma_t * vma = vma_lookup(curenv, (void*)fault_va, 0);
     int perm = PTE_BIT_PRESENT | PTE_BIT_USER;
     perm |= vma->perm & VMA_PERM_WRITE ? PTE_BIT_RW : 0;
@@ -616,6 +636,9 @@ void handle_pf_pte(uint32_t fault_va){
         page_decref(pp);
         murder_env(curenv, fault_va);
     }
+    
+    /* Set user allocated page (vma_anon) to be swappable */
+    pp->c0.reg.swappable = 1;
 }
 
 int handle_swap_fault(uint32_t fault_va) {
@@ -626,7 +649,7 @@ int handle_swap_fault(uint32_t fault_va) {
     
     /* Try to retrieve page */
     uint32_t pageid = PTE_GET_PHYS_ADDRESS(*pte) >> 12;
-    swappy_swap_page_in(pageid, e, (void*)fault_va, 0);
+    swappy_swap_page_in(e, (void*)fault_va, 0);
     
     /* Deschedule env */
     e->env_status = ENV_WAITING_SWAP;

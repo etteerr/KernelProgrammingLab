@@ -10,7 +10,7 @@
 #include "kern/env.h"
 #include "pmap.h"
 
-#define SWAPPY_PTE_TO_PAGEID(PTE) ((PTE_GET_PHYS_ADDRESS(PTE) - 1) >> 12)
+#define SWAPPY_PTE_TO_PAGEID(PTE) ((PTE_GET_PHYS_ADDRESS(PTE) >> 12)-1)
 
 enum {
     swappy_error_noerror = 0,
@@ -19,11 +19,14 @@ enum {
     swappy_error_noFreeSwapIndex,
     swappy_error_noRef,
     swappy_error_invalidId,
+    swappy_error_queue_full,
+    swappy_error_unswappable_page,
 } swappy_error;
 
 /* Swappy_swap_flags */
 #define SWAPPY_SWAP_QUEUE 0
 #define SWAPPY_SWAP_DIRECT 1
+#define SWAPPY_SWAP_BLOCKING 2
 
 /**
  * Queues a page for swapping (or direct swapping if SWAPPY_SWAP_DIRECT is given)
@@ -40,7 +43,7 @@ int swappy_swap_page_out(page_info_t * pp, int swappy_swap_flag);
  * @param swappy_swap_flag
  * @return 
  */
-int swappy_swap_page_in(uint32_t pageid, env_t * env, void * fault_va, int swappy_swap_flag);
+int swappy_swap_page_in(env_t * env, void * fault_va, int swappy_swap_flag);
 /**
  * Initializes swap queus and descriptors (+- 26 pages)
  * @return 

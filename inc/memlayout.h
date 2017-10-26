@@ -175,8 +175,9 @@ typedef union _rpage_control {
         unsigned userPage:1;
         unsigned free:1;
         unsigned alligned4mb:1;
+        unsigned swappable:1;
         uint8_t buddy_order;
-        unsigned rest:16;
+        unsigned rest:15;
     } reg;
 }rpage_control;
 

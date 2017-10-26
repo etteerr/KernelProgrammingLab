@@ -796,6 +796,8 @@ void page_free(struct page_info *pp) {
         current->c0.reg.huge = 0;
         //remove reference counter
         current->pp_ref = 0;
+        //Remove swappable
+        current->c0.reg.swappable = 0;
     }
 
     if (warn)
@@ -820,7 +822,7 @@ void page_decref(struct page_info *pp) {
         return;
     }
     
-    dprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), page_get_ref(pp) - 1, pp->c0.reg.huge);
+    dddprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), page_get_ref(pp) - 1, pp->c0.reg.huge);
     
     lock_pagealloc();
 
@@ -1246,7 +1248,7 @@ int get_mem_rss() {
     int i, rss_pages = 0;
     for(i = 0; i < npages; i++) {
         page_info_t *page = &pages[i];
-        if(page->pp_ref > 0) {
+        if(page->pp_ref > 0 || !page->c0.reg.free) {
             rss_pages++;
         }
     }

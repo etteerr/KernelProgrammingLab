@@ -118,7 +118,7 @@ void sched_yield(void)
     /* Iterates over envs, starting at curenv's index, wrapping
      * around NENVS to 0, and from there up to curenv's index. */
     for(i = 0; i < NENV; i++) {
-        env_i = shared_sched_get_next_iter() % NENV;
+        env_i = shared_sched_get_next_iter() % (unsigned long long int)(NENV);
         idle = &envs[env_i];
 
         /* Try to acquire lock (tests if runnable) */

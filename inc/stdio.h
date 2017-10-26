@@ -35,6 +35,7 @@ static char loglevel = 1;
 
 /* Debug print */
 #define KNRM  "\x1B[0m"
+#define KBLK  "\x1B[30m"
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
 #define KYEL  "\x1B[33m"
@@ -42,6 +43,7 @@ static char loglevel = 1;
 #define KMAG  "\x1B[35m"
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
+#define KBSD  "\x1B[44m"
 
 #define TRAPPRINT 0
 #ifndef DEBUGPRINT
@@ -49,11 +51,11 @@ static char loglevel = 1;
 #endif
 
 #define dprintf(fmt, ...) \
-        if (DEBUGPRINT && loglevel >= 1) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+        {if (DEBUGPRINT && loglevel >= 1) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__);}
 #define ddprintf(fmt, ...) \
-        if (DEBUGPRINT && loglevel >= 2) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+        {if (DEBUGPRINT && loglevel >= 2) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__);}
 #define dddprintf(fmt, ...) \
-        if (DEBUGPRINT && loglevel >= 3) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
+        {if (DEBUGPRINT && loglevel >= 3) cprintf("%s[%s%d%s|%s%s%s]%s " fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__);}
 #define eprintf(fmt, ...) \
         cprintf("%s[%s%d%s|%s%s%s]%s " KRED fmt, KBLU, KRED, cpunum(), KBLU, KYEL, __func__, KBLU, KGRN, ##__VA_ARGS__)
 
