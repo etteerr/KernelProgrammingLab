@@ -274,10 +274,10 @@ int swappy_swap_out(page_info_t * pp, env_t * tf) {
         if (tf->env_type != ENV_TYPE_KERNEL_THREAD)
             tf = 0;
     
-    if (!pp->c0.reg.swappable) {
-        eprintf("Unswappable page: %p\n", page2pa(pp));
-        return swappy_error_unswappable_page;
-    }
+//    if (!pp->c0.reg.swappable) {
+//        eprintf("Unswappable page: %p\n", page2pa(pp));
+//        return swappy_error_unswappable_page;
+//    }
     /* Aquire lock */
     swappy_lock_aquire(swappy_swap_lock);
 
