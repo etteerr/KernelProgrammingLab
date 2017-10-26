@@ -389,7 +389,7 @@ int trap_handle_cow(uint32_t fault_va){
         }
 
         /* Allocate new page */
-        page_info_t *new_page = page_alloc(ALLOC_ZERO);
+        page_info_t *new_page = page_alloc_crit(ALLOC_ZERO);
         assert(new_page != cow_page);
 
         /* TODO: remove debug statement */
@@ -443,7 +443,7 @@ int trap_handle_cow(uint32_t fault_va){
             }
 
             /* Now create 4M entry and handle cow */
-            page_info_t *new_page = page_alloc(ALLOC_HUGE);
+            page_info_t *new_page = page_alloc_crit(ALLOC_HUGE);
 
             /* TODO: remove debug statement */
             assert(new_page);
@@ -607,7 +607,7 @@ void handle_pf_pte(uint32_t fault_va){
     if (!pp || !pp2) {
         //Schedule emergency swap
         //But swapper is probably already busy, so just halt this env
-        //Than it will just keep trapping untill alloc works :)
+        //Than it will just keep trapping until alloc works :)
         if (pp)
             page_free(pp);
         if (pp2)

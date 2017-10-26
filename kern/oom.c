@@ -26,7 +26,7 @@ int env_rss(env_t *env) {
         for(j = 0; j < 1024; j++) {
             pte = *((pte_t *)KADDR(PDE_GET_ADDRESS(pde)));
             if(pte & PTE_BIT_PRESENT) {
-                page_info *page = pa2page(PTE_GET_PHYS_ADDRESS(pte));
+                page_info_t *page = pa2page(PTE_GET_PHYS_ADDRESS(pte));
 
                 /* Ignored unused (ref 0) or shared (ref >1) pages */
                 if(page->pp_ref == 1) {
@@ -66,6 +66,13 @@ env_t *find_max_rss_env() {
  */
 int oom_kill() {
     env_t *bad_guy = find_max_rss_env();
+
+    if(!bad_guy) {
+        return -1;
+    }
+
     ddprintf("Invoking OOM killer on env id %d", bad_guy->env_id);
     env_destroy(bad_guy);
+
+    return 0;
 }

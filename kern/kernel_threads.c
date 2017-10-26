@@ -47,7 +47,7 @@ int kern_thread_create(void (*entry)(env_t *)) {
     vma_new(e, (void*)KERNEL_THREAD_STACK_TOP-0x08000000, 0x08000000, VMA_PERM_WRITE | VMA_PERM_READ, VMA_ANON);
     
     /* page alloc stack */
-    page_info_t *pp = page_alloc(ALLOC_ZERO);
+    page_info_t *pp = page_alloc_crit(ALLOC_ZERO);
     if (!pp)
         panic("Page alloc failed!");
     
