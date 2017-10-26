@@ -160,7 +160,7 @@ int swappy_init() {
  * @param tf enviroment pointer, if set, causes write page to call kern_yield
  */
 void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf) {
-    dprintf("Swapping %p to swap index %d\n", pp, page_id);
+    dddprintf("Swapping %p to swap index %d\n", pp, page_id);
     ide_start_write(swappy_index_to_sector(page_id), swappy_sectors_per_page);
     char * buffer = page2kva(pp);
     for (int w = 0; w < swappy_sectors_per_page; w++) {
@@ -249,8 +249,8 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index) {
     uint32_t numref = 0;
     while ((pte = reverse_pte_lookup(pp, &it)) != 0) {
         swappy_incref(index);
-        *pte &= 0x1E; //reset address, preserve settings, except present
-        *pte |= (index + 1) << 12; //set address of pte to index of swap
+        (*pte) &= 0x1E; //reset address, preserve settings, except present
+        (*pte) |= (index + 1) << 12; //set address of pte to index of swap
         page_decref(pp);
         numref++;
     }
@@ -338,7 +338,7 @@ int swappy_queue_insert_swapout(page_info_t* pp, int blocking) {
         while (swappy_queue_items_out >= swappy_queue_size_swapout)
             asm volatile("pause");
     }else if (swappy_queue_items_out >= swappy_queue_size_swapout) {
-        eprintf("Swappy queue full\n");
+        ddprintf(KRED"Swappy queue full\n");
         return swappy_error_queue_full;
     }
 
@@ -355,7 +355,7 @@ int swappy_queue_insert_swapout(page_info_t* pp, int blocking) {
     swappy_swap_queue_out[writepos] = (uint32_t) pp;
 
 
-    dprintf("swapout queue length: %d\n", nitems);
+    dddprintf("swapout queue length: %d\n", nitems);
 
     /* Unlock */
     swappy_lock_release(lock);
@@ -447,6 +447,8 @@ int swappy_swap_page_out(page_info_t * pp, int flags) {
     assert(pp);
     
     assert(pp->pp_ref);
+    
+    assert(!(pp->c0.reg.kernelPage || pp->c0.reg.unclaimable || pp->c0.reg.bios));
     
     /* Direct swapping if needed */
     if (flags & SWAPPY_SWAP_DIRECT) {
@@ -578,9 +580,11 @@ void swappy_stop_service() {
 
 void swappy_unit_test_case() {
     dprintf("Starting test...\n");
-
+    
+    uint32_t testaddr = 0x0d000000;
+    uint32_t test_table = testaddr/(4 << 20);
     /* store first kern_pgdir entry */
-    pde_t kpde = kern_pgdir[0];
+    pde_t kpde = kern_pgdir[test_table];
 
     /* Set hack to include kernel pgdir */
     reverse_pagetable_look_kern = 1;
@@ -588,16 +592,17 @@ void swappy_unit_test_case() {
     /* Alloc page and insert */
     dprintf("Allocate and insert page.\n");
     page_info_t * pp = page_alloc(ALLOC_ZERO);
+    dprintf("Allocated page %p->%p\n", pp, page2pa(pp));
     pp->c0.reg.swappable = 1;
-    page_insert(kern_pgdir, pp, (void*) 0x1000, PTE_BIT_RW);
+    page_insert(kern_pgdir, pp, (void*) testaddr, PTE_BIT_RW);
 
     /* assert page is present */
     dprintf("Assert page is present.\n");
-    assert(*pgdir_walk(kern_pgdir, (void*) 0x1000, 0) && PTE_BIT_PRESENT);
+    assert(*pgdir_walk(kern_pgdir, (void*) testaddr, 0) && PTE_BIT_PRESENT);
 
     /* Write test value to page */
     dprintf("Write to allocated memory.\n");
-    uint32_t * mem = (uint32_t *) 0x1000;
+    uint32_t * mem = (uint32_t *) testaddr;
     *mem = 0xDEADBEEF;
 
     /* Swap out */
@@ -608,13 +613,14 @@ void swappy_unit_test_case() {
     /* Assert page is swapped */
     dprintf("Assert page is swapped.\n");
     assert(pp->pp_ref == 0);
-    pte_t pte = *pgdir_walk(kern_pgdir, (void*) 0x1000, 0);
+    pte_t pte = *pgdir_walk(kern_pgdir, (void*) testaddr, 0);
     assert((pte & PTE_BIT_PRESENT) == 0);
 
     /* Alloc page again (make sure we already have the pte!) */
     dprintf("Allocate new page & insert.\n");
     pp = page_alloc(ALLOC_ZERO);
-    page_insert(kern_pgdir, pp, (void*) 0x1000, 0);
+    dprintf("Allocated page %p->%p\n", pp, page2pa(pp));
+    page_insert(kern_pgdir, pp, (void*) testaddr, 0);
 
     /* retrieve page */
     dprintf("retrieve page from swap.\n");
@@ -628,7 +634,7 @@ void swappy_unit_test_case() {
 
     /* REstore pte to 0 */
     dprintf("Cleaning...\n");
-    *pgdir_walk(kern_pgdir, (void*) 0x1000, 0) = 0;
+    *pgdir_walk(kern_pgdir, (void*) testaddr, 0) = 0;
 
     /* Free page */
     page_decref(pp);
@@ -636,9 +642,9 @@ void swappy_unit_test_case() {
     /* REstore hack */
     reverse_pagetable_look_kern = 0;
 
-    /* Clean the pgdir at 0x1000 */
-    page_info_t* addr = pa2page(PDE_GET_ADDRESS(kern_pgdir[0]));
+    /* Clean the pgdir at testaddr */
+    page_info_t* addr = pa2page(PDE_GET_ADDRESS(kern_pgdir[test_table]));
     page_decref(addr);
-    kern_pgdir[0] = kpde;
+    kern_pgdir[test_table] = kpde;
     dprintf("Test successfull!.\n");
 }

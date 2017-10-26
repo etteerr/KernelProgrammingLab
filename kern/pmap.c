@@ -808,7 +808,7 @@ void page_decref(struct page_info *pp) {
         return;
     }
     
-    dprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), page_get_ref(pp) - 1, pp->c0.reg.huge);
+    dddprintf("page (%p) has %d refs remaining (huge %d).\n", page2pa(pp), page_get_ref(pp) - 1, pp->c0.reg.huge);
     
     lock_pagealloc();
 

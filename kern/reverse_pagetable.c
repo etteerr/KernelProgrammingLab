@@ -30,26 +30,38 @@ volatile int reverse_pagetable_look_kern = 0;
  * @return pte_t pointer if found, 0 if nothing was found
  */
 pte_t * reverse_pte_lookup_pgdir(pde_t * pd, page_info_t* page, uint16_t* pgdir_i, uint16_t* pte_i){
-    
-    for(; *pgdir_i < (UTOP/(PGSIZE*1024)); (*pgdir_i)++) {
+    static uint32_t nptes = 0;
+    static uint32_t nptes_p = 0;
+    for(; *pgdir_i < 1024; (*pgdir_i)++) {
         /* entry must be present */
         if ((pd[*pgdir_i] & PDE_BIT_PRESENT)==0) {
             *pte_i = 0;
+            //dprintf("Address range %p-%p not present\n",PGADDR(*pgdir_i, 0, 0),PGADDR((*pgdir_i)+1, 0, 0));
             continue;
         }
         
         //TODO: huge support
         if (pd[*pgdir_i] & PDE_BIT_HUGE) {
             *pte_i = 0;
+            //dprintf("Address range %p-%p are huge\n",PGADDR(*pgdir_i, 0, 0),PGADDR((*pgdir_i)+1, 0, 0));
             continue; //DOnt support huge pages for now
         }
+        
+        //dprintf("Address range %p-%p are found\n",PGADDR(*pgdir_i, 0, 0),PGADDR((*pgdir_i)+1, 0, 0));
         
         /* Enter pgtable */
         pte_t * pt = (pte_t * )KADDR(PDE_GET_ADDRESS(pd[*pgdir_i]));
         for(; *pte_i < 1024; (*pte_i)++) {
+            //if (*pgdir_i < 5) dprintf("%d:%d\t%p\n",*pgdir_i, *pte_i, pt[*pte_i]); //
+            /* Stop if we reach utop */
+            if ((uint32_t)PGADDR(*pgdir_i, *pte_i, 0) >= UTOP) {
+                return 0;
+            }
+            if (pt[*pte_i]) nptes++;
             if (pt[*pte_i] & PTE_BIT_PRESENT) {
+                nptes_p++;
                 uint32_t pa = PTE_GET_PHYS_ADDRESS(pt[*pte_i]);
-                if (pa && pa2page(pa) == page) {
+                if (pa2page(pa) == page) {
                     //Our page, return pte
                     pte_t * ourpte = &pt[*pte_i];
                     (*pte_i)++;
@@ -57,6 +69,11 @@ pte_t * reverse_pte_lookup_pgdir(pde_t * pd, page_info_t* page, uint16_t* pgdir_
                 }
             }
         }
+        //if (nptes) dprintf("Pages present: %d of a total of %d ptes found\n", nptes_p, nptes);
+        nptes_p = nptes = 0;
+        
+        /* RESET THE FUCKING ITERATOR */
+        *pte_i = 0;
     }
     
     return 0;
@@ -74,6 +91,8 @@ pte_t * reverse_pte_lookup(page_info_t * page, uint64_t * iter) {
         eprintf("Invalid usage of this function: iter must be a valid pointer!\n");
         return 0;
     }
+    
+    //dprintf("Looking for %p (%d MiB)\n",page2pa(page),page2pa(page)>>20);
     
     /* Make 3 iters of iter */
     uint32_t *env_i;

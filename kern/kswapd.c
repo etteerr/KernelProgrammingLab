@@ -66,12 +66,14 @@ void kswapd_service(env_t * tf) {
     size_t headi = 0;
     dprintf("Kswapd service started as env %d.\n", tf->env_id);
     uint32_t check_ref_loop_iter = 0;
-    
+    uint32_t noRefCounter = 0;
+    uint32_t used_pages_ = 0;
     while(running) {     
         /* Set new head */
         check_ref_loop_iter++;
         headi = (headi+1) % npages;
         page_info_t * head = &pages[headi];
+        
         
         if(check_ref_loop_iter > 5000) {
             check_ref_loop_iter = 0;
@@ -90,11 +92,26 @@ void kswapd_service(env_t * tf) {
             continue;
         }
         
+        if (head->c0.reg.free)
+            continue;
+        
         /* Found a page, get ready for big work and reset small loop iter */
         check_ref_loop_iter = 0;
         
+        /* Check and unset access bits */
+        int hasRefs = 0;
+        
+        if (clear_last_access(head, &hasRefs)) {
+            kern_thread_yield(tf);
+            continue;
+        }
+
         /* Check amount of free pages */
         uint32_t used_pages = get_mem_rss();
+        if (used_pages_ != used_pages) {
+            dddprintf("Usaged pages: %d\n", used_pages);
+            used_pages_ = used_pages;
+        }
         
         /* Don't do anything if memory pressure is low */
         if((used_pages / (float)npages) < mem_press_thresh) {
@@ -106,18 +123,15 @@ void kswapd_service(env_t * tf) {
         if ((npages - used_pages) >= 10)
             kern_thread_yield(tf);
         
-        int hasRefs = 0;
-        
-        if (clear_last_access(head, &hasRefs)) {
-            kern_thread_yield(tf);
-            continue;
-        }
-        
         if (!hasRefs) {
+            noRefCounter++;
             kern_thread_yield(tf);
             continue;
         }
-
+        
+        if (noRefCounter) eprintf("%d pages had no references!\n", noRefCounter);
+        noRefCounter = 0;
+        
         kswapd_try_swap(head);
         
         /* Big work finished, yield */
@@ -151,7 +165,8 @@ void kswapd_try_swap(page_info_t *page) {
      * 
      * can return swappy_error_queue_full
      */
-    swappy_swap_page_out(page, 0);
+    if (swappy_swap_page_out(page, 0)==0)
+        page->c0.reg.swappable = 0;
 }
 
 void kswapd_start_service() {

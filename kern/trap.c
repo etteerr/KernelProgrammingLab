@@ -627,9 +627,6 @@ void handle_pf_pte(uint32_t fault_va){
         murder_env(curenv, fault_va);
     }
     
-    /* Set user allocated page (vma_anon) to be swappable */
-    pp->c0.reg.swappable = 1;
-    
     vma_t * vma = vma_lookup(curenv, (void*)fault_va, 0);
     int perm = PTE_BIT_PRESENT | PTE_BIT_USER;
     perm |= vma->perm & VMA_PERM_WRITE ? PTE_BIT_RW : 0;
@@ -639,6 +636,9 @@ void handle_pf_pte(uint32_t fault_va){
         page_decref(pp);
         murder_env(curenv, fault_va);
     }
+    
+    /* Set user allocated page (vma_anon) to be swappable */
+    pp->c0.reg.swappable = 1;
 }
 
 int handle_swap_fault(uint32_t fault_va) {
