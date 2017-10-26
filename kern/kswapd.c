@@ -17,23 +17,6 @@
 static char running = 1;
 static float mem_press_thresh = 0.8;
 
-void kswapd_try_swap(page_info_t *pInfo);
-
-/**
- * Counts the amount of physical pages currently in use.
- * @return int
- */
-int get_mem_rss() {
-    int i, rss_pages = 0;
-    for(i = 0; i < npages; i++) {
-        page_info_t *page = &pages[i];
-        if(page->pp_ref > 0) {
-            rss_pages++;
-        }
-    }
-    return rss_pages;
-}
-
 /**
  * Clears last access bit in all env PTEs for given physical page,
  * and returns 1 if at least one PTE had the page marked as accessed,
@@ -80,7 +63,7 @@ void kswapd_service(env_t * tf) {
             continue;
         }
 
-        kswapd_try_swap(head);
+        kswapd_try_swap(head, 0);
 
         /* Move to next page */
         head = head->pp_link;
@@ -89,7 +72,7 @@ void kswapd_service(env_t * tf) {
     dprintf("Kswapd service stopped.\n");
 }
 
-void kswapd_try_swap(page_info_t *page) {
+void kswapd_try_swap(page_info_t *page, int blocking) {
     pte_t *pte;
     env_t *env = &envs[0];
     uint16_t pgdir_i = 0, pte_i = 0;
@@ -104,7 +87,7 @@ void kswapd_try_swap(page_info_t *page) {
             return;
         }
 
-        swappy_swap_page_out(page, 0);
+        swappy_swap_page_out(page, blocking ? SWAPPY_SWAP_DIRECT : SWAPPY_SWAP_QUEUE);
 
     } while ((env = env->env_link));
 }
@@ -123,4 +106,8 @@ void kswapd_stop_service() {
  * Traps when called from non-priviliged code, because of permission pagefault. */
 void kwswapd_set_threshold(float threshold) {
     mem_press_thresh = threshold;
+}
+
+int kswapd_direct_reclaim() {
+    
 }

@@ -10,7 +10,7 @@
 void kswapd_service(env_t * tf);
 void kswapd_start_service();
 void kswapd_stop_service();
-void kswapd_try_swap(page_info_t *page);
+void kswapd_try_swap(page_info_t *page, int blocking);
 void kwswapd_set_threshold(float threshold);
 
 #endif //KERNELPROGRAMMINGLAB_KSWAPD_H
