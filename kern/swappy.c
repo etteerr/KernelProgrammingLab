@@ -27,8 +27,11 @@ typedef struct {
     volatile uint8_t ref; /* Set SWAPPY_REF_BIT_SIZE acordingly */
 } __attribute__ ((packed)) swappy_swap_descriptor;
 
-#define swappy_lock_aquire(LOCK) while(!sync_val_compare_and_swap(&LOCK, 0, 1)) asm volatile("pause"); sync_barrier()
-#define swappy_lock_release(LOCK) while(!sync_val_compare_and_swap(&LOCK, 1, 0)) asm volatile("pause"); sync_barrier()
+#define swappy_lock_aquire(LOCK) while(!sync_bool_compare_and_swap(&LOCK, 0, 1)) asm volatile("pause"); sync_barrier()
+#define swappy_lock_release(LOCK) while(!sync_bool_compare_and_swap(&LOCK, 1, 0)) asm volatile("pause"); sync_barrier()
+
+#define swappy_lock_aquire_yield(LOCK) while(!sync_bool_compare_and_swap(&LOCK, 0, 1)) kern_thread_yield(tf); sync_barrier()
+#define swappy_lock_release_yield(LOCK) while(!sync_bool_compare_and_swap(&LOCK, 1, 0)) kern_thread_yield(tf); sync_barrier()
 
 #define swappy_queue_size_swapout (PGSIZE/sizeof(uint32_t))
 #define swappy_queue_size_swapin (PGSIZE/sizeof(swappy_swapin_task))
@@ -154,6 +157,7 @@ int swappy_init() {
     return swappy_error_noerror;
 }
 
+static volatile int rw_lock = 0;
 /**
  * Writes a page out to disk
  * @param pp
@@ -161,6 +165,15 @@ int swappy_init() {
  * @param tf enviroment pointer, if set, causes write page to call kern_yield
  */
 void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf) {
+    if (tf) {
+        swappy_lock_aquire_yield(rw_lock);
+    } else {
+        if (!sync_bool_compare_and_swap(&rw_lock, 0, 1)) {
+            page_decref(pp);
+            sched_yield();
+        }
+    }
+    
     dddprintf("Swapping %p to swap index %d\n", pp, page_id);
     ide_start_write(swappy_index_to_sector(page_id), swappy_sectors_per_page);
     char * buffer = page2kva(pp);
@@ -172,9 +185,18 @@ void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf) {
 
         ide_write_sector(buffer + (w * SECTSIZE));
     }
+    swappy_lock_release(rw_lock);
 }
 
 void swappy_read_page(page_info_t* pp, uint16_t page_id, env_t* tf) {
+    if (tf) {
+        swappy_lock_aquire_yield(rw_lock);
+    } else {
+        if (!sync_bool_compare_and_swap(&rw_lock, 0, 1)) {
+            page_decref(pp);
+            sched_yield();
+        }
+    }
     dddprintf("Unswapping index %d to page %p\n", page_id, pp);
     char * buffer = page2kva(pp);
     ide_start_read(swappy_index_to_sector(page_id), swappy_sectors_per_page);
@@ -185,6 +207,7 @@ void swappy_read_page(page_info_t* pp, uint16_t page_id, env_t* tf) {
             while (!ide_is_ready()) asm volatile("pause");
         ide_read_sector(buffer + (SECTSIZE * i));
     }
+    swappy_lock_release(rw_lock);
 }
 
 void swappy_decref(uint32_t index) {
@@ -377,7 +400,7 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
     assert((opte & PTE_BIT_PRESENT) == 0);
 
     /* Allocate page for env */
-    dddprintf("Allocating page for env %d: va %p...\n", task.env->env_id, task.fault_va);
+    dprintf("Allocating page for env %d: va %p...\n", task.env->env_id, task.fault_va);
     page_info_t *pp; //will be overwritten so no zero
     while( (pp = page_alloc(0)) == 0) {
         if (tf) {
@@ -391,7 +414,7 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
 
     /* Swap in */
     if (pp) {
-        dddprintf("Allocation successfull, swapping in page...\n");
+        dprintf("Allocation successfull, swapping in page from index %d...\n", pageId);
         /* Allocation succesfull, set page to be swappable */
         if (swappy_retrieve_page(pageId, pp, tf)) {
             eprintf("Error while swapping page %p!\n", pp);
@@ -399,7 +422,8 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
         }
 
         /* Insert page and make env runnable */
-        dddprintf("Page swapin for env %d: %p successfull, inserting and finishing request...\n", task.env->env_id, task.fault_va);
+        dprintf("Page swapin for env %d: %p successfull, inserting...\n", task.env->env_id, task.fault_va);
+        dprintf("First value in page: %p (read address: %p)\n", *((uint32_t*)page2kva(pp)), task.fault_va);
         page_insert(task.env->env_pgdir, pp, task.fault_va, opte & 0x1FF);
         task.env->env_status = ENV_RUNNABLE;
         pp->c0.reg.swappable = 1;
