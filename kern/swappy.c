@@ -547,7 +547,6 @@ void swappy_service_swapout(env_t * tf) {
         if (pp) {
             if (swappy_swap_out(pp, tf)) {
                 eprintf("Error while swapping page %p!\n", pp);
-                panic("Error while swapping!");
             }
             ddprintf("%d items remaining in swapout queue\n", items_remain);
         } else {
