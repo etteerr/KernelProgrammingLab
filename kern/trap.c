@@ -650,7 +650,7 @@ int handle_swap_fault(uint32_t fault_va) {
     e->env_status = ENV_WAITING_SWAP;
     
     /* Try to retrieve page */
-    if (swappy_swap_page_in(e, (void*)fault_va, SWAPPY_SWAP_DIRECT)) {
+    if (swappy_swap_page_in(e, (void*)fault_va, 0)) {
         /* Queue was full, so reset envs status and trigger this trap again */
         e->env_status = ENV_RUNNABLE; //runnable so other envs get a chance
     }

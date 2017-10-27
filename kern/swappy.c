@@ -401,10 +401,11 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
     /*  asserts  */
     if (opte & PTE_BIT_PRESENT) {
         /* Service was already provided */
+        task.env->env_status = ENV_RUNNABLE;
         swappy_lock_release(lock);
         return;
     }
-    assert(task.env->env_status == ENV_WAITING_SWAP);
+    //assert(task.env->env_status == ENV_WAITING_SWAP);
     assert((opte & PTE_BIT_PRESENT) == 0);
 
     /* Allocate page for env */
@@ -433,7 +434,6 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
         dddprintf("Page swapin for env %d: %p successfull, inserting...\n", task.env->env_id, task.fault_va);
         ddprintf("First value in page: %p (read address: %p)\n", *((uint32_t*)page2kva(pp)), task.fault_va);
         page_insert(task.env->env_pgdir, pp, task.fault_va, opte & 0x1FF);
-        task.env->env_status = ENV_RUNNABLE;
         pp->c0.reg.swappable = 1;
 
     } else {
@@ -441,6 +441,7 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
         murder_env(task.env, (uint32_t) task.fault_va);
     }
 
+    task.env->env_status = ENV_RUNNABLE;
     swappy_lock_release(lock);
 }
 
