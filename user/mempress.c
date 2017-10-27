@@ -38,7 +38,7 @@ void umain(int argc, char **argv)
         if (gigs[i] != (char) 0xd0)
             cprintf("Fail: %p\n", gigs[i]);
         assert(gigs[i] == (char) 0xd0);
-        if (i%((1<<20)+37)==0) {
+        if (i%(PGSIZE*10 + 37)==0) {
             cprintf("User read %d of %d MiB\n", i>>20, (sizeof(char) * MEM_BLOCK_SIZE)>>20);
         }
     }
