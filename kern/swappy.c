@@ -174,7 +174,7 @@ void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf) {
         }
     }
     
-    dddprintf("Swapping %p to swap index %d\n", pp, page_id);
+    dprintf("Swapping %p to swap index %d\n", pp, page_id);
     ide_start_write(swappy_index_to_sector(page_id), swappy_sectors_per_page);
     char * buffer = page2kva(pp);
     for (int w = 0; w < swappy_sectors_per_page; w++) {
@@ -197,7 +197,7 @@ void swappy_read_page(page_info_t* pp, uint16_t page_id, env_t* tf) {
             sched_yield();
         }
     }
-    dddprintf("Unswapping index %d to page %p\n", page_id, pp);
+    dprintf("Unswapping index %d to page %p\n", page_id, pp);
     char * buffer = page2kva(pp);
     ide_start_read(swappy_index_to_sector(page_id), swappy_sectors_per_page);
     for (int i = 0; i < swappy_sectors_per_page; i++) {
@@ -223,13 +223,13 @@ void swappy_decref(uint32_t index) {
  */
 int swappy_retrieve_page(uint16_t page_id, page_info_t *pp, env_t * tf) {
     /* Aquire lock */
-    swappy_lock_aquire(swappy_swap_lock);
+    //swappy_lock_aquire(swappy_swap_lock);
 
     /* load page from disk if it was referenced */
     if (!swappy_desc_arr[page_id].ref) {
         /* No reference */
         eprintf("No reference to swap id %d found!\n", page_id);
-        swappy_lock_release(swappy_swap_lock);
+        //swappy_lock_release(swappy_swap_lock);
         return swappy_error_noRef;
     }
     
@@ -243,7 +243,7 @@ int swappy_retrieve_page(uint16_t page_id, page_info_t *pp, env_t * tf) {
     swappy_decref(page_id);
 
     /* Release lock */
-    swappy_lock_release(swappy_swap_lock);
+    //swappy_lock_release(swappy_swap_lock);
     return 0;
 }
 
@@ -363,6 +363,7 @@ int swappy_queue_insert_swapout(page_info_t* pp, int blocking) {
             asm volatile("pause");
     }else if (swappy_queue_items_out >= swappy_queue_size_swapout) {
         ddprintf(KRED"Swappy queue full\n");
+        swappy_lock_release(lock);
         return swappy_error_queue_full;
     }
 
@@ -396,11 +397,16 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
     uint32_t pageId = SWAPPY_PTE_TO_PAGEID(opte);
 
     /*  asserts  */
+    if (opte & PTE_BIT_PRESENT) {
+        /* Service was already provided */
+        swappy_lock_release(lock);
+        return;
+    }
     assert(task.env->env_status == ENV_WAITING_SWAP);
     assert((opte & PTE_BIT_PRESENT) == 0);
 
     /* Allocate page for env */
-    dprintf("Allocating page for env %d: va %p...\n", task.env->env_id, task.fault_va);
+    dddprintf("Allocating page for env %d: va %p...\n", task.env->env_id, task.fault_va);
     page_info_t *pp; //will be overwritten so no zero
     while( (pp = page_alloc(0)) == 0) {
         if (tf) {
@@ -414,7 +420,7 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
 
     /* Swap in */
     if (pp) {
-        dprintf("Allocation successfull, swapping in page from index %d...\n", pageId);
+        dddprintf("Allocation successfull, swapping in page from index %d...\n", pageId);
         /* Allocation succesfull, set page to be swappable */
         if (swappy_retrieve_page(pageId, pp, tf)) {
             eprintf("Error while swapping page %p!\n", pp);
@@ -422,8 +428,8 @@ void swappy_thread_retrieve_page(env_t* tf, swappy_swapin_task task) {
         }
 
         /* Insert page and make env runnable */
-        dprintf("Page swapin for env %d: %p successfull, inserting...\n", task.env->env_id, task.fault_va);
-        dprintf("First value in page: %p (read address: %p)\n", *((uint32_t*)page2kva(pp)), task.fault_va);
+        dddprintf("Page swapin for env %d: %p successfull, inserting...\n", task.env->env_id, task.fault_va);
+        ddprintf("First value in page: %p (read address: %p)\n", *((uint32_t*)page2kva(pp)), task.fault_va);
         page_insert(task.env->env_pgdir, pp, task.fault_va, opte & 0x1FF);
         task.env->env_status = ENV_RUNNABLE;
         pp->c0.reg.swappable = 1;
@@ -462,7 +468,7 @@ int swappy_queue_insert_swapin(swappy_swapin_task task, int blocking) {
     /* Add to n items */
     uint32_t nitems = sync_add_and_fetch(&swappy_queue_items_in, 1);
 
-    dprintf("swapin queue length: %d\n", nitems);
+    dddprintf("swapin queue length: %d\n", nitems);
 
     /* Unlock */
     swappy_lock_release(lock);
