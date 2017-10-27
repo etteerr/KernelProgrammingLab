@@ -174,7 +174,7 @@ void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf) {
         }
     }
     
-    dprintf("Swapping %p to swap index %d\n", pp, page_id);
+    dddprintf("Swapping %p to swap index %d\n", pp, page_id);
     ide_start_write(swappy_index_to_sector(page_id), swappy_sectors_per_page);
     char * buffer = page2kva(pp);
     for (int w = 0; w < swappy_sectors_per_page; w++) {
@@ -197,7 +197,7 @@ void swappy_read_page(page_info_t* pp, uint16_t page_id, env_t* tf) {
             sched_yield();
         }
     }
-    dprintf("Unswapping index %d to page %p\n", page_id, pp);
+    dddprintf("Unswapping index %d to page %p\n", page_id, pp);
     char * buffer = page2kva(pp);
     ide_start_read(swappy_index_to_sector(page_id), swappy_sectors_per_page);
     for (int i = 0; i < swappy_sectors_per_page; i++) {
