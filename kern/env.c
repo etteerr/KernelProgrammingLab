@@ -410,7 +410,7 @@ static void region_alloc(struct env *e, void *va, size_t len)
                     (void*)(rva + (i*PGSIZE)),
                     PDE_BIT_RW | PDE_BIT_USER | PDE_BIT_PRESENT
                     );
-        (pp+i)->c0.reg.swappable = 0;
+        (pp+i)->c0.reg.swappable = 1;
     }
 
     //Check if there were any errors

@@ -169,7 +169,7 @@ void swappy_write_page(page_info_t* pp, uint32_t page_id, env_t * tf) {
         swappy_lock_aquire_yield(rw_lock);
     } else {
         if (!sync_bool_compare_and_swap(&rw_lock, 0, 1)) {
-            page_decref(pp);
+            page_free(pp);
             sched_yield();
         }
     }
@@ -275,8 +275,10 @@ void swappy_RemRef_mpage(page_info_t* pp, uint32_t index) {
         swappy_incref(index);
         (*pte) &= 0x1E; //reset address, preserve settings, except present
         (*pte) |= (index + 1) << 12; //set address of pte to index of swap
-        page_decref(pp);
-        numref++;
+        if (pp->pp_ref) {
+            page_decref(pp);
+            numref++;
+        }
     }
     if (numref){
         ddprintf("Page swapped and %d references were found.\n", numref);
