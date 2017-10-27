@@ -193,7 +193,7 @@ void swappy_read_page(page_info_t* pp, uint16_t page_id, env_t* tf) {
         swappy_lock_aquire_yield(rw_lock);
     } else {
         if (!sync_bool_compare_and_swap(&rw_lock, 0, 1)) {
-            page_decref(pp);
+            page_free(pp);
             sched_yield();
         }
     }

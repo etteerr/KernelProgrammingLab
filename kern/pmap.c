@@ -492,6 +492,7 @@ void buddy_init() {
 void prepare_page(struct page_info *page, int alloc_flags) {
     //assert page is free (must)
     assert(page->c0.reg.free);
+    assert(!page->c0.reg.bios && !page->c0.reg.unclaimable);
     //No outstanding references
     assert(!page->pp_ref);
 
@@ -708,6 +709,7 @@ struct page_info *page_alloc(int alloc_flags) {
             if (pa < 4<<20) {
                 //Our page in low VM
                 assert(i->c0.reg.free);
+                assert(!i->c0.reg.bios && !i->c0.reg.unclaimable);
                 *p = i->pp_link;
 
                 page = i;

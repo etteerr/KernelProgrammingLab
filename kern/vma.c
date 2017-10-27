@@ -16,7 +16,7 @@ void __dealloc_range(env_t *e, void *va, size_t len) {
 
     for(; i<end; i+= PGSIZE) {
         pte_t * pte = pgdir_walk(e->env_pgdir, (void*)i, 0);
-        if (pte) {
+        if (pte && *pte & PTE_BIT_PRESENT) {
             uint32_t pa = PTE_GET_PHYS_ADDRESS(*pte);
             if (pa) {
                 struct page_info * pp = pa2page(pa);
