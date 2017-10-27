@@ -21,7 +21,7 @@ void __dealloc_range(env_t *e, void *va, size_t len) {
             if (pa) {
                 struct page_info * pp = pa2page(pa);
                 if (pp) {
-                    if (!pp->c0.reg.kernelPage)
+                    if (!pp->c0.reg.kernelPage && !pp->c0.reg.free)
                         page_decref(pp);
                     *pte = 0;
                     tlb_invalidate(e->env_pgdir, (void*)i);
