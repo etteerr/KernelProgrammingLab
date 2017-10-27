@@ -27,20 +27,16 @@ void umain(int argc, char **argv)
 
     /* Write to all of available physical memory (and more) */
     PRINT("Memsetting to 0xd0...\n");
-    //memset(gigs, 0xd0, sizeof(char) * MEM_BLOCK_SIZE);
-    for(uint32_t i = 0; i<sizeof(char) * MEM_BLOCK_SIZE; i+=sizeof(uint32_t)) {
-        *((uint32_t*)(gigs+i)) = 0xd0d0d0d0;
-        if (i%(1<<20)==0) {
-            cprintf("User memset %d of %d MiB\n", i>>20, (sizeof(char) * MEM_BLOCK_SIZE)>>20);
-        }
+    memset(gigs, 0xd0, sizeof(char) * MEM_BLOCK_SIZE);
 
-    }
     cprintf("%p\n", gigs[10]);
     assert(gigs[10] == (char) 0xd0);
     PRINT("Memory of size %d bytes set to: %x\n", MEM_BLOCK_SIZE, gigs[10]);
 
     /* Read every page so that they get swapped back again */
     for(i = 37; i < MEM_BLOCK_SIZE; i+= PGSIZE) { 
+        if (gigs[i] != (char) 0xd0)
+            cprintf("Fail: %p\n", gigs[i]);
         assert(gigs[i] == (char) 0xd0);
         if (i%((1<<20)+37)==0) {
             cprintf("User read %d of %d MiB\n", i>>20, (sizeof(char) * MEM_BLOCK_SIZE)>>20);
